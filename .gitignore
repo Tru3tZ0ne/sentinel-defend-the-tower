@@ -19,3 +19,8 @@ tools/_perf.mjs
 tools/_cov.mjs
 tools/_dbg.mjs
 tools/_dbg2.mjs
+tools/_probe.mjs
+tools/probe/
+tools/_probe2.mjs
+tools/_closeup.mjs
+tools/_logic.mjs

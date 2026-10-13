@@ -9,6 +9,12 @@ import { createWorld } from './world/world.js';
 import { buildBuilding } from './world/building.js';
 import { createFx } from './world/fx.js';
 import { createPeople } from './world/people.js';
+import { GLTFLoader } from './vendor/three/GLTFLoader.js';
+
+// Realistic rigged+animated NPC model (swap this path for a licensed business-character pack).
+const CHAR_MODEL = 'assets/models/CesiumMan.glb';
+let charGltf = null;
+new GLTFLoader().load(CHAR_MODEL, g => { charGltf = g; }, undefined, () => { charGltf = null; });
 import { Engine } from './game/engine.js';
 import { getHint } from './game/sophia.js';
 import { icon } from './ui/icons.js';
@@ -35,7 +41,7 @@ function initStage() {
   stage = new THREE.Group(); world.scene.add(stage);
   building = buildBuilding(THREE, LAYOUT); stage.add(building.group);
   fx = createFx(stage, building);
-  people = createPeople(stage, building, publicNodes);
+  people = createPeople(stage, building, publicNodes, charGltf);
   // Visitor lanyards are worn by a couple of staff too, so the badge never gives the intruder away.
   const lanyard = new Set(['e1', 'e4']);
   for (const e of EMPLOYEES) people.add({ id: e.id, startNode: 'room:' + e.home, role: 'employee', home: e.home, visitor: lanyard.has(e.id) });

@@ -2,6 +2,7 @@
 // and a raycaster for picking. Keeps rendering concerns out of the game logic.
 import * as THREE from 'three';
 import { OrbitControls } from '../vendor/three/OrbitControls.js';
+import { RoomEnvironment } from '../vendor/three/RoomEnvironment.js';
 
 export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -13,6 +14,10 @@ export function createWorld(canvas) {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
+  // image-based lighting for realistic reflections on metal/glass/screens
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.13;   // subtle realistic reflections without washing out the night mood
   // night security-operations backdrop: a dark room with a cool glow toward the top
   const bg = document.createElement('canvas'); bg.width = 16; bg.height = 256;
   const bgx = bg.getContext('2d'); const grd = bgx.createLinearGradient(0, 0, 0, 256);
@@ -21,12 +26,19 @@ export function createWorld(canvas) {
   const bgTex = new THREE.CanvasTexture(bg); bgTex.colorSpace = THREE.SRGBColorSpace; scene.background = bgTex;
   scene.fog = new THREE.Fog(0x070b16, 44, 115);
 
-  // holographic command-table base: a faint cyan grid the model sits on
-  const grid = new THREE.GridHelper(120, 80, 0x2f6ea0, 0x16304a);
-  grid.position.y = -0.62; grid.material.transparent = true; grid.material.opacity = 0.3; scene.add(grid);
-  const halo = new THREE.Mesh(new THREE.CircleGeometry(26, 48).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({ color: 0x0c1a2c, transparent: true, opacity: 0.55 }));
-  halo.position.y = -0.6; scene.add(halo);
+  // a real place, not a model on a table: a dark ground far below + a night-city skyline
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600).rotateX(-Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0x090e18, roughness: 0.9, metalness: 0.2 }));
+  ground.position.y = -16; ground.receiveShadow = true; scene.add(ground);
+  const city = new THREE.Group();
+  for (let i = 0; i < 90; i++) {
+    const a = Math.random() * Math.PI * 2, r = 55 + Math.random() * 120;
+    const w = 5 + Math.random() * 9, h = 10 + Math.random() * 60;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w),
+      new THREE.MeshStandardMaterial({ color: 0x0b1222, emissive: 0x1a2f52, emissiveIntensity: 0.35 + Math.random() * 0.3, roughness: 0.85 }));
+    b.position.set(Math.cos(a) * r, -16 + h / 2, Math.sin(a) * r); city.add(b);
+  }
+  scene.add(city);
 
   const camera = new THREE.PerspectiveCamera(33, 1, 0.1, 300);
   camera.position.set(1.5, 33, 29);

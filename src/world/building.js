@@ -43,9 +43,8 @@ export function buildBuilding(THREE, LAYOUT) {
   const node = (id, pos) => { nav.nodes.set(id, { id, pos: pos.clone ? pos.clone() : V(pos.x, pos.y, pos.z), floor: 0 }); nav.adj.set(id, nav.adj.get(id) || []); };
   const link = (a, b) => { if (nav.adj.get(a) && nav.adj.get(b)) { nav.adj.get(a).push(b); nav.adj.get(b).push(a); } };
 
-  // ---------- diorama base + floor ----------
-  const base = box(FW + 3.2, 0.7, FD + 3.2, P.base, true, true); add(base, MX, -0.37, MZ);
-  add(box(FW + 2.6, 0.08, FD + 2.6, P.baseTop, false, true), MX, -0.015, MZ);
+  // ---------- floor slab (a real building floor, not a diorama base) ----------
+  add(box(FW + 0.6, 0.4, FD + 0.6, mat(0x141a28, { roughness: 0.95 }), true, true), MX, -0.22, MZ);
   const floor = box(FW, 0.1, FD, mat(P.floor, { roughness: 0.9 }), false, true); add(floor, MX, 0.0, MZ);
   // subtle plank lines
   for (let x = B.x0 + 2; x < B.x1; x += 2) add(box(0.03, 0.005, FD, mat(P.floorLine)), x, 0.051, MZ, group).receiveShadow = true;
