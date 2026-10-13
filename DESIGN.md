@@ -25,6 +25,15 @@ Status: **Milestone 2 (3D living-building redesign)** · Last updated: 2026-10-1
 > deploy pulse, XDR correlation lines). The inspect card now shows each room's purpose and a
 > "Visibility here" coverage summary. A pre-existing pointer-events bug that blocked clicking
 > the 3D scene and the language button was fixed. See `TASKS.md` → Milestone 2.5.
+>
+> **Milestone 2.6 — polished single-floor sample.** To establish a finished art-direction
+> standard before scaling, the experience now focuses on **one thoroughly developed floor**
+> (Level 3): a reception/entrance, a central corridor, and distinct rooms (open office,
+> server room, data room, meeting room, security office, mailroom). The full incident is
+> re-staged onto this floor; all mechanics are unchanged. Rendering moved to a bright,
+> shadow-cast **miniature-diorama** look. Art direction: `ART_DIRECTION.md`. Multi-floor
+> staging returns once this standard is approved; the room/geometry specifics below are
+> superseded by the single-floor `src/data/scenario.js` + `src/world/building.js`.
 
 ---
 

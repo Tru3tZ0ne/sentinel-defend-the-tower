@@ -6,7 +6,7 @@ export const HINTS = {
   // ---- prep phase (no clock) ----
   welcome: {
     dir:  { en: "Welcome to Meridian Tower. Take a moment — drag to look around, and click a room, a desk, or a person to inspect it. No clock is running yet.", zh: '欢迎来到子午大厦。先别急——拖动视角四处看看，点击房间、工位或人物即可查看详情。此刻还没有计时。' },
-    more: { en: "The crown jewels live in the Data Vault at the top. Attackers want to reach it. Your job is to see them coming and stop them before they do.", zh: '最核心的数据在顶层的数据金库里，攻击者正是冲它而来。你的任务，是抢在他们得手之前发现并阻止他们。' },
+    more: { en: "The crown-jewel records live in the Data Room across the floor. Attackers want to reach it. Your job is to see them coming and stop them before they do.", zh: '最核心的数据记录存放在这层楼另一侧的数据中心，攻击者正是冲它而来。你的任务，是抢在他们得手之前发现并阻止他们。' },
   },
   deployFirst: {
     dir:  { en: "Give yourself eyes before the day begins. Pick a capability from the tray and place it in the building — try a sensor on the network, or screening at the entrance.", zh: '在这一天开始前，先让自己“看得见”。从下方选择一个能力部署到楼里——比如在网络上放一个传感器，或在入口做安检。' },
@@ -43,7 +43,7 @@ export const HINTS = {
     more: { en: "EDR on that endpoint could have stopped the encryption before it ran. aStor only helps if its protected snapshots were set up in advance — recovery is a fallback, not a magic undo.", zh: '那台终端上的 EDR 本可在加密发生前就将其阻断。aStor 只有在事先配置了受保护快照时才能帮上忙——恢复是兜底，而非一键撤销。' },
   },
   exfilSoon: {
-    dir:  { en: "The actor has reached the Data Vault. The last gate is the mailroom egress — a checkpoint (IAG) there can stop the data from leaving.", zh: '攻击者已到达数据金库。最后一道闸门是收发室出口——那里的检查点（IAG）可以阻止数据外发。' },
+    dir:  { en: "The actor has reached the Data Room. The last gate is the mailroom exit — a checkpoint (IAG) there can stop the data from leaving.", zh: '攻击者已到达数据中心。最后一道闸门是收发室出口——那里的检查点（IAG）可以阻止数据外发。' },
     more: { en: "IAG is your final safety net against exfiltration, but relying on the last gate is risky — ideally you'd have contained the actor well before here.", zh: 'IAG 是防外泄的最后一道安全网，但只靠最后一道闸门很冒险——理想情况下，你早该在抵达这里之前就遏制住攻击者。' },
   },
 };

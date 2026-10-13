@@ -16,11 +16,10 @@ const SHOE  = 0x1b2030;
 export function createPeople(scene, building, publicNodes) {
   const nav = building.nav;
   const list = [];
-  const shadowGeo = new THREE.CircleGeometry(0.32, 18).rotateX(-Math.PI / 2);
-  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.26, depthWrite: false });
 
   const mat = (c, rough = 0.82) => new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: rough, metalness: 0.0 });
-  const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+  const box = (w, h, d, m) => { const x = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); x.castShadow = true; return x; };
+  const ball = (r, m, seg = 12) => { const x = new THREE.Mesh(new THREE.SphereGeometry(r, seg, Math.max(6, seg - 2)), m); x.castShadow = true; return x; };
 
   // Build one articulated figure. Returns the root group plus named joints for animation.
   function makeFigure(seed, visitor) {
@@ -61,14 +60,17 @@ export function createPeople(scene, building, publicNodes) {
     const armL = makeArm(-0.26), armR = makeArm(0.26);
     upper.add(armL.shoulder, armR.shoulder);
 
-    // ---- head + hair ----
+    // ---- head + hair (rounded) ----
     const neck = box(0.1, 0.08, 0.1, skinMat); neck.position.y = 0.62; upper.add(neck);
     const headPivot = new THREE.Group(); headPivot.position.y = 0.70; upper.add(headPivot);
-    const head = box(0.24, 0.26, 0.23, skinMat); head.position.y = 0.11; headPivot.add(head);
+    const head = ball(0.155, skinMat, 14); head.scale.set(1, 1.08, 0.98); head.position.y = 0.12; headPivot.add(head);
     const hairStyle = seed % 3;
-    const hairTop = box(0.27, hairStyle === 2 ? 0.08 : 0.13, 0.26, hairMat);
-    hairTop.position.y = hairStyle === 2 ? 0.235 : 0.2; headPivot.add(hairTop);
-    if (hairStyle === 0) { const back = box(0.26, 0.2, 0.08, hairMat); back.position.set(0, 0.11, -0.11); headPivot.add(back); }
+    const hairMesh = ball(0.168, hairMat, 14);
+    hairMesh.scale.set(1, hairStyle === 2 ? 0.55 : 0.9, 1);
+    hairMesh.position.y = hairStyle === 2 ? 0.17 : 0.15; headPivot.add(hairMesh);
+    if (hairStyle === 0) { const back = box(0.26, 0.2, 0.1, hairMat); back.position.set(0, 0.09, -0.08); headPivot.add(back); }
+    // a clipped front face so hair reads as hair, not a helmet
+    const face = ball(0.15, skinMat, 12); face.scale.set(0.9, 0.9, 0.6); face.position.set(0, 0.1, 0.08); headPivot.add(face);
 
     // ---- visitor lanyard (worn by several people, not a tell) ----
     if (visitor) {
@@ -76,8 +78,7 @@ export function createPeople(scene, building, publicNodes) {
       const card = box(0.12, 0.16, 0.02, mat(0xeef2fb, 0.5)); card.position.set(0, 0.14, 0.14); upper.add(card);
     }
 
-    const sh = new THREE.Mesh(shadowGeo, shadowMat); sh.position.y = 0.012; root.add(sh);
-
+    root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
     return { root, legL, legR, armL, armR, upper, headPivot, torso };
   }
 

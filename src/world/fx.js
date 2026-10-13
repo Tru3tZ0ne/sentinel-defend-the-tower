@@ -52,17 +52,17 @@ export function createFx(scene, building) {
       const base = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 0.5, 6), emissive(0x3fc5ff, 0.4));
       const top = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 0), emissive(0x3fc5ff, 0.9));
       base.position.copy(a); top.position.set(a.x, a.y + 0.9, a.z); mesh.add(base, top);
-    } else if (productId === 'NDR') {        // coverage up the circulation core + per-floor scan rings
+    } else if (productId === 'NDR') {        // coverage along the corridor spine + scan rings at each sensor
       mesh = new THREE.Group();
-      const coreX = building.dims.coreX;
-      const topY = building.anchors.NDR[building.anchors.NDR.length - 1].y + 1.4;
-      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, topY, 12, 1, true),
-        new THREE.MeshBasicMaterial({ color: 0x39c0ff, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false }));
-      beam.position.set(coreX, topY / 2, 0); mesh.add(beam);
+      const z0 = building.dims.bounds.x0 + 0.5, z1 = building.dims.bounds.x1 - 0.5;
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(z1 - z0, 0.9, 3.0),
+        new THREE.MeshBasicMaterial({ color: 0x39c0ff, transparent: true, opacity: 0.07, depthWrite: false }));
+      beam.position.set((z0 + z1) / 2, 0.45, 0); mesh.add(beam);
       for (const pt of building.anchors.NDR) {
-        const s = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 10), emissive(0x39c0ff, 1.0)); s.position.copy(pt); mesh.add(s);
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.03, 8, 26), emissive(0x39c0ff, 0.5));
-        ring.rotation.x = Math.PI / 2; ring.position.set(pt.x, pt.y - 0.3, pt.z); ring.userData.scan = true; mesh.add(ring);
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 8), emissive(0x39c0ff, 0.6)); post.position.set(pt.x, 0.45, pt.z); mesh.add(post);
+        const s = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 10), emissive(0x39c0ff, 1.0)); s.position.set(pt.x, 0.95, pt.z); mesh.add(s);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.03, 8, 26), emissive(0x39c0ff, 0.5));
+        ring.rotation.x = Math.PI / 2; ring.position.set(pt.x, 0.1, pt.z); ring.userData.scan = true; mesh.add(ring);
       }
       mesh.userData.ndr = true;
     } else if (productId === 'EDR') {        // protective dome + floor ring over a workstation
@@ -146,20 +146,21 @@ export function createFx(scene, building) {
   }
 
   // ---------- containment visuals ----------
+  function roomBox(r, color, opacity) {
+    const h = (building.dims.WH || 1.4) + 0.5;
+    const ov = new THREE.Mesh(new THREE.BoxGeometry(r.width - 0.3, h, (r.depth || 6) - 0.3),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }));
+    ov.position.set(r.center.x, h / 2, r.center.z); return ov;
+  }
   function lockRoom(roomId, locked) {
     if (locked && !locks.has(roomId)) {
-      const r = building.rooms.get(roomId);
-      const ov = new THREE.Mesh(new THREE.BoxGeometry(r.width - 0.4, 2.4, building.dims.D - 0.6),
-        new THREE.MeshBasicMaterial({ color: 0xff3b5c, transparent: true, opacity: 0.16 }));
-      ov.position.set(r.center.x, r.center.y + 1.2, 0); scene.add(ov); locks.set(roomId, ov);
+      const r = building.rooms.get(roomId); const ov = roomBox(r, 0xff3b5c, 0.16); scene.add(ov); locks.set(roomId, ov);
     } else if (!locked && locks.has(roomId)) { scene.remove(locks.get(roomId)); locks.delete(roomId); }
   }
   function restrictRoom(roomId) {
     if (cages.has('room:' + roomId)) return;
     const r = building.rooms.get(roomId); if (!r) return;
-    const ov = new THREE.Mesh(new THREE.BoxGeometry(r.width - 0.4, 2.4, building.dims.D - 0.6),
-      new THREE.MeshBasicMaterial({ color: 0x39c0ff, transparent: true, opacity: 0.14, wireframe: false }));
-    ov.position.set(r.center.x, r.center.y + 1.2, 0); scene.add(ov); cages.set('room:' + roomId, ov);
+    const ov = roomBox(r, 0x39c0ff, 0.14); scene.add(ov); cages.set('room:' + roomId, ov);
   }
   function cageDesk(deskId) {
     if (cages.has(deskId)) return; const dp = deskPos(deskId); if (!dp) return;

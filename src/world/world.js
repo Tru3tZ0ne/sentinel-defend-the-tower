@@ -6,55 +6,49 @@ import { OrbitControls } from '../vendor/three/OrbitControls.js';
 export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setClearColor(0x070b16, 1);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.18;
+  renderer.toneMappingExposure = 0.9;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x070b16, 46, 96);
+  // soft studio gradient backdrop so the diorama reads like a physical model
+  const bg = document.createElement('canvas'); bg.width = 16; bg.height = 256;
+  const bgx = bg.getContext('2d'); const grd = bgx.createLinearGradient(0, 0, 0, 256);
+  grd.addColorStop(0, '#2b3650'); grd.addColorStop(0.55, '#1b2336'); grd.addColorStop(1, '#10151f');
+  bgx.fillStyle = grd; bgx.fillRect(0, 0, 16, 256);
+  const bgTex = new THREE.CanvasTexture(bg); bgTex.colorSpace = THREE.SRGBColorSpace; scene.background = bgTex;
 
   const camera = new THREE.PerspectiveCamera(33, 1, 0.1, 300);
-  camera.position.set(15, 15.5, 25);
+  camera.position.set(4, 32, 30);
 
   const controls = new OrbitControls(camera, canvas);
-  controls.target.set(1.5, 5.2, 0.5);
+  controls.target.set(1.5, 0.3, -1.0);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.minDistance = 10;
-  controls.maxDistance = 52;
-  controls.maxPolarAngle = Math.PI * 0.49;   // don't go under the floor
-  controls.minPolarAngle = Math.PI * 0.12;
-  controls.minAzimuthAngle = -Math.PI * 0.44; // keep the open (front) faces toward us
-  controls.maxAzimuthAngle =  Math.PI * 0.44;
+  controls.minDistance = 16;
+  controls.maxDistance = 48;
+  controls.maxPolarAngle = Math.PI * 0.42;   // keep a high dollhouse angle so we see into rooms
+  controls.minPolarAngle = Math.PI * 0.08;
+  controls.minAzimuthAngle = -Math.PI * 0.40; // keep the open front toward us
+  controls.maxAzimuthAngle =  Math.PI * 0.40;
   controls.enablePan = false;
   controls.update();
 
-  // environment backdrop — a dark plaza + distant skyline so the tower sits in a place
-  const ground = new THREE.Mesh(new THREE.CircleGeometry(120, 48).rotateX(-Math.PI / 2),
-    new THREE.MeshStandardMaterial({ color: 0x0c1324, roughness: 1 }));
-  ground.position.y = -0.2; scene.add(ground);
-  const grid = new THREE.GridHelper(120, 60, 0x1b2746, 0x12182c);
-  grid.position.y = -0.18; grid.material.transparent = true; grid.material.opacity = 0.35; scene.add(grid);
-  const skyline = new THREE.Group();
-  for (let i = 0; i < 46; i++) {
-    const a = (i / 46) * Math.PI * 2, r = 46 + Math.random() * 26;
-    const h = 4 + Math.random() * 20, w = 3 + Math.random() * 4;
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w),
-      new THREE.MeshStandardMaterial({ color: 0x0e1526, emissive: 0x16233f, emissiveIntensity: 0.25, flatShading: true }));
-    b.position.set(Math.cos(a) * r, h / 2 - 0.2, Math.sin(a) * r);
-    if (Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < 0.6 && Math.cos(a) > 0) continue; // keep the front clear
-    skyline.add(b);
-  }
-  scene.add(skyline);
-
-  // lighting — stylized, cheap (no shadow maps). Key + cool fill + warm/red rims.
-  scene.add(new THREE.HemisphereLight(0xb6cfff, 0x0e1420, 0.9));
-  scene.add(new THREE.AmbientLight(0x56688f, 0.5));
-  const key = new THREE.DirectionalLight(0xfff2e0, 1.25); key.position.set(12, 24, 20); scene.add(key);
-  const fill = new THREE.DirectionalLight(0xaecaff, 0.5); fill.position.set(-8, 12, 16); scene.add(fill);
-  const rim = new THREE.DirectionalLight(0xff6676, 0.3); rim.position.set(-16, 9, -12); scene.add(rim);
-  const rim2 = new THREE.DirectionalLight(0x4f7bff, 0.28); rim2.position.set(16, 7, -14); scene.add(rim2);
+  // lighting — bright, daylight diorama. One warm shadow-casting key + sky fill + ambient.
+  scene.add(new THREE.HemisphereLight(0xdce8ff, 0x6a6350, 0.42));
+  scene.add(new THREE.AmbientLight(0x9fb0c8, 0.22));
+  const key = new THREE.DirectionalLight(0xfff0dc, 1.15);
+  key.position.set(18, 30, 18); key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.camera.near = 1; key.shadow.camera.far = 90;
+  key.shadow.camera.left = -22; key.shadow.camera.right = 22;
+  key.shadow.camera.top = 22; key.shadow.camera.bottom = -22;
+  key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+  scene.add(key); scene.add(key.target); key.target.position.set(0, 0, 0);
+  const fill = new THREE.DirectionalLight(0xbcd4ff, 0.55); fill.position.set(-14, 14, 18); scene.add(fill);
+  const back = new THREE.DirectionalLight(0xcfe0ff, 0.3); back.position.set(-10, 10, -18); scene.add(back);
 
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();

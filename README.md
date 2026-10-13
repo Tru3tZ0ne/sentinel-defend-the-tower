@@ -6,6 +6,7 @@ cloud, and AI capabilities to defend Meridian Tower against a stealthy breach �
 only *see* what their tools let them see.
 
 > Design & roadmap: [`DESIGN.md`](./DESIGN.md) · [`TASKS.md`](./TASKS.md) ·
+> art direction: [`ART_DIRECTION.md`](./ART_DIRECTION.md) ·
 > asset provenance: [`assets/brand/ASSETS.md`](./assets/brand/ASSETS.md)
 
 ## Run it locally
@@ -29,13 +30,13 @@ src/
   i18n.js               EN / 中文 strings (t/loc helpers)
   data/
     products.js         product catalog (roles, cost, visibility, world presence) — edit freely
-    scenario.js         building layout + cast + the ground-truth incident timeline
+    scenario.js         single-floor layout (room footprints) + cast + ground-truth incident
   game/
     engine.js           phase-based simulation: fog-of-war, deploy/respond, win/lose, replay log
     sophia.js           Sophia's layered, building-pointing hints
   world/
     world.js            Three.js scene: camera, lights, orbit, picking
-    building.js         generates the low-poly cutaway + nav graph from the layout
+    building.js         generates the single-floor diorama (rooms, corridor, signage, furniture) + nav graph
     people.js           low-poly figures that walk the nav graph
     fx.js               product props, clue markers, trails, containment visuals
   ui/

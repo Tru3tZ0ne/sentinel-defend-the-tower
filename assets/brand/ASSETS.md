@@ -5,10 +5,25 @@ This game clearly separates **original game artwork** (ours, freely editable) fr
 official files).
 
 ## Original game artwork (created for this project)
-- Building cutaway, rooms, characters, Sophia avatar — original SVG/CSS.
+- **3D miniature floor, rooms, furniture, characters, Sophia avatar — original**, authored
+  procedurally in Three.js (`src/world/*`). Art direction: `ART_DIRECTION.md`.
 - Product **game icons** (`src/ui/icons.js`) — original, consistent icon set. Each is
   always shown *with the accurate product name* so the metaphor never replaces the brand.
+- In-world room **signage** is rendered to canvas textures from the localized room names.
 - UI, HUD, replay timeline — original.
+
+### 3D asset approach (evaluated, decided)
+Evaluated CC0 asset ecosystems for finished models:
+- **Kenney** (https://kenney.nl) — furniture & character kits, CC0, commercial use OK, no attribution required.
+- **Quaternius** (https://quaternius.com) — low-poly furniture and rigged/animated characters, CC0.
+- OpenGameArt listings confirm both as CC0.
+
+**Decision: author cohesive original stylized assets** (no third-party models imported),
+because GitHub Pages must stay self-contained with relative paths and load fast/offline, a
+single authored style guarantees cohesion, and provenance stays clean. The finished look comes
+from soft shadows + a disciplined palette + deliberate lighting + composition, not object
+count. CC0 packs above remain a documented drop-in option if the client later prefers them.
+All original game art is kept clearly distinct from official Sangfor product logos.
 
 ## Official Sangfor brand assets — PLACEHOLDERS (verify & replace)
 | Asset | Current state | Official source to pull from |

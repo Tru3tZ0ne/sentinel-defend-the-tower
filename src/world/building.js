@@ -1,225 +1,292 @@
-// Builds the low-poly cutaway tower from LAYOUT and exposes anchors + a nav graph.
-// The front wall (+Z) is omitted so the camera sees inside every room. Each room gets a
-// recognizable identity through furniture, materials and accent lighting — reception,
-// offices, a meeting room, a server room, a data vault, a security office, an egress.
+// Single-floor building generator — "Level 3, Meridian Tower".
+// Builds an attractive miniature corporate floor from LAYOUT: a diorama base, an oak floor,
+// a corridor spine, glass-fronted rooms off it, exterior walls (front open, dollhouse-style),
+// in-world signage, and furniture that gives each room a distinct identity. Exposes the same
+// interface the engine/main expect: rooms, desks, pickables, anchors, nav graph, lights.
+import { loc } from '../i18n.js';
 
-const PALETTE = {
-  slabTop: 0x20283f, slabBottom: 0x141a2c, backWall: 0x202a47, sideWall: 0x1b2440,
-  partition: 0x2b3658, fascia: 0x2a3454, core: 0x222c49, coreTread: 0x37446d, rail: 0x3b5a86,
-  // carpet / floor finish per room function (matte, readable, cohesive)
-  floor: { lobby: 0x4a5069, command: 0x3b3356, egress: 0x374b52, office: 0x36446a,
-           meeting: 0x3b4a6b, server: 0x272f4e, vault: 0x463a63 },
-  deskTop: 0x59627e, deskLeg: 0x39445f, wood: 0x6b4f35, chair: 0x2d3550,
-  monitor: 0x11162a, screenOn: 0x5fd0ff, metal: 0x4a556f, plantPot: 0x6a4a36, leaf: 0x3f8f5e,
-  rack: 0x232c47, rackLight: 0x46e0a0, vaultCore: 0xffd166, vaultPlinth: 0x4a3a66,
-  cabinet: 0x44506e, sofa: 0x44557a, rug: 0x5a4668, ceilGlow: 0x9fb6e6,
+const P = {
+  base: 0x222736, baseTop: 0x2c3242,
+  floor: 0xb8966a, floorLine: 0xa8865a, corridor: 0xb6bfcc, rug: { office: 0x6f86a6, meeting: 0x8a76a6, lobby: 0xac855f, command: 0x8a6f78, server: 0x5f8a98, vault: 0xc0a050, egress: 0x6f9086 },
+  wall: 0xcfc8ba, wallBack: 0xc6bfb0, trim: 0xb8b0a2, base6: 0xc9c2b4,
+  glass: 0x9fd0e6, glassFrame: 0xc3ccd6,
+  deskTop: 0xe7e2da, deskLeg: 0x8a93a6, chair: 0x414c66, chairB: 0x37425c,
+  metal: 0x9aa3b4, monitor: 0x20252e, screenOn: 0x6fd6ff, wood: 0xb98a5a, sofa: 0x6d7c97,
+  pot: 0xb07a4e, leaf: 0x4f9e63, leaf2: 0x5fae70,
+  rack: 0x39414f, rackCyan: 0x46e0d0, serverGlow: 0x3fd0ff,
+  vaultCore: 0xffd166, vaultPlinth: 0xbfa150, gold: 0xffcf6e,
+  brand: 0xE60027, signBg: 0x1b2230, signInk: 0xf2f5fb, accentCyan: 0x39c0ff,
+  door: 0x7f8aa0, exit: 0x46e0a0,
 };
 
 export function buildBuilding(THREE, LAYOUT) {
   const group = new THREE.Group();
-  const { floors, floorHeight: FH, width: W, depth: D, stairWidth: SW } = LAYOUT;
-  const roomsAreaW = W - SW;
-  const coreX = W / 2 - SW / 2;
+  const { bounds: B, corridor: C, wallH: WH } = LAYOUT;
+  const FW = B.x1 - B.x0, FD = B.z1 - B.z0, MX = (B.x0 + B.x1) / 2, MZ = (B.z0 + B.z1) / 2;
 
-  const mat = (color, opts = {}) => new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.92, metalness: 0.04, ...opts });
-  const emis = (color, intensity = 0.8, opts = {}) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: intensity, flatShading: true, roughness: 0.5, ...opts });
-  const box = (w, h, d, color, opts) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), color?.isMaterial ? color : mat(color, opts));
-  const cyl = (rt, rb, h, color, seg = 10, opts) => new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), color?.isMaterial ? color : mat(color, opts));
-  const add = (mesh, x, y, z, parent = group) => { mesh.position.set(x, y, z); parent.add(mesh); return mesh; };
-  const lights = [];
-
-  const rooms = new Map();
-  const desks = new Map();
-  const pickables = [];
-  const anchors = {};
-  const nav = { nodes: new Map(), adj: new Map() };
-  const node = (id, pos, floor) => { nav.nodes.set(id, { id, pos: pos.clone ? pos.clone() : new THREE.Vector3(pos.x, pos.y, pos.z), floor }); nav.adj.set(id, nav.adj.get(id) || []); };
-  const link = (a, b) => { nav.adj.get(a).push(b); nav.adj.get(b).push(a); };
+  const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.85, metalness: 0.0, ...o });
+  const glassMat = () => new THREE.MeshStandardMaterial({ color: P.glass, transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0, flatShading: true });
+  const emis = (color, i = 0.9, o = {}) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: i, flatShading: true, roughness: 0.5, ...o });
+  const geomBox = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+  const mesh = (g, m, cast = true, recv = true) => { const x = new THREE.Mesh(g, m.isMaterial ? m : mat(m)); x.castShadow = cast; x.receiveShadow = recv; return x; };
+  const box = (w, h, d, m, cast, recv) => mesh(geomBox(w, h, d), m, cast, recv);
+  const cyl = (rt, rb, h, m, seg = 12, cast = true) => { const x = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m.isMaterial ? m : mat(m)); x.castShadow = cast; x.receiveShadow = true; return x; };
+  const add = (m, x, y, z, parent = group) => { m.position.set(x, y, z); parent.add(m); return m; };
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const YUP = new THREE.Vector3(0, 1, 0);
 
-  // group rooms by floor preserving order
-  const byFloor = {};
-  for (const r of LAYOUT.rooms) (byFloor[r.floor] ||= []).push(r);
+  const rooms = new Map(), desks = new Map(), pickables = [], anchors = {}, lights = [], signs = [];
+  const nav = { nodes: new Map(), adj: new Map() };
+  const node = (id, pos) => { nav.nodes.set(id, { id, pos: pos.clone ? pos.clone() : V(pos.x, pos.y, pos.z), floor: 0 }); nav.adj.set(id, nav.adj.get(id) || []); };
+  const link = (a, b) => { if (nav.adj.get(a) && nav.adj.get(b)) { nav.adj.get(a).push(b); nav.adj.get(b).push(a); } };
 
-  for (let f = 0; f < floors; f++) {
-    const yBottom = f * FH;
-    const yFloor = yBottom + 0.1;
+  // ---------- diorama base + floor ----------
+  const base = box(FW + 3.2, 0.7, FD + 3.2, P.base, true, true); add(base, MX, -0.37, MZ);
+  add(box(FW + 2.6, 0.08, FD + 2.6, P.baseTop, false, true), MX, -0.015, MZ);
+  const floor = box(FW, 0.1, FD, mat(P.floor, { roughness: 0.9 }), false, true); add(floor, MX, 0.0, MZ);
+  // subtle plank lines
+  for (let x = B.x0 + 2; x < B.x1; x += 2) add(box(0.03, 0.005, FD, mat(P.floorLine)), x, 0.051, MZ, group).receiveShadow = true;
+  // corridor finish
+  add(box(FW, 0.02, C.z1 - C.z0, mat(P.corridor, { roughness: 0.6 })), MX, 0.055, (C.z0 + C.z1) / 2, group).receiveShadow = true;
 
-    // structural slab (with a lighter top surface) + interior walls
-    add(box(W + 0.5, 0.22, D + 0.5, PALETTE.slabBottom), 0, yBottom - 0.02, 0);
-    add(box(W + 0.4, 0.04, D + 0.4, PALETTE.slabTop), 0, yBottom + 0.1, 0);
-    add(box(W + 0.4, FH * 0.94, 0.18, PALETTE.backWall), 0, yBottom + FH * 0.47, -D / 2 - 0.09);
-    add(box(0.18, FH * 0.94, D + 0.4, PALETTE.sideWall), -W / 2 - 0.09, yBottom + FH * 0.47, 0);
-    add(box(0.18, FH * 0.94, D + 0.4, PALETTE.sideWall),  W / 2 + 0.09, yBottom + FH * 0.47, 0);
-    // thin front fascia beam (frames the cutaway without hiding the room)
-    add(box(W + 0.4, 0.16, 0.12, PALETTE.fascia), 0, yBottom + 0.02, D / 2 + 0.14);
-    // ceiling light strip — reads as office lighting, adds warmth without washing out
-    add(box(roomsAreaW * 0.8, 0.05, 0.3, emis(PALETTE.ceilGlow, 0.5)), -SW / 2, yBottom + FH * 0.9, 1.2);
-
-    // circulation core (right) — treads read as a stair
-    add(box(SW, 0.14, D * 0.9, PALETTE.core), coreX, yFloor, 0);
-    for (let s = 0; s < 5; s++) add(box(SW * 0.82, 0.08, 0.5, PALETTE.coreTread), coreX, yBottom + 0.2 + s * (FH / 6), -D * 0.28 + s * 0.42);
-    add(box(0.06, FH * 0.5, D * 0.9, emis(PALETTE.rail, 0.25)), coreX - SW * 0.42, yBottom + FH * 0.3, 0); // glass stair rail
-    node(`stair:${f}`, V(coreX, yFloor, 0), f);
-    if (f > 0) link(`stair:${f}`, `stair:${f - 1}`);
-
-    const list = byFloor[f] || [];
-    const rw = roomsAreaW / list.length;
-    list.forEach((r, i) => {
-      const x0 = -W / 2 + i * rw;
-      const cx = x0 + rw / 2;
-
-      // room floor finish (pickable) — solid, lighter than walls so rooms feel lit
-      const padColor = PALETTE.floor[r.type] || PALETTE.floor.office;
-      const pad = box(rw - 0.24, 0.07, D - 0.4, padColor);
-      pad.position.set(cx, yFloor + 0.055, 0);
-      pad.userData = { kind: 'room', roomId: r.id };
-      group.add(pad); pickables.push(pad);
-
-      // low glass partition between rooms on this floor (doesn't hide people)
-      if (i < list.length - 1) {
-        add(box(0.1, FH * 0.5, D * 0.8, emis(0x3a4f7a, 0.12, { transparent: true, opacity: 0.5 })), x0 + rw, yBottom + FH * 0.3, 0);
-        add(box(0.12, 0.06, D * 0.8, emis(PALETTE.rail, 0.3)), x0 + rw, yBottom + FH * 0.56, 0); // lit top rail
-      }
-
-      rooms.set(r.id, { id: r.id, type: r.type, floor: f, center: V(cx, yFloor, 0), width: rw, pad });
-      node(`room:${r.id}`, V(cx, yFloor + 0.05, 0.9), f);
-      link(`room:${r.id}`, `stair:${f}`);
-
-      furnish(r, cx, yFloor, rw);
-    });
-
-    for (let i = 0; i < list.length - 1; i++) link(`room:${list[i].id}`, `room:${list[i + 1].id}`);
+  // ---------- signage (canvas textures, bilingual via refreshSigns) ----------
+  function drawSign(canvas, text, accent) {
+    const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const r = 16; ctx.fillStyle = '#1b2230';
+    ctx.beginPath(); ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, r); ctx.fill();
+    ctx.fillStyle = accent; ctx.fillRect(18, canvas.height / 2 - 18, 7, 36);
+    ctx.fillStyle = '#f2f5fb'; ctx.font = '600 44px -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(text, 40, canvas.height / 2 + 2);
+  }
+  function makeSign(r, x, y, z) {
+    const canvas = document.createElement('canvas'); canvas.width = 384; canvas.height = 96;
+    const accent = '#' + (P.brand).toString(16).padStart(6, '0');
+    drawSign(canvas, loc(r.name), r.type === 'server' ? '#39c0ff' : r.type === 'vault' ? '#ffcf6e' : accent);
+    const tex = new THREE.CanvasTexture(canvas); tex.anisotropy = 8; tex.colorSpace = THREE.SRGBColorSpace;
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.48), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    add(plane, x, y, z); signs.push({ canvas, tex, r, mesh: plane });
+    // small mount
+    add(box(0.05, 0.05, 0.05, mat(P.metal)), x, y, z - 0.03);
+    return plane;
   }
 
-  // entrance (outside the lobby, front) + glass doors
-  const lobby = rooms.get('lobby');
-  node('entrance', V(lobby.center.x, 0.15, D / 2 + 2.2), 0);
-  link('entrance', 'room:lobby');
-  anchors.entrance = V(lobby.center.x, 0.15, D / 2 + 1.0);
-  add(box(2.6, 2.2, 0.08, emis(0x4a6fa0, 0.14, { transparent: true, opacity: 0.4 })), lobby.center.x, 1.2, D / 2 + 0.2);
+  // ---------- walls ----------
+  const wallMat = mat(P.wall), backMat = mat(P.wallBack), trimMat = mat(P.trim);
+  function segX(xA, xB, z, h, th, m = wallMat, trim = true) {
+    const len = Math.abs(xB - xA); if (len < 0.01) return; const c = (xA + xB) / 2;
+    add(box(len, h, th, m), c, h / 2, z);
+    if (trim) add(box(len + 0.02, 0.07, th + 0.05, trimMat, false), c, h, z);
+  }
+  function segZ(zA, zB, x, h, th, m = wallMat, trim = true) {
+    const len = Math.abs(zB - zA); if (len < 0.01) return; const c = (zA + zB) / 2;
+    add(box(th, h, len, m), x, h / 2, c);
+    if (trim) add(box(th + 0.05, 0.07, len + 0.02, trimMat, false), x, h, c);
+  }
+  // glass corridor wall along a z line, with door gaps; low solid base + translucent upper
+  function glassWallX(z, doors, dw = 1.9) {
+    const spans = gaps(B.x0, B.x1, doors, dw);
+    for (const [a, b] of spans) {
+      const len = Math.abs(b - a), c = (a + b) / 2;
+      add(box(len, 0.35, 0.1, mat(P.glassFrame)), c, 0.175, z);                 // kick base
+      add(box(len, WH - 0.5, 0.06, glassMat(), false, false), c, (WH + 0.35) / 2 + 0.05, z); // glass
+      add(box(len, 0.07, 0.1, mat(P.glassFrame), false), c, WH, z);             // head rail
+    }
+    // door frames
+    for (const dx of doors) { add(box(0.1, WH, 0.12, mat(P.glassFrame)), dx - dw / 2, WH / 2, z); add(box(0.1, WH, 0.12, mat(P.glassFrame)), dx + dw / 2, WH / 2, z); }
+  }
+  function gaps(a, b, doors, dw) {
+    const sorted = [...doors].sort((p, q) => p - q); const out = []; let cur = a;
+    for (const d of sorted) { out.push([cur, d - dw / 2]); cur = d + dw / 2; } out.push([cur, b]); return out;
+  }
 
-  // named anchors for product props
-  anchors.AF = V(lobby.center.x, 0.15, D / 2 - 0.6);
-  anchors.IAG = rooms.get('egress').center.clone();
+  const EXT = WH + 0.55; // exterior walls a touch taller
+  // back + sides (front left open, reception entrance added separately)
+  const exitDoorX = -11;
+  for (const [a, b] of gaps(B.x0, B.x1, [exitDoorX], 1.7)) segX(a, b, B.z0, EXT, 0.2, backMat);
+  segZ(B.z0, B.z1, B.x0, EXT, 0.2, backMat);
+  segZ(B.z0, B.z1, B.x1, EXT, 0.2, backMat);
+  // a short return wall across the open front on the office/soc side so the floor isn't sheared,
+  // leaving reception's frontage as the glazed entrance
+  add(box(0.2, 0.5, 0.2, trimMat, false), B.x0, 0.25, B.z1);
+  add(box(0.2, 0.5, 0.2, trimMat, false), 6, 0.25, B.z1);
+
+  // corridor glass walls (front-row back edge z=C.z1, back-row front edge z=C.z0)
+  const frontRooms = LAYOUT.rooms.filter(r => r.rect.z0 >= 0);
+  const backRooms = LAYOUT.rooms.filter(r => r.rect.z1 <= 0);
+  glassWallX(C.z1, frontRooms.map(r => r.door.x));
+  glassWallX(C.z0, backRooms.map(r => r.door.x));
+
+  // inter-room partitions (shared x boundaries within each row)
+  const partsFront = [-7, 6], partsBack = [-8, -2, 5];
+  for (const x of partsFront) segZ(C.z1, B.z1, x, WH, 0.14);
+  for (const x of partsBack) segZ(B.z0, C.z0, x, WH, 0.14);
+
+  // ---------- reception entrance (glazed) at the open front ----------
+  (function entrance() {
+    const r = LAYOUT.rooms.find(x => x.id === 'reception'); const ex = (r.rect.x0 + r.rect.x1) / 2; const z = B.z1;
+    const fw = r.rect.x1 - r.rect.x0;
+    // glazed facade either side of the doors
+    for (const [a, b] of gaps(r.rect.x0 + 0.2, r.rect.x1 - 0.2, [ex], 2.2)) {
+      const len = Math.abs(b - a); add(box(len, 0.3, 0.12, mat(P.glassFrame)), (a + b) / 2, 0.15, z);
+      add(box(len, WH - 0.4, 0.06, glassMat(), false, false), (a + b) / 2, (WH + 0.3) / 2 + 0.05, z);
+    }
+    add(box(2.6, 0.12, 0.6, mat(P.brand), false), ex, WH + 0.18, z + 0.08); // small red entrance canopy over the doors
+    add(box(0.08, WH, 0.14, mat(P.glassFrame)), ex - 1.1, WH / 2, z); add(box(0.08, WH, 0.14, mat(P.glassFrame)), ex + 1.1, WH / 2, z);
+  })();
+
+  // ---------- rooms: pads, rugs, signage, furniture, nav ----------
+  // corridor spine nodes at every door x
+  const doorXs = [...new Set(LAYOUT.rooms.map(r => r.door.x))].sort((a, b) => a - b);
+  for (const dx of doorXs) node(`cor:${dx}`, V(dx, 0.05, 0));
+  for (let i = 0; i < doorXs.length - 1; i++) link(`cor:${doorXs[i]}`, `cor:${doorXs[i + 1]}`);
+
+  for (const r of LAYOUT.rooms) {
+    const { rect } = r; const rcx = (rect.x0 + rect.x1) / 2, rcz = (rect.z0 + rect.z1) / 2;
+    const rw = rect.x1 - rect.x0, rd = rect.z1 - rect.z0;
+    rooms.set(r.id, { id: r.id, type: r.type, floor: 0, center: V(rcx, 0.05, rcz), width: rw, depth: rd, rect });
+
+    // pick pad (invisible, covers the room)
+    const pad = new THREE.Mesh(geomBox(rw - 0.3, 0.06, rd - 0.3), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
+    pad.position.set(rcx, 0.08, rcz); pad.userData = { kind: 'room', roomId: r.id }; group.add(pad); pickables.push(pad);
+    rooms.get(r.id).pad = pad;
+
+    // area rug (room tint)
+    add(box(rw - 1.4, 0.015, rd - 1.6, mat(P.rug[r.type] || P.rug.office, { roughness: 0.95 }), false), rcx, 0.062, rcz);
+
+    // signage above the door, facing the camera (+Z)
+    const sz = r.door.side === 'back' ? C.z1 : C.z0;
+    makeSign(r, r.door.x, WH + 0.33, sz + 0.07);
+
+    // nav: room node just inside the door, linked to its corridor node
+    const inZ = r.door.side === 'back' ? C.z1 + 1.1 : C.z0 - 1.1;
+    node(`room:${r.id}`, V(r.door.x, 0.05, inZ)); link(`room:${r.id}`, `cor:${r.door.x}`);
+
+    furnish(r, rcx, rcz, rw, rd);
+  }
+
+  // entrance node outside reception front
+  const rec = rooms.get('reception');
+  node('entrance', V(rec.center.x, 0.05, B.z1 + 2.0)); link('entrance', 'room:reception');
+  anchors.entrance = V(rec.center.x, 0.15, B.z1 + 0.6);
+
+  // ---------- anchors ----------
+  anchors.AF = V(rec.center.x, 0.15, B.z1 - 0.3);
+  const egressDoorX = LAYOUT.rooms.find(r => r.id === 'egress').door.x;
+  anchors.IAG = V(egressDoorX, 0.15, C.z0 - 0.6);
   anchors.XDR = rooms.get('soc').center.clone();
   anchors.ASTOR = rooms.get('server').center.clone();
-  anchors.MDR = V(-W / 2 - 6, (floors - 1) * FH * 0.6, 3.5);
-  anchors.NDR = [];
-  for (let f = 0; f < floors; f++) anchors.NDR.push(V(coreX, f * FH + 0.4, 0));
+  anchors.MDR = V(B.x1 + 4.5, 2.6, B.z1 - 2);
+  anchors.NDR = doorXs.map(dx => V(dx, 0.5, 0));            // corridor sensor points
+  anchors.corridorZ = 0;
 
-  // ---------------- furniture kit ----------------
-  function officeChair(x, y, z, facing = 0) {
+  // ---------- furniture kit ----------
+  function chair(x, z, facing) {
     const g = new THREE.Group();
-    g.add(box(0.42, 0.08, 0.42, PALETTE.chair));                          // seat
-    const back = box(0.42, 0.42, 0.08, PALETTE.chair); back.position.set(0, 0.25, -0.17); g.add(back);
-    const post = cyl(0.04, 0.05, 0.3, PALETTE.deskLeg); post.position.y = -0.17; g.add(post);
-    const base = cyl(0.2, 0.2, 0.04, PALETTE.deskLeg); base.position.y = -0.32; g.add(base);
-    g.position.set(x, y + 0.42, z); g.rotation.y = facing; group.add(g); return g;
+    g.add(mesh(new THREE.BoxGeometry(0.44, 0.09, 0.44), mat(P.chair)));
+    const b = box(0.44, 0.46, 0.09, mat(P.chair)); b.position.set(0, 0.26, -0.18); g.add(b);
+    const post = cyl(0.045, 0.05, 0.3, mat(P.deskLeg)); post.position.y = -0.17; g.add(post);
+    const base = cyl(0.19, 0.19, 0.04, mat(P.deskLeg)); base.position.y = -0.32; g.add(base);
+    g.position.set(x, 0.42, z); g.rotation.y = facing; group.add(g); return g;
   }
-  function workstation(x, y, z, idTag, roomId) {
-    // desk with legs, a monitor whose screen glows, keyboard — a readable workstation
-    const top = box(1.0, 0.07, 0.62, PALETTE.deskTop); top.position.set(x, y + 0.5, z);
-    top.userData = { kind: 'desk', deskId: idTag, roomId }; group.add(top); pickables.push(top);
-    for (const sx of [-0.42, 0.42]) { add(box(0.07, 0.5, 0.07, PALETTE.deskLeg), x + sx, y + 0.25, z - 0.22); add(box(0.07, 0.5, 0.07, PALETTE.deskLeg), x + sx, y + 0.25, z + 0.22); }
-    const stand = box(0.08, 0.16, 0.08, PALETTE.metal); stand.position.set(x, y + 0.6, z - 0.16); group.add(stand);
-    const bezel = box(0.62, 0.4, 0.05, PALETTE.monitor); bezel.position.set(x, y + 0.82, z - 0.18); group.add(bezel);
-    const screen = box(0.54, 0.32, 0.02, emis(PALETTE.screenOn, 0.6)); screen.position.set(x, y + 0.82, z - 0.155); group.add(screen);
-    add(box(0.42, 0.03, 0.16, PALETTE.metal), x, y + 0.545, z + 0.12); // keyboard
-    officeChair(x, y, z + 0.62, Math.PI);
-    desks.set(idTag, { id: idTag, roomId, pos: V(x, y + 0.75, z), deskMesh: top, screen });
-    node(`desk:${idTag}`, V(x, y + 0.05, z + 0.95), rooms.get(roomId)?.floor ?? 0); link(`desk:${idTag}`, `room:${roomId}`);
+  function workstation(x, z, id, roomId, facing = 0) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = facing; group.add(g);
+    const top = mesh(new THREE.BoxGeometry(1.15, 0.07, 0.68), mat(P.deskTop)); top.position.y = 0.5;
+    top.userData = { kind: 'desk', deskId: id, roomId }; g.add(top); pickables.push(top);
+    for (const sx of [-0.5, 0.5]) for (const sz of [-0.26, 0.26]) { const l = box(0.06, 0.5, 0.06, mat(P.deskLeg)); l.position.set(sx, 0.25, sz); g.add(l); }
+    g.add(place(box(0.07, 0.17, 0.07, mat(P.metal)), 0, 0.6, -0.18));
+    g.add(place(box(0.66, 0.42, 0.05, mat(P.monitor)), 0, 0.84, -0.2));
+    const screen = place(box(0.58, 0.34, 0.02, emis(P.screenOn, 0.55), false), 0, 0.84, -0.17); g.add(screen);
+    g.add(place(box(0.44, 0.03, 0.17, mat(P.metal)), 0, 0.545, 0.05)); // keyboard
+    // seat position (local +Z, in front of the desk), transformed to world
+    const seat = new THREE.Vector3(0, 0, 0.58).applyAxisAngle(YUP, facing).add(new THREE.Vector3(x, 0, z));
+    desks.set(id, { id, roomId, pos: new THREE.Vector3(x, 0.75, z), deskMesh: top, screen });
+    node(`desk:${id}`, new THREE.Vector3(seat.x, 0.05, seat.z)); link(`desk:${id}`, `room:${roomId}`);
+    chair(seat.x, seat.z, facing + Math.PI); // chair faces the desk
   }
-  function plant(x, y, z) {
-    const g = new THREE.Group();
-    g.add(cyl(0.16, 0.2, 0.3, PALETTE.plantPot));
-    const l1 = box(0.4, 0.5, 0.4, PALETTE.leaf); l1.position.y = 0.42; g.add(l1);
-    const l2 = box(0.28, 0.3, 0.28, PALETTE.leaf); l2.position.set(0.06, 0.72, 0); g.add(l2);
-    g.position.set(x, y + 0.15, z); group.add(g); return g;
+  function place(m, x, y, z) { m.position.set(x, y, z); return m; }
+  function plant(x, z, big = false) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); group.add(g);
+    g.add(place(cyl(big ? 0.22 : 0.16, big ? 0.26 : 0.2, big ? 0.4 : 0.3, mat(P.pot)), 0, big ? 0.2 : 0.15, 0));
+    const s1 = mesh(new THREE.IcosahedronGeometry(big ? 0.4 : 0.3, 0), mat(P.leaf)); s1.position.y = big ? 0.68 : 0.5; g.add(s1);
+    const s2 = mesh(new THREE.IcosahedronGeometry(big ? 0.28 : 0.2, 0), mat(P.leaf2)); s2.position.set(0.1, big ? 0.95 : 0.7, 0.05); g.add(s2);
   }
-  function cabinet(x, y, z) {
-    const c = box(0.7, 1.0, 0.5, PALETTE.cabinet); c.position.set(x, y + 0.5, z); group.add(c);
-    for (let k = 0; k < 3; k++) add(box(0.5, 0.04, 0.02, PALETTE.metal), x, y + 0.25 + k * 0.3, z + 0.26);
+  function ceilingStrips(cx, cz, rw) {
+    // small recessed light fixtures high on the back wall — read as lighting without a ceiling
+    for (const dx of [-rw / 4, rw / 4]) add(box(1.4, 0.06, 0.22, emis(0xfff4e2, 0.7), false, false), cx + dx, WH + 0.18, cz);
   }
 
-  function furnish(r, cx, yFloor, rw) {
-    if (r.desks) {
-      const n = r.desks, spacing = Math.min(1.9, (rw - 1.4) / n);
-      const startX = cx - (spacing * (n - 1)) / 2;
-      for (let k = 0; k < n; k++) workstation(startX + k * spacing, yFloor, 1.1, `${r.id}#${k + 1}`, r.id);
-      plant(cx + rw / 2 - 0.7, yFloor, -2.8);
-      if (r.type === 'office') cabinet(cx - rw / 2 + 0.7, yFloor, -3.0);
-    }
-    if (r.type === 'lobby') {
-      // curved-ish reception counter, waiting sofa, rug, plants, warm light
-      const counter = box(2.6, 0.95, 0.7, PALETTE.wood); counter.position.set(cx, yFloor + 0.48, -0.6); group.add(counter);
-      add(box(2.8, 0.06, 0.9, PALETTE.deskTop), cx, yFloor + 0.97, -0.6);
-      add(box(2.0, 0.02, 1.4, PALETTE.rug), cx - 0.2, yFloor + 0.1, 1.8);
-      const sofa = box(1.8, 0.4, 0.6, PALETTE.sofa); sofa.position.set(cx - 0.2, yFloor + 0.3, 2.4); group.add(sofa);
-      add(box(1.8, 0.4, 0.2, PALETTE.sofa), cx - 0.2, yFloor + 0.5, 2.7);
-      officeChair(cx, yFloor, -1.3, 0);
-      plant(cx - rw / 2 + 0.6, yFloor, 1.8); plant(cx + rw / 2 - 0.6, yFloor, 1.8);
-      addLight(cx, yFloor + FH * 0.75, 0.5, 0xffd9a8, 0.7, 8);
-    }
-    if (r.type === 'meeting') {
-      const table = box(2.4, 0.1, 1.1, PALETTE.wood); table.position.set(cx, yFloor + 0.55, 0.2); group.add(table);
-      add(cyl(0.12, 0.12, 0.55, PALETTE.deskLeg), cx, yFloor + 0.27, 0.2);
-      for (const dz of [-0.45, 0.85]) for (const dx of [-0.8, 0, 0.8]) officeChair(cx + dx, yFloor, 0.2 + dz, dz < 0 ? 0 : Math.PI);
-      const wall = box(1.8, 1.0, 0.06, PALETTE.monitor); wall.position.set(cx, yFloor + 1.4, -D / 2 + 0.4); group.add(wall);
-      add(box(1.66, 0.86, 0.02, emis(PALETTE.screenOn, 0.45)), cx, yFloor + 1.4, -D / 2 + 0.44);
-      plant(cx + rw / 2 - 0.6, yFloor, 2.6);
-    }
-    if (r.type === 'command') {
-      // security office: a curved console + a wall of monitors (video wall)
-      const desk = box(2.2, 0.75, 0.7, PALETTE.deskTop); desk.position.set(cx, yFloor + 0.38, 0.9); group.add(desk);
-      officeChair(cx, yFloor, 1.8, Math.PI);
-      for (let r2 = 0; r2 < 2; r2++) for (let c2 = 0; c2 < 3; c2++) {
-        const col = (r2 + c2) % 2 ? 0x6a7bff : PALETTE.screenOn;
-        add(box(0.62, 0.42, 0.04, emis(col, 0.5)), cx - 0.8 + c2 * 0.8, yFloor + 1.15 + r2 * 0.5, -D / 2 + 0.35);
+  function furnish(r, cx, cz, rw, rd) {
+    ceilingStrips(cx, cz, rw);
+    if (r.type === 'office') {
+      // four workstation pods; the front pair face the corridor, the back pair face front
+      [['office#1', cx - 3.2, cz + 1.4, 0], ['office#2', cx - 0.6, cz + 1.4, 0],
+       ['office#3', cx + 2.0, cz + 1.4, 0], ['office#4', cx + 2.0, cz - 1.6, Math.PI]]
+        .forEach(([id, px, pz, f]) => workstation(px, pz, id, 'office', f));
+      add(box(2.2, 1.1, 0.08, mat(0xeef1f5)), cx - rw / 2 + 1.4, 0.9, r.rect.z1 - 0.2); // whiteboard
+      plant(r.rect.x1 - 0.8, r.rect.z1 - 0.9, true);
+    } else if (r.type === 'lobby') {
+      // reception counter + logo wall + waiting lounge
+      const counter = box(3.0, 1.0, 0.75, mat(P.wood)); add(counter, cx, 0.5, r.rect.z0 + 1.3);
+      add(box(3.2, 0.07, 0.95, mat(P.deskTop), false), cx, 1.0, r.rect.z0 + 1.3);
+      add(box(2.4, 1.3, 0.12, mat(P.brand), true), cx, 1.1, r.rect.z0 + 0.25);   // red logo wall
+      add(box(2.0, 0.5, 0.02, emis(0xffffff, 0.25), false), cx, 1.2, r.rect.z0 + 0.32);
+      chair(cx, r.rect.z0 + 2.0, 0);
+      // lounge
+      add(box(2.0, 0.42, 0.7, mat(P.sofa)), cx + 1.4, 0.3, r.rect.z1 - 1.4); add(box(2.0, 0.5, 0.18, mat(P.sofa)), cx + 1.4, 0.5, r.rect.z1 - 1.1);
+      add(box(0.9, 0.32, 0.6, mat(P.wood)), cx + 1.4, 0.2, r.rect.z1 - 2.3);
+      plant(r.rect.x0 + 0.8, r.rect.z1 - 1.0, true); plant(r.rect.x1 - 0.8, r.rect.z0 + 1.0);
+    } else if (r.type === 'command') {
+      // security office: console desk + video wall
+      add(box(2.4, 0.78, 0.7, mat(P.deskTop)), cx, 0.39, r.rect.z0 + 1.0);
+      chair(cx, r.rect.z0 + 1.9, 0);
+      for (let row = 0; row < 2; row++) for (let col = 0; col < 3; col++) {
+        const on = (row + col) % 2 ? P.accentCyan : 0x8a7bff;
+        add(box(0.7, 0.44, 0.05, emis(on, 0.5), false), cx - 0.85 + col * 0.85, 1.15 + row * 0.52, r.rect.z0 + 0.24);
       }
-      addLight(cx, yFloor + FH * 0.75, 0.5, 0x8a7bff, 0.55, 7);
-    }
-    if (r.type === 'egress') {
-      // mailroom: shelving with parcels + an exit door
-      for (let s = 0; s < 3; s++) add(box(1.8, 0.06, 0.5, PALETTE.metal), cx, yFloor + 0.4 + s * 0.4, -D / 2 + 0.5);
-      for (let p = 0; p < 4; p++) add(box(0.3, 0.26, 0.3, [0xb08a5a, 0x8a95a8, 0xc48a6a, 0x9aa06a][p]), cx - 0.7 + p * 0.45, yFloor + 0.55 + (p % 2) * 0.4, -D / 2 + 0.5);
-      add(box(0.9, 1.8, 0.08, PALETTE.metal), cx + rw / 2 - 0.7, yFloor + 0.9, 2.2); // exit door
-      add(box(0.12, 0.12, 0.3, emis(0x46e0a0, 0.8)), cx + rw / 2 - 0.7, yFloor + 1.95, 2.2); // EXIT light
-    }
-    if (r.type === 'server') {
-      const rackMat = mat(PALETTE.rack, { metalness: 0.2, roughness: 0.6 });
-      let firstRack = null;
+      add(box(2.8, 0.1, 0.1, mat(P.brand), false), cx, 1.95, r.rect.z0 + 0.24);
+      plant(r.rect.x0 + 0.8, r.rect.z1 - 0.9);
+    } else if (r.type === 'server') {
+      add(box(rw - 1.2, 0.03, rd - 1.4, emis(P.serverGlow, 0.06), false), cx, 0.07, cz); // cool raised-floor glow
+      let first = null;
       for (let k = 0; k < 5; k++) {
-        const rack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.5, 0.75), rackMat);
-        add(rack, cx - 1.6 + k * 0.8, yFloor + 0.75, -0.7);
-        if (k === 0) firstRack = rack;
-        for (let L = 0; L < 5; L++) add(box(0.34, 0.05, 0.02, emis(PALETTE.rackLight, 0.9)), cx - 1.6 + k * 0.8, yFloor + 0.35 + L * 0.26, -0.31);
+        const rack = box(0.6, 1.5, 0.8, mat(P.rack, { metalness: 0.3, roughness: 0.5 })); add(rack, r.rect.x0 + 1.0 + k * 0.95, 0.75, r.rect.z0 + 1.1);
+        if (!first) first = rack;
+        for (let L = 0; L < 5; L++) add(box(0.4, 0.05, 0.02, emis(P.rackCyan, 0.95), false), r.rect.x0 + 1.0 + k * 0.95, 0.4 + L * 0.26, r.rect.z0 + 0.71);
       }
-      add(box(rw - 0.6, 0.03, D - 0.9, emis(0x2a6fff, 0.08)), cx, yFloor + 0.12, 0.6); // cool raised-floor glow
-      firstRack.userData = { kind: 'desk', deskId: 'server#core', roomId: 'server' };
-      pickables.push(firstRack);
-      desks.set('server#core', { id: 'server#core', roomId: 'server', pos: V(cx - 1.6, yFloor + 0.9, -0.7), deskMesh: firstRack });
-      node('desk:server#core', V(cx - 1.6, yFloor + 0.05, 0.4), r.floor); link('desk:server#core', 'room:server');
-      addLight(cx, yFloor + FH * 0.75, 0.3, 0x3fb0ff, 0.7, 8);
-    }
-    if (r.type === 'vault') {
-      const plinth = cyl(1.0, 1.1, 0.22, PALETTE.vaultPlinth, 8); add(plinth, cx, yFloor + 0.11, 0);
-      const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.62, 0),
-        new THREE.MeshStandardMaterial({ color: PALETTE.vaultCore, emissive: PALETTE.vaultCore, emissiveIntensity: 0.8, flatShading: true, roughness: 0.3 }));
-      core.position.set(cx, yFloor + 1.05, 0); core.userData = { kind: 'desk', deskId: 'vault#core', roomId: 'vault' };
-      group.add(core); pickables.push(core);
-      // low protective railing around the vault
-      for (const [dx, dz, rot] of [[0, 1.3, 0], [0, -1.3, 0], [1.3, 0, Math.PI / 2], [-1.3, 0, Math.PI / 2]]) {
-        const bar = box(2.3, 0.05, 0.05, emis(0xffb24b, 0.4)); bar.position.set(cx + dx, yFloor + 0.75, dz); bar.rotation.y = rot; group.add(bar);
-      }
-      desks.set('vault#core', { id: 'vault#core', roomId: 'vault', pos: V(cx, yFloor + 1.05, 0), coreMesh: core });
-      node('desk:vault#core', V(cx, yFloor + 0.05, 1.2), r.floor); link('desk:vault#core', 'room:vault');
-      addLight(cx, yFloor + FH * 0.7, 0.4, 0xffcf6e, 0.9, 9);
+      first.userData = { kind: 'desk', deskId: 'server#core', roomId: 'server' }; pickables.push(first);
+      desks.set('server#core', { id: 'server#core', roomId: 'server', pos: V(r.rect.x0 + 1.0, 0.9, r.rect.z0 + 1.1), deskMesh: first });
+      node('desk:server#core', V(r.rect.x0 + 1.0, 0.05, C.z0 - 1.2)); link('desk:server#core', 'room:server');
+    } else if (r.type === 'vault') {
+      const plinth = cyl(1.05, 1.15, 0.24, mat(P.vaultPlinth), 10); add(plinth, cx, 0.12, cz);
+      const core = mesh(new THREE.IcosahedronGeometry(0.66, 0), new THREE.MeshStandardMaterial({ color: P.vaultCore, emissive: P.vaultCore, emissiveIntensity: 0.8, flatShading: true, roughness: 0.3 }));
+      core.position.set(cx, 1.1, cz); core.userData = { kind: 'desk', deskId: 'vault#core', roomId: 'vault' }; group.add(core); pickables.push(core);
+      for (const [dx, dz, rot] of [[0, 1.35, 0], [0, -1.35, 0], [1.35, 0, Math.PI / 2], [-1.35, 0, Math.PI / 2]]) { const bar = box(2.4, 0.05, 0.05, emis(P.gold, 0.4), false); bar.position.set(cx + dx, 0.78, cz + dz); bar.rotation.y = rot; group.add(bar); }
+      desks.set('vault#core', { id: 'vault#core', roomId: 'vault', pos: V(cx, 1.1, cz), coreMesh: core });
+      node('desk:vault#core', V(cx, 0.05, C.z0 - 1.2)); link('desk:vault#core', 'room:vault');
+      add(box(0.5, 0.3, 0.1, emis(P.accentCyan, 0.5), false), r.rect.x1 - 0.5, 1.1, C.z0 - 0.02); // card reader by door
+    } else if (r.type === 'meeting') {
+      const table = box(2.8, 0.1, 1.2, mat(P.wood)); add(table, cx, 0.56, cz);
+      add(cyl(0.14, 0.14, 0.56, mat(P.deskLeg)), cx, 0.28, cz);
+      for (const dz of [-0.95, 0.95]) for (const dx of [-0.9, 0, 0.9]) chair(cx + dx, cz + dz, dz < 0 ? 0 : Math.PI);
+      add(box(2.0, 1.1, 0.06, mat(P.monitor)), cx, 1.35, r.rect.z0 + 0.2); add(box(1.86, 0.94, 0.02, emis(P.screenOn, 0.4), false), cx, 1.35, r.rect.z0 + 0.25);
+      plant(r.rect.x1 - 0.8, r.rect.z1 - 0.9);
+    } else if (r.type === 'egress') {
+      for (let s = 0; s < 3; s++) add(box(1.6, 0.06, 0.5, mat(P.metal)), cx, 0.45 + s * 0.42, r.rect.z0 + 0.6);
+      for (let p = 0; p < 4; p++) add(box(0.32, 0.26, 0.32, mat([0xb08a5a, 0x8a95a8, 0xc48a6a, 0x9aa06a][p])), cx - 0.7 + p * 0.46, 0.6 + (p % 2) * 0.42, r.rect.z0 + 0.6);
+      add(box(0.12, 0.3, 0.3, emis(P.exit, 0.9), false), exitDoorX, EXT - 0.3, B.z0 + 0.15); // EXIT light on back wall
+      plant(r.rect.x1 - 0.7, r.rect.z1 - 0.9);
     }
   }
-  function addLight(x, y, z, color, intensity, dist) { const l = new THREE.PointLight(color, intensity, dist, 2); l.position.set(x, y, z); group.add(l); lights.push(l); }
 
-  return { group, rooms, desks, pickables, anchors, nav, lights, dims: { W, D, FH, floors, coreX } };
+  // ---------- accent lights (few; one shadow light lives in world.js) ----------
+  function addLight(x, y, z, color, intensity, dist) { const l = new THREE.PointLight(color, intensity, dist, 2); l.position.set(x, y, z); group.add(l); lights.push(l); }
+  addLight(rooms.get('server').center.x, 2.0, rooms.get('server').center.z, 0x3fb0ff, 7, 7);
+  addLight(rooms.get('vault').center.x, 2.0, rooms.get('vault').center.z, 0xffcf6e, 8, 7);
+  addLight(rec.center.x, 2.2, rec.center.z, 0xffe6c2, 7, 8);
+
+  function refreshSigns() { for (const s of signs) { drawSign(s.canvas, loc(s.r.name), s.r.type === 'server' ? '#39c0ff' : s.r.type === 'vault' ? '#ffcf6e' : '#' + P.brand.toString(16).padStart(6, '0')); s.tex.needsUpdate = true; } }
+
+  return { group, rooms, desks, pickables, anchors, nav, lights, signs, refreshSigns, dims: { W: FW, D: FD, WH, bounds: B, MX, MZ } };
 }
 
 // BFS pathfinding over the nav graph; returns array of Vector3 waypoints (inclusive).

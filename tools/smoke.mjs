@@ -33,7 +33,7 @@ async function run() {
   await page.evaluate(() => {
     const g = window.__sentinel.engine; g.budget = 99;
     g.deploy('AF'); g.deploy('NDR'); g.deploy('XDR'); g.deploy('IAG');
-    g.deploy('EDR', 'office#2'); g.deploy('EDR', 'finance#1'); g.deploy('EDR', 'server#core'); g.deploy('EDR', 'vault#core');
+    g.deploy('EDR', 'office#2'); g.deploy('EDR', 'office#1'); g.deploy('EDR', 'server#core'); g.deploy('EDR', 'vault#core');
   });
   await page.waitForTimeout(400);
   await page.screenshot({ path: join(SHOTS, 'm2-3-deployed.png') });
@@ -78,12 +78,12 @@ async function run() {
   await page.waitForSelector('[data-act="begin"]', { timeout: 12000 });
   const resC = await page.evaluate(() => {
     const g = window.__sentinel.engine; g.budget = 99;
-    g.deploy('NDR'); g.deploy('XDR'); g.deploy('EDR', 'finance#1');
+    g.deploy('AF'); g.deploy('XDR'); g.deploy('EDR', 'office#2');
     g.beginDay(); g._paused = true;
     let contained = false;
     for (let i = 0; i < 1400 && !g.ended; i++) {
       g.tick(0.1);
-      if (!contained && g.confirmed && g.intruder.room === 'finance') { g.isolateDevice('finance#1'); contained = true; }
+      if (!contained && g.confirmed && g.intruder.room === 'office') { g.isolateDevice('office#2'); contained = true; }
     }
     return { ended: g.ended, containedTried: contained, contained: g.intruder.contained };
   });

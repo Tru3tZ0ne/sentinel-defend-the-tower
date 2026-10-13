@@ -48,6 +48,20 @@ Focus of the client's refinement brief: polish the existing building + incident 
 - [x] Verified: smoke (strong→win 9/9, none→breach, isolate→contain) + direct visual inspection of setup, deploy, coverage, confirm/correlation, inspect cards (EN+中文), end, spatial replay — screenshots in `tools/shots/`.
 - [ ] Human play-test & tuning review with client (still recommended before a live event).
 
+## Milestone 2.6 — Polished single-floor sample (art-direction benchmark) — DONE, verified
+Client asked to establish a finished visual + interaction standard on **one** representative
+floor before extending across the building. See `ART_DIRECTION.md`.
+- [x] Art direction defined (references, camera, proportions, palette, lighting, materials, character style, LOD) — `ART_DIRECTION.md`
+- [x] Re-staged the full incident onto a **single floor** (`src/data/scenario.js`): reception/entrance → open office → server room → data room → mailroom/exit, off a central corridor. Engine/mechanics unchanged (room/desk ids kept stable).
+- [x] New single-floor generator (`src/world/building.js`): diorama base, oak floor, corridor spine, glass-fronted rooms, exterior walls (open front, dollhouse), **in-world canvas signage** (bilingual), per-room furniture that gives distinct identity, nav graph.
+- [x] Rendering lift (`src/world/world.js`): **soft shadow mapping** (PCFSoft), warm daylight key + sky fill, ACES tone-mapping tuned so surfaces read (not blown out), studio gradient backdrop, near-ortho dollhouse camera framed on the floor.
+- [x] Characters: rounded heads, **cast real shadows**, retained walk/sit-work/idle animation; furniture rebuilt (desks+monitors+office chairs, reception counter+logo wall+lounge, conference table, server racks, gold data core+railing, SOC video wall, mailroom shelves).
+- [x] Product effects on the floor: EDR shield rings, **NDR corridor sensor line** + scan rings, AF entrance arch, deploy pulses, XDR correlation lines, coverage pills in inspect.
+- [x] Interface fits the scene: dropped floating DOM room labels (in-world signage instead), inspect shows room purpose + coverage, feed/timeline readable, Sophia identity. EN/中文.
+- [x] Verified: smoke (strong→win, none→ransomware uptime loss, isolate→contain) + canvas picking + direct visual review of setup, close-up, deploy, confirm, inspect (EN+中文), end, replay.
+- [ ] Apply the approved standard to additional floors/incidents (next).
+- [ ] Human play-test & tuning review with client.
+
 ## Milestone 3 — Depth & content (next)
 - [ ] Distinct ransomware-led "Robber" incident; branching second scenario
 - [ ] Infra/business track woven into the world: HCI foundation, ADC vs DDoS, SASE remote branch, aStor snapshots prepared in SETUP

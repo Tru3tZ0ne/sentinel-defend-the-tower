@@ -38,12 +38,8 @@ function initStage() {
   for (const e of EMPLOYEES) people.add({ id: e.id, startNode: 'room:' + e.home, role: 'employee', home: e.home, visitor: lanyard.has(e.id) });
   const intr = people.add({ id: 'intruder', startNode: 'entrance', role: 'intruder', visitor: true });
   intr.group.visible = false; intr.wander = false;
-  // room labels
-  labelEls.clear(); overlay.els.labels.innerHTML = '';
-  for (const r of LAYOUT.rooms) {
-    const d = document.createElement('div'); d.className = 'rlabel'; d.textContent = loc(r.name);
-    overlay.els.labels.appendChild(d); labelEls.set(r.id, d);
-  }
+  // Room identity now comes from in-world signage + furniture (no floating DOM labels).
+  labelEls.clear(); if (overlay?.els?.labels) overlay.els.labels.innerHTML = '';
 }
 
 // ---------- helpers ----------
@@ -158,7 +154,7 @@ function inspectRoom(roomId) {
   if (inc && locked) actions.push(`<button class="btn mini good" data-act="recover" data-room="${roomId}">${icon('astor')} ${t('resp.recover')}</button>`);
   if (inc && !locked) actions.push(`<button class="btn mini" data-act="lockdown" data-room="${roomId}">${icon('lock')} ${t('resp.lockdown')}</button>`);
   return `
-    <div class="ins-head"><h3>${icon(roomIcon(r.type))} ${loc(r.name)}</h3><span class="ins-sub">${t('inspect.floor')} ${r.floor}</span></div>
+    <div class="ins-head"><h3>${icon(roomIcon(r.type))} ${loc(r.name)}</h3><span class="ins-sub">${t('inspect.level')}</span></div>
     <div class="ins-purpose">${t('room.' + r.type) || ''}</div>
     ${locked ? `<div class="locked-row">${icon('lock')} ${t('inspect.locked')}</div>` : ''}
     <div class="ins-rows">
@@ -314,8 +310,7 @@ overlay = createOverlay(overlayRoot, {
 });
 
 function refreshAll() {
-  // rebuild room labels text for language + re-render panels/screens
-  for (const [id, el] of labelEls) { const r = LAYOUT.rooms.find(x => x.id === id); if (r) el.textContent = loc(r.name); }
+  if (building?.refreshSigns) building.refreshSigns();   // re-draw in-world signage in the new language
   if (!engine) { overlay.showStart(); return; }
   if (engine.phase === 'review') { overlay.showEnd(engine); return; }
   overlay.renderHud(engine); overlay.renderTray(engine, placing); overlay.renderFeed(engine); reflowSophia(); renderInspect();
