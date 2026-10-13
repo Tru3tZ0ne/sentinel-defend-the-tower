@@ -1,0 +1,14 @@
+{
+  "name": "sentinel-defend-the-tower",
+  "version": "0.1.0",
+  "description": "Interactive 'protect the building' game introducing Sangfor's cybersecurity, cloud, and AI products.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node tools/serve.mjs",
+    "test": "node tools/smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.47.0"
+  }
+}
