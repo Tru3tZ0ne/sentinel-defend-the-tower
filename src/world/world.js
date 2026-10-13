@@ -7,24 +7,32 @@ export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.9;
+  renderer.toneMappingExposure = 1.02;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
-  // soft studio gradient backdrop so the diorama reads like a physical model
+  // night security-operations backdrop: a dark room with a cool glow toward the top
   const bg = document.createElement('canvas'); bg.width = 16; bg.height = 256;
   const bgx = bg.getContext('2d'); const grd = bgx.createLinearGradient(0, 0, 0, 256);
-  grd.addColorStop(0, '#2b3650'); grd.addColorStop(0.55, '#1b2336'); grd.addColorStop(1, '#10151f');
+  grd.addColorStop(0, '#111b2e'); grd.addColorStop(0.5, '#0a1120'); grd.addColorStop(1, '#05070e');
   bgx.fillStyle = grd; bgx.fillRect(0, 0, 16, 256);
   const bgTex = new THREE.CanvasTexture(bg); bgTex.colorSpace = THREE.SRGBColorSpace; scene.background = bgTex;
+  scene.fog = new THREE.Fog(0x070b16, 44, 115);
+
+  // holographic command-table base: a faint cyan grid the model sits on
+  const grid = new THREE.GridHelper(120, 80, 0x2f6ea0, 0x16304a);
+  grid.position.y = -0.62; grid.material.transparent = true; grid.material.opacity = 0.3; scene.add(grid);
+  const halo = new THREE.Mesh(new THREE.CircleGeometry(26, 48).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0x0c1a2c, transparent: true, opacity: 0.55 }));
+  halo.position.y = -0.6; scene.add(halo);
 
   const camera = new THREE.PerspectiveCamera(33, 1, 0.1, 300);
-  camera.position.set(4, 32, 30);
+  camera.position.set(1.5, 33, 29);
 
   const controls = new OrbitControls(camera, canvas);
-  controls.target.set(1.5, 0.3, -1.0);
+  controls.target.set(-0.5, 0.0, -2.2);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.minDistance = 16;
@@ -36,19 +44,21 @@ export function createWorld(canvas) {
   controls.enablePan = false;
   controls.update();
 
-  // lighting — bright, daylight diorama. One warm shadow-casting key + sky fill + ambient.
-  scene.add(new THREE.HemisphereLight(0xdce8ff, 0x6a6350, 0.42));
-  scene.add(new THREE.AmbientLight(0x9fb0c8, 0.22));
-  const key = new THREE.DirectionalLight(0xfff0dc, 1.15);
-  key.position.set(18, 30, 18); key.castShadow = true;
+  // lighting — night ops. A cool moonlight key (soft shadows) + very low fill; the building's
+  // own warm interior lights and glowing screens do most of the work, so the model reads like
+  // a lit scale model at night.
+  scene.add(new THREE.HemisphereLight(0x3f557c, 0x090b12, 0.3));
+  scene.add(new THREE.AmbientLight(0x4a5a78, 0.16));
+  const key = new THREE.DirectionalLight(0xaec6f2, 0.62);
+  key.position.set(16, 30, 16); key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   key.shadow.camera.near = 1; key.shadow.camera.far = 90;
   key.shadow.camera.left = -22; key.shadow.camera.right = 22;
   key.shadow.camera.top = 22; key.shadow.camera.bottom = -22;
   key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
   scene.add(key); scene.add(key.target); key.target.position.set(0, 0, 0);
-  const fill = new THREE.DirectionalLight(0xbcd4ff, 0.55); fill.position.set(-14, 14, 18); scene.add(fill);
-  const back = new THREE.DirectionalLight(0xcfe0ff, 0.3); back.position.set(-10, 10, -18); scene.add(back);
+  const fill = new THREE.DirectionalLight(0x6f86b8, 0.22); fill.position.set(-14, 14, 18); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0x2f6ea0, 0.28); rim.position.set(-12, 8, -18); scene.add(rim);
 
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();

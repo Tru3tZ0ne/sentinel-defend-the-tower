@@ -24,7 +24,10 @@ let sophiaState = { id: null, expanded: false };
 const highlighted = [];
 const labelEls = new Map();
 let replay = null;
+let lastEvent = '';
 const publicNodes = LAYOUT.rooms.filter(r => !['server', 'vault'].includes(r.type)).map(r => 'room:' + r.id);
+
+function setTicker(text, kind) { lastEvent = text; if (engine && engine.phase === 'incident') overlay.setEvent(text, false, kind); }
 
 // ---------- world (re)build ----------
 function initStage() {
@@ -151,8 +154,8 @@ function inspectRoom(roomId) {
   const inc = engine.phase === 'incident';
   const deskCount = [...building.desks.values()].filter(d => d.roomId === roomId && d.deskMesh).length;
   const actions = [];
-  if (inc && locked) actions.push(`<button class="btn mini good" data-act="recover" data-room="${roomId}">${icon('astor')} ${t('resp.recover')}</button>`);
-  if (inc && !locked) actions.push(`<button class="btn mini" data-act="lockdown" data-room="${roomId}">${icon('lock')} ${t('resp.lockdown')}</button>`);
+  if (inc && locked) actions.push(`<button class="actbtn good" data-act="recover" data-room="${roomId}">${icon('astor')}<span>${t('act.restore')}</span></button>`);
+  if (inc && !locked) actions.push(`<button class="actbtn" data-act="lockdown" data-room="${roomId}">${icon('lock')}<span>${t('act.restrict')}</span></button>`);
   return `
     <div class="ins-head"><h3>${icon(roomIcon(r.type))} ${loc(r.name)}</h3><span class="ins-sub">${t('inspect.level')}</span></div>
     <div class="ins-purpose">${t('room.' + r.type) || ''}</div>
@@ -165,10 +168,28 @@ function inspectRoom(roomId) {
     ${actions.length ? `<div class="ins-actions">${actions.join('')}</div>` : ''}`;
 }
 function roomIcon(type) { return { lobby: 'af', command: 'xdr', egress: 'iag', server: 'astor', vault: 'check', office: 'edr', meeting: 'mdr' }[type] || 'edr'; }
+function statusRow(label, ok, okText, noText) {
+  return `<div class="st-row"><span class="st-k">${label}</span><span class="st-v ${ok ? 'ok' : 'no'}">${ok ? '●' : '○'} ${ok ? okText : noText}</span></div>`;
+}
 function inspectDesk(deskId, roomId) {
   const edr = engine.edrDesks.has(deskId);
+  const observed = engine.hasNDR;
   const inc = engine.phase === 'incident';
-  const action = (inc && edr) ? `<div class="ins-actions"><button class="btn mini good" data-act="isolate" data-desk="${deskId}">${icon('edr')} ${t('resp.isolate')}</button></div>` : '';
+  const acts = [];
+  if (inc && edr) acts.push(`<button class="actbtn danger" data-act="isolate" data-desk="${deskId}">${icon('edr')}<span>${t('act.isolate')}</span></button>`);
+  if (inc) acts.push(`<button class="actbtn" data-act="lockdown" data-room="${roomId}">${icon('lock')}<span>${t('act.restrict')}</span></button>`);
+  return `
+    <div class="ins-head"><h3>${icon('endpoint')} ${t('inspect.workstation')}</h3><span class="ins-sub">${roomName(roomId)}</span></div>
+    <div class="st-rows">
+      ${statusRow(t('st.endpoint'), edr, t('st.protected'), t('st.unprotected'))}
+      ${statusRow(t('st.network'), observed, t('st.observed'), t('st.unobserved'))}
+    </div>
+    ${acts.length ? `<div class="ins-actions">${acts.join('')}</div>` : ''}`;
+}
+function _unusedDesk(deskId, roomId) {
+  const edr = engine.edrDesks.has(deskId);
+  const inc = engine.phase === 'incident';
+  const action = '';
   return `
     <div class="ins-head"><h3>${icon('edr')} ${t('inspect.workstation')}</h3><span class="ins-sub">${roomName(roomId)}</span></div>
     <div class="ins-cover"><div class="cover-list"><span class="cover-pill ${edr ? 'edr' : 'none'}">${icon(edr ? 'edr' : 'attacker')} ${edr ? t('inspect.protected') : t('inspect.unprotected')}</span></div></div>
@@ -233,7 +254,7 @@ function newGame() {
   engine
     .on('change', () => { dirty = true; })
     .on('deploy', ({ product, target }) => { fx.addProp(product, target); dirty = true; firstDeploy(); })
-    .on('clue', c => { if (c.type === 'network') fx.addTrail(c.fromRoom, c.room); else fx.addClue(c); dirty = true; })
+    .on('clue', c => { if (c.type === 'network') fx.addTrail(c.fromRoom, c.room); else fx.addClue(c); setTicker(`${t('clue.' + c.type)} · ${roomName(c.room)}`); dirty = true; })
     .on('confirm', () => {
       engine.clues.forEach(c => fx.setClueConfirmed(c.id));
       const it = people.get('intruder'); if (it) fx.setReveal(it.group);
@@ -244,19 +265,22 @@ function newGame() {
         const p = (d ? d.pos.clone() : r?.center.clone()); if (p) p.y += 1.2; return p;
       }).filter(Boolean);
       if (pts.length) fx.drawCorrelation(console3, pts);
+      setTicker(t('toast.confirmed'), 'warn');
     })
     .on('intruder-goto', ({ room, desk }) => { const it = people.get('intruder'); if (it) { it.group.visible = true; people.setRoute(it, desk ? 'desk:' + desk : 'room:' + room); } })
-    .on('lock', ({ room, locked }) => fx.lockRoom(room, locked))
+    .on('lock', ({ room, locked }) => { fx.lockRoom(room, locked); if (locked) setTicker(t('ticker.ransom'), 'bad'); })
     .on('cage-room', ({ room }) => fx.restrictRoom(room))
-    .on('contained', ({ desk }) => { const it = people.get('intruder'); if (it) it.halted = true; if (desk) fx.cageDesk(desk); fx.resolveAllClues(); fx.clearCorrelation(); dirty = true; })
+    .on('contained', ({ desk }) => { const it = people.get('intruder'); if (it) it.halted = true; if (desk) fx.cageDesk(desk); fx.resolveAllClues(); fx.clearCorrelation(); setTicker(t('resp.contained'), 'good'); dirty = true; })
     .on('sophia', ({ id }) => showSophia(id))
     .on('toast', p => overlay.toast(p))
-    .on('phase', ({ phase }) => { overlay.setPhase(phase); dirty = true; })
+    .on('phase', ({ phase }) => { overlay.setPhase(phase); if (phase === 'incident') overlay.setEvent(lastEvent, false); dirty = true; })
     .on('end', () => endGame());
 
+  lastEvent = '';
   overlay.hideStart(); overlay.hideEnd();
   overlay.setPhase('prep');
   overlay.renderHud(engine); overlay.renderTray(engine, placing); overlay.renderFeed(engine);
+  overlay.setEvent(null, true);
   showSophia('welcome');
   clearInterval(prepTimer);
   prepTimer = setTimeout(() => { if (engine && engine.phase === 'prep' && engine.deployed.length === 0) showSophia('deployFirst'); }, 5000);
@@ -302,7 +326,10 @@ overlay = createOverlay(overlayRoot, {
   onLockdown: room => { engine.lockdownRoom(room); renderInspect(); },
   onRecover: room => { engine.recover(room); renderInspect(); },
   onSophiaMore: () => { sophiaState.expanded = true; reflowSophia(); },
+  onSophiaShow: () => { const f = sophiaFocusPoint(sophiaState.id); if (f) { world.focusOn(f.clone().setY(f.y + 1), 14); fx.setSelection(f); } sophiaState.expanded = true; reflowSophia(); },
   onFocusClue: id => focusClue(id),
+  onInvestigate: () => { const c = engine.clues[engine.clues.length - 1]; if (c) focusClue(c.id); },
+  onTab: () => { overlay.renderTray(engine, placing); },
   onCloseInspect: () => { inspectTarget = null; overlay.clearInspect(); if (fx) fx.clearSelection(); },
   onAgain: () => newGame(),
   onReplayPlay: () => startReplay(),
@@ -314,6 +341,7 @@ function refreshAll() {
   if (!engine) { overlay.showStart(); return; }
   if (engine.phase === 'review') { overlay.showEnd(engine); return; }
   overlay.renderHud(engine); overlay.renderTray(engine, placing); overlay.renderFeed(engine); reflowSophia(); renderInspect();
+  if (engine.phase === 'prep') overlay.setEvent(null, true); else overlay.setEvent(lastEvent, false);
 }
 
 // ---------- main loop ----------

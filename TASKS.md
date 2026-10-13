@@ -62,7 +62,19 @@ floor before extending across the building. See `ART_DIRECTION.md`.
 - [ ] Apply the approved standard to additional floors/incidents (next).
 - [ ] Human play-test & tuning review with client.
 
-## Milestone 3 — Depth & content (next)
+## Milestone 3 — "Night-Ops Command" redesign (substantial creative leap) — DONE, verified
+Client asked for a significant creative leap with its own identity (ref image `references/references.png`).
+Explored 3 directions (night-ops command [chosen], full holographic table, topological threat map).
+- [x] Night security-operations art direction (`ART_DIRECTION.md`): dark void + holographic grid base, building lit by its own interior lights + glowing screens, cool moonlight key, soft shadows.
+- [x] Full AAA dark-ops **UI shell** (`overlay.js`+`main.css`): top HUD (business/data/budget/countdown), right column (live incident timeline · asset inspect card with endpoint/network status + Isolate/Restrict/Restore actions · Sophia the security analyst with Show-me), bottom capability deck with live status (ACTIVE / N DEVICES / AVAILABLE) + Defense/Cloud&AI/Operations/Replay tabs, event ticker.
+- [x] **Honest outcomes** (engine): Contained / Exfiltration-blocked / **Delayed-not-contained** / Breach / Collapse — a delayed threat no longer reads as a clean win; scores differ. ("Detection is not containment.")
+- [x] Sophia reframed as the security analyst; direction-first hint + "Show me" camera focus.
+- [x] Cloud & AI / Operations tabs tease the broader accurate product scope (HCI, aStor, ADC, SASE, AICP; XDR, MDR, Security GPT) without forcing them into one mechanic.
+- [x] Product accuracy re-verified against the June 2025 **Athena** rebrand (Foundation NGFW/EPP/SWG/NDR; Security Ops XDR/MDR w/ Security GPT; Cloud SASE). Recovery conditions kept explicit.
+- [x] Verified: smoke (contain / delayed / breach distinct) + visual review of prep, deploy, confirm, honest end, EN/中文 UI, replay + live render.
+- [ ] Human play-test & tuning with client.
+
+## Milestone 4 — Depth & content (next)
 - [ ] Distinct ransomware-led "Robber" incident; branching second scenario
 - [ ] Infra/business track woven into the world: HCI foundation, ADC vs DDoS, SASE remote branch, aStor snapshots prepared in SETUP
 - [ ] AICP + Agent Builder: Sophia/automation framing; build-a-helper-agent moment

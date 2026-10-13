@@ -1,5 +1,30 @@
 # Art Direction — Sentinel: Defend the Tower
 
+## Direction (current): "Night-Ops Command"
+A **Sangfor security-operations command centre at night**. The enterprise floor is a lit
+scale model on a dark command table; you are the operator. Identity pillars:
+- **Cinematic night mood** — dark void + a faint holographic grid base; the building is lit by
+  its own interior lights and glowing screens (gold Data Room, cyan Server Room, warm
+  reception), with a cool moonlight key and soft shadows. Premium, on-theme, and it makes
+  fog-of-war feel natural (the floor is a live model you illuminate with sensors).
+- **A dense, professional dark-ops UI** (the biggest "finished product" lever): a top status
+  bar (business/data/budget/clock), a right column (live incident timeline · asset inspect
+  card with endpoint/network status + actions · Sophia the security analyst), a bottom
+  capability deck with live status + Defense/Cloud&AI/Operations/Replay tabs, and an event
+  ticker. Structure inspired by the client's reference image's *qualities* (readable evidence,
+  purposeful actions, integrated guidance) — original design, not a copy.
+- **Sensor holograms** — deployed capabilities project cyan coverage/scan rings, an entrance
+  arch, protected-endpoint auras, and the suspicious route appears only where observed.
+- Accent discipline: cyan = sensing/visibility, **Sangfor red** = brand + danger/response,
+  green = healthy/protected, amber/red = threat.
+
+Explored alternatives: a full wireframe holographic command-table (bolder but riskier for
+readability) and an abstract topological threat-map (loses the recognizable space). Night-Ops
+Command keeps the space readable while giving a distinctive identity and strong presales feel.
+
+---
+
+## Earlier note: miniature-diorama bar (still the base geometry/craft standard)
 Goal: an **attractive miniature corporate building** — a diorama you'd want to pick up and
 turn around. This document sets the quality bar for the single-floor sample; once approved it
 is applied to the rest of the building.

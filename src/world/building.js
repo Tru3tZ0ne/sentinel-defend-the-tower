@@ -34,6 +34,7 @@ export function buildBuilding(THREE, LAYOUT) {
   const add = (m, x, y, z, parent = group) => { m.position.set(x, y, z); parent.add(m); return m; };
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const YUP = new THREE.Vector3(0, 1, 0);
+  const ROOM_LIGHT = { office: [0xbcd0f0, 5.5], meeting: [0xc2d2ee, 5], lobby: [0xffe0b8, 6.5], command: [0x9a86ff, 5.5], server: [0x3fb0ff, 6.5], vault: [0xffcf6e, 7.5], egress: [0x9fe0c0, 4.5] };
 
   const rooms = new Map(), desks = new Map(), pickables = [], anchors = {}, lights = [], signs = [];
   const nav = { nodes: new Map(), adj: new Map() };
@@ -217,6 +218,8 @@ export function buildBuilding(THREE, LAYOUT) {
 
   function furnish(r, cx, cz, rw, rd) {
     ceilingStrips(cx, cz, rw);
+    const [lc, li] = ROOM_LIGHT[r.type] || [0xbcd0f0, 5];
+    addLight(cx, WH + 0.1, cz, lc, li, Math.max(rw, rd) * 0.9);
     if (r.type === 'office') {
       // four workstation pods; the front pair face the corridor, the back pair face front
       [['office#1', cx - 3.2, cz + 1.4, 0], ['office#2', cx - 0.6, cz + 1.4, 0],
@@ -280,9 +283,6 @@ export function buildBuilding(THREE, LAYOUT) {
 
   // ---------- accent lights (few; one shadow light lives in world.js) ----------
   function addLight(x, y, z, color, intensity, dist) { const l = new THREE.PointLight(color, intensity, dist, 2); l.position.set(x, y, z); group.add(l); lights.push(l); }
-  addLight(rooms.get('server').center.x, 2.0, rooms.get('server').center.z, 0x3fb0ff, 7, 7);
-  addLight(rooms.get('vault').center.x, 2.0, rooms.get('vault').center.z, 0xffcf6e, 8, 7);
-  addLight(rec.center.x, 2.2, rec.center.z, 0xffe6c2, 7, 8);
 
   function refreshSigns() { for (const s of signs) { drawSign(s.canvas, loc(s.r.name), s.r.type === 'server' ? '#39c0ff' : s.r.type === 'vault' ? '#ffcf6e' : '#' + P.brand.toString(16).padStart(6, '0')); s.tex.needsUpdate = true; } }
 

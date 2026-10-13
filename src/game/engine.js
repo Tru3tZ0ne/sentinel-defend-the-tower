@@ -253,6 +253,7 @@ export class Engine {
   _contain(via, deskId, roomId) {
     this.intruder.contained = true;
     this.clues.forEach(c => c.resolved = true);
+    const last = [...this.log].reverse().find(l => l.kind === 'attack'); if (last) last.contained = true;
     this.emit('contained', { via, desk: deskId, room: roomId || this.intruder.room });
     this.log.push({ t: this.time, kind: 'respond', action: via, desk: deskId, room: roomId || this.intruder.room, result: 'contained' });
     this.emit('toast', { kind: 'good', key: 'resp.contained' });
@@ -275,15 +276,30 @@ export class Engine {
   _end(result, contained = false) {
     if (this.ended) return;
     this.ended = result; this.result = result; this.phase = 'review';
-    this.log.push({ t: this.time, kind: 'end', result, contained });
-    this.score = this._score(result, contained);
-    this.emit('end', { result, contained, score: this.score });
+    this.outcome = this._outcome(result, contained);
+    this.log.push({ t: this.time, kind: 'end', result, contained, outcome: this.outcome.kind });
+    this.score = this._score(result, contained, this.outcome);
+    this.emit('end', { result, contained, score: this.score, outcome: this.outcome });
   }
 
-  _score(result, contained) {
+  // Honest outcomes: containment, a block at the exit, a merely-delayed (still-active)
+  // threat, a data breach, or a business collapse are all different and must read differently.
+  _outcome(result, contained) {
+    if (result === 'win') {
+      if (contained) return { verdict: 'win', kind: 'contained', titleKey: 'end.contained.title', summaryKey: 'end.contained.body' };
+      if (this.intruder.failed) return { verdict: 'win', kind: 'blocked', titleKey: 'end.blocked.title', summaryKey: 'end.blocked.body' };
+      // day ended while the actor was still operating — delayed, NOT contained
+      return { verdict: 'partial', kind: 'delayed', titleKey: 'end.delayed.title', summaryKey: 'end.delayed.body' };
+    }
+    if (result === 'lose-breach') return { verdict: 'lose', kind: 'breach', titleKey: 'end.lose.title', summaryKey: 'end.lose.breach' };
+    return { verdict: 'lose', kind: 'collapse', titleKey: 'end.lose.title', summaryKey: 'end.lose.uptime' };
+  }
+
+  _score(result, contained, outcome) {
     if (result !== 'win') return Math.max(0, Math.round(this.uptime * 2 + this.data));
     const detect = this.firstDetection == null ? 0 : Math.max(0, 120 - this.firstDetection * 1.5);
-    return Math.round(this.uptime * 3 + this.data * 2 + this.budget * 4 + detect + (contained ? 160 : 60));
+    const bonus = outcome.kind === 'contained' ? 180 : outcome.kind === 'blocked' ? 90 : 20; // delayed scores least
+    return Math.round(this.uptime * 3 + this.data * 2 + this.budget * 4 + detect + bonus);
   }
 
   // view helper for rendering attacker visibility
