@@ -32,8 +32,10 @@ function initStage() {
   stage = new THREE.Group(); world.scene.add(stage);
   building = buildBuilding(THREE, LAYOUT); stage.add(building.group);
   fx = createFx(stage, building);
-  people = createPeople(stage, building.nav, publicNodes);
-  for (const e of EMPLOYEES) people.add({ id: e.id, startNode: 'room:' + e.home, role: 'employee' });
+  people = createPeople(stage, building, publicNodes);
+  // Visitor lanyards are worn by a couple of staff too, so the badge never gives the intruder away.
+  const lanyard = new Set(['e1', 'e4']);
+  for (const e of EMPLOYEES) people.add({ id: e.id, startNode: 'room:' + e.home, role: 'employee', home: e.home, visitor: lanyard.has(e.id) });
   const intr = people.add({ id: 'intruder', startNode: 'entrance', role: 'intruder', visitor: true });
   intr.group.visible = false; intr.wander = false;
   // room labels
