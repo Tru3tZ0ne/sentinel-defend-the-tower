@@ -106,16 +106,19 @@ export function createOverlay(root, h) {
 
   // ---------- signal feed ----------
   function renderFeed(e) {
-    if (!e.clues.length) { els.feed.innerHTML = `<div class="empty">${t('feed.none')}</div>`; return; }
+    if (!e.clues.length) { els.feed.innerHTML = `<div class="empty">${t(e.phase === 'prep' ? 'feed.hintPrep' : 'feed.none')}</div>`; return; }
     const roomName = id => { const r = e.sc.LAYOUT.rooms.find(x => x.id === id); return r ? loc(r.name) : id; };
     els.feed.innerHTML = [...e.clues].slice(-9).reverse().map(c => {
       const tag = c.blocked ? `<span class="tag good">${t('end.blocked')}</span>`
         : c.prevented ? `<span class="tag good">${t('end.prevented')}</span>`
         : c.confidence === 'confirmed' ? `<span class="tag confirmed">${t('clue.confirmed')}</span>`
         : `<span class="tag weak">${t('clue.weak')}</span>`;
-      return `<div class="clue ${c.confidence} ${c.resolved?'resolved':''}">
+      return `<button class="clue ${c.confidence} ${c.resolved?'resolved':''}" data-act="focusClue" data-clue="${c.id}" title="${t('feed.focus')}">
         <span class="clue-icon ev-${c.type}">${icon(c.type)}</span>
-        <span class="clue-body"><b>${t('clue.'+c.type)}</b><span class="clue-loc">${t('clue.at')} ${esc(roomName(c.room))}</span></span>${tag}</div>`;
+        <span class="clue-body">
+          <span class="clue-title"><b>${t('clue.'+c.type)}</b>${tag}</span>
+          <span class="clue-loc">${t('clue.at')} ${esc(roomName(c.room))}</span>
+        </span></button>`;
     }).join('');
   }
 
@@ -133,7 +136,7 @@ export function createOverlay(root, h) {
     const more = (hint && !expanded && !greet) ? `<button class="linklike" data-act="sophiaMore">${t('sophia.more')} ↓</button>` : '';
     els.sophia.innerHTML = `
       <div class="sophia">
-        <div class="sophia-avatar">${icon('sophia')}</div>
+        <div class="sophia-avatar">${icon('sophia')}<span class="sophia-dot"></span></div>
         <div class="sophia-text">
           <div class="sophia-name">${t('sophia.name')} <span>· ${t('sophia.role')}</span></div>
           <div class="sophia-body">${esc(body)}</div>
@@ -200,10 +203,11 @@ export function createOverlay(root, h) {
       else if (a.visible) { status = t('end.detected'); cls = 'seen'; }
       else { status = t('end.missed'); cls = 'bad'; }
       return `<li class="tl-row ${cls}" data-step="${i}">
-        <span class="tl-time">${Math.round(a.t)}s</span>
         <span class="tl-ev ev-${a.ev}">${icon(a.ev)}</span>
-        <span class="tl-truth">${esc(loc(beat.truth) || a.act)} <em>· ${esc(roomName(a.room))}</em></span>
-        <span class="tl-status ${cls}">${status}</span></li>`;
+        <div class="tl-main">
+          <div class="tl-truth">${esc(loc(beat.truth) || a.act)}</div>
+          <div class="tl-meta"><span class="tl-time">${Math.round(a.t)}s</span><span class="tl-room">${esc(roomName(a.room))}</span><span class="tl-status ${cls}">${status}</span></div>
+        </div></li>`;
     }).join('');
   }
   function hideEnd() { els.end.className = 'hidden'; els.end.innerHTML = ''; }
@@ -221,6 +225,7 @@ export function createOverlay(root, h) {
       again: h.onAgain, backToGame: h.onBackToGame, replayPlay: h.onReplayPlay,
     };
     if (a === 'pick') return h.onPickProduct(el.dataset.id);
+    if (a === 'focusClue') return h.onFocusClue(el.dataset.clue);
     if (a === 'speed') return h.onSpeed(+el.dataset.s);
     if (a === 'isolate') return h.onIsolate(el.dataset.desk);
     if (a === 'lockdown') return h.onLockdown(el.dataset.room);

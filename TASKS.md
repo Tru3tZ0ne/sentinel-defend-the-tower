@@ -35,13 +35,24 @@ Rebuilt the core around a Three.js low-poly isometric cutaway (vendored locally,
 - [x] Verified headless (WebGL render, 3 scenarios, screenshots) + redeployed
 - [ ] Human play-test & tuning review with client
 
-## Milestone 3 — Depth & polish (next)
-- [ ] Hover highlight / selection outline; camera focus-on-clue; click a marker to inspect
+## Milestone 2.5 — Refinement pass (presentation & understandability) — DONE, verified
+Focus of the client's refinement brief: polish the existing building + incident before adding content.
+- [x] Characters rebuilt: articulated low-poly people (knees, swinging arms, seated "working" pose, idle breathing/glances), varied clothing/skin/hair, desk-based daily routine. Intruder blends in (visitor lanyards worn by several staff, not a tell).
+- [x] Room identity & environmental detail: reception counter + sofa + rug, conference table + chairs, office workstations with monitors, server racks, gold Data Vault on a plinth with railing, Security Office video wall, mailroom shelving + exit, plants/cabinets throughout.
+- [x] Materials, lighting & contrast: ACES tone mapping + exposure, retuned key/fill/rim, per-signature-room accent point lights (reception warm, server cool, vault gold, SOC violet), ceiling light strips, solid readable floor finishes. Dark plaza + distant skyline backdrop so the tower sits in a place.
+- [x] Cutaway clarity: open front face, low glass partitions with lit rails (don't hide people), stair core with treads + glass rail, front fascia beams framing each floor.
+- [x] Selection & camera: hover ring on pickables, selection ring on inspect, smooth camera focus-on-clue (click a Signal-feed item → glide + select), Sophia's teaching beats gently focus the camera (first clue, ransomware lock).
+- [x] Product effects legible: EDR shield dome + floor ring + guarded-screen tint, NDR coverage beam up the core with per-floor scan rings, deploy pulse, XDR correlation lines drawn console→clues on confirm. Inspect card shows room purpose + occupants + "Visibility here" coverage pills (which sensors watch this room) — fog-of-war made legible.
+- [x] Interface readability: removed product-tagline truncation (2-line wrap), rebuilt Signal-feed rows (no more one-word-per-line), richer inspect cards, Sophia identity (avatar breathing ring + online dot, higher-contrast copy), friendlier prep-phase feed hint. EN/中文 maintained.
+- [x] **Bugfix (pre-existing):** `#labels`/`#toasts` full-screen overlays were intercepting pointer events (`#overlay > *` beat `.labels` on specificity), which silently broke clicking rooms/people/desks on the canvas and the topbar language button. Fixed layering + gave the topbar an explicit z-index. (Was never caught because the smoke test drives the engine directly and never clicks the canvas.)
+- [x] Verified: smoke (strong→win 9/9, none→breach, isolate→contain) + direct visual inspection of setup, deploy, coverage, confirm/correlation, inspect cards (EN+中文), end, spatial replay — screenshots in `tools/shots/`.
+- [ ] Human play-test & tuning review with client (still recommended before a live event).
+
+## Milestone 3 — Depth & content (next)
 - [ ] Distinct ransomware-led "Robber" incident; branching second scenario
 - [ ] Infra/business track woven into the world: HCI foundation, ADC vs DDoS, SASE remote branch, aStor snapshots prepared in SETUP
 - [ ] AICP + Agent Builder: Sophia/automation framing; build-a-helper-agent moment
-- [ ] Walk/idle character animation, ambient audio, accessibility (keyboard, contrast, reduced-motion already respected)
-- [ ] Facilitator notes (what each beat demonstrates in a presales conversation)
+- [ ] Ambient audio; keyboard navigation; facilitator notes (what each beat demonstrates in a presales conversation)
 
 ## Milestone 4 — Demo-grade
 - [ ] Swap in official Sangfor logo/product branding (pending client assets)

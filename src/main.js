@@ -78,6 +78,26 @@ function worldClick(ev) {
   const entity = hit?.entity || null;
   if (placing) return tryDeploy(entity);
   inspectTarget = entity; renderInspect();
+  const pt = entityFloorPoint(entity);
+  if (pt) fx.setSelection(pt); else fx.clearSelection();
+}
+
+// Floor-level point for selection rings / camera focus, derived from an inspectable entity.
+function entityFloorPoint(e) {
+  if (!e) return null;
+  if (e.kind === 'room') { const r = building.rooms.get(e.roomId); return r ? r.center.clone() : null; }
+  if (e.kind === 'desk') { const d = building.desks.get(e.deskId); const r = building.rooms.get(e.roomId); if (!d) return null; const p = d.pos.clone(); if (r) p.y = r.center.y; return p; }
+  if (e.kind === 'person') { const p = people.get(e.personId); return p ? p.group.position.clone() : null; }
+  if (e.kind === 'clue') { const c = engine.clues.find(x => x.id == e.clueId); if (!c) return null; const r = building.rooms.get(c.room); const d = c.desk && building.desks.get(c.desk); const p = (d ? d.pos.clone() : r?.center.clone()) || null; if (p && r) p.y = r.center.y; return p; }
+  return null;
+}
+
+function focusClue(clueId) {
+  const c = engine.clues.find(x => x.id == clueId); if (!c) return;
+  inspectTarget = { kind: 'clue', clueId: c.id };
+  renderInspect();
+  const pt = entityFloorPoint(inspectTarget);
+  if (pt) { world.focusOn(pt.clone().setY(pt.y + 1), 14); fx.setSelection(pt); }
 }
 function tryDeploy(entity) {
   const prod = placing; const elig = engine.eligible(prod);
@@ -93,6 +113,10 @@ function tryDeploy(entity) {
 function onPointerMove(ev) {
   const hit = world.pick(ev.clientX, ev.clientY, building.pickables);
   canvas.style.cursor = hit ? 'pointer' : (placing ? 'crosshair' : 'grab');
+  if (fx) {
+    const pt = hit ? entityFloorPoint(hit.entity) : null;
+    fx.setHover(pt && !placing ? pt : null);
+  }
 }
 
 // ---------- inspect card ----------
@@ -107,22 +131,41 @@ function renderInspect() {
   overlay.showInspect({ html });
 }
 function roomName(id) { const r = LAYOUT.rooms.find(x => x.id === id); return r ? loc(r.name) : id; }
+
+// Which deployed sensors give visibility into this room (fog-of-war made legible).
+function roomCoverage(roomId) {
+  const r = LAYOUT.rooms.find(x => x.id === roomId); if (!r) return [];
+  const out = [];
+  if (engine.hasAF && r.type === 'lobby') out.push('af');
+  if (engine.hasNDR) out.push('ndr');
+  if ([...engine.edrDesks].some(d => d.split('#')[0] === roomId)) out.push('edr');
+  if (engine.hasIAG && r.type === 'egress') out.push('iag');
+  if (engine.hasXDR && r.type === 'command') out.push('xdr');
+  if (engine.astorReady && r.type === 'server') out.push('astor');
+  return out;
+}
+function coverageHtml(cover) {
+  if (!cover.length) return `<div class="cover none">${icon('attacker')} ${t('inspect.noCoverage')}</div>`;
+  return `<div class="cover-list">${cover.map(c => `<span class="cover-pill ${c}">${icon(c === 'af' ? 'af' : c === 'ndr' ? 'ndr' : c === 'edr' ? 'edr' : c === 'iag' ? 'iag' : c === 'xdr' ? 'xdr' : 'astor')} ${t('cover.' + c)}</span>`).join('')}</div>`;
+}
 function inspectRoom(roomId) {
   const r = LAYOUT.rooms.find(x => x.id === roomId); if (!r) return '';
   const occ = roomOccupants(roomId).length;
-  const edrHere = [...engine.edrDesks].some(d => d.split('#')[0] === roomId);
   const locked = engine.lockedRooms.has(roomId);
   const inc = engine.phase === 'incident';
+  const deskCount = [...building.desks.values()].filter(d => d.roomId === roomId && d.deskMesh).length;
   const actions = [];
   if (inc && locked) actions.push(`<button class="btn mini good" data-act="recover" data-room="${roomId}">${icon('astor')} ${t('resp.recover')}</button>`);
   if (inc && !locked) actions.push(`<button class="btn mini" data-act="lockdown" data-room="${roomId}">${icon('lock')} ${t('resp.lockdown')}</button>`);
   return `
     <div class="ins-head"><h3>${icon(roomIcon(r.type))} ${loc(r.name)}</h3><span class="ins-sub">${t('inspect.floor')} ${r.floor}</span></div>
+    <div class="ins-purpose">${t('room.' + r.type) || ''}</div>
+    ${locked ? `<div class="locked-row">${icon('lock')} ${t('inspect.locked')}</div>` : ''}
     <div class="ins-rows">
       <div><span>${t('inspect.occupants')}</span><b>${occ}</b></div>
-      <div><span>${locked ? `<span class="warn">${t('clue.endpoint') && ''}` : ''}${edrHere ? t('inspect.protected') : t('inspect.unprotected')}</span></div>
-      ${locked ? `<div class="locked-row">${icon('lock')} ${t('resp.recover')}</div>` : ''}
+      ${deskCount ? `<div><span>${t('inspect.deskCount')}</span><b>${deskCount}</b></div>` : ''}
     </div>
+    <div class="ins-cover"><div class="ins-cover-h">${t('inspect.coverage')}</div>${coverageHtml(roomCoverage(roomId))}</div>
     ${actions.length ? `<div class="ins-actions">${actions.join('')}</div>` : ''}`;
 }
 function roomIcon(type) { return { lobby: 'af', command: 'xdr', egress: 'iag', server: 'astor', vault: 'check', office: 'edr', meeting: 'mdr' }[type] || 'edr'; }
@@ -132,7 +175,7 @@ function inspectDesk(deskId, roomId) {
   const action = (inc && edr) ? `<div class="ins-actions"><button class="btn mini good" data-act="isolate" data-desk="${deskId}">${icon('edr')} ${t('resp.isolate')}</button></div>` : '';
   return `
     <div class="ins-head"><h3>${icon('edr')} ${t('inspect.workstation')}</h3><span class="ins-sub">${roomName(roomId)}</span></div>
-    <div class="ins-rows"><div><span>${edr ? t('inspect.protected') : t('inspect.unprotected')}</span>${edr ? `<b class="ok">●</b>` : ''}</div></div>
+    <div class="ins-cover"><div class="cover-list"><span class="cover-pill ${edr ? 'edr' : 'none'}">${icon(edr ? 'edr' : 'attacker')} ${edr ? t('inspect.protected') : t('inspect.unprotected')}</span></div></div>
     ${action}`;
 }
 function inspectPerson(id) {
@@ -144,7 +187,8 @@ function inspectPerson(id) {
 function inspectClue(id) {
   const c = engine.clues.find(x => x.id === id); if (!c) return '';
   return `<div class="ins-head"><h3 class="ev-${c.type}">${icon(c.type)} ${t('clue.' + c.type)}</h3><span class="ins-sub">${roomName(c.room)}</span></div>
-    <div class="ins-note">${c.confidence === 'confirmed' ? t('clue.confirmed') : t('clue.weak')}</div>`;
+    <div class="ins-note">${c.confidence === 'confirmed' ? t('clue.confirmed') : t('clue.weak')}</div>
+    ${c.confidence !== 'confirmed' && !engine.hasXDR ? `<div class="ins-hint">${icon('xdr')} ${t('cover.xdr')}</div>` : ''}`;
 }
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
@@ -153,6 +197,15 @@ function showSophia(id) {
   const hint = getHint(id); if (!hint) return;
   sophiaState = { id, expanded: false };
   overlay.renderSophia(hint, false, null); overlay.pulseSophia();
+  // guidance connects to the scene: gently focus the camera on what Sophia is pointing at
+  const focus = sophiaFocusPoint(id);
+  if (focus) { world.focusOn(focus.clone().setY(focus.y + 1), 15); fx.setSelection(focus); }
+}
+function sophiaFocusPoint(id) {
+  if (!engine) return null;
+  if (id === 'firstClue' && engine.clues[0]) return entityFloorPoint({ kind: 'clue', clueId: engine.clues[0].id });
+  if (id === 'ransomLock') { const rm = [...engine.lockedRooms][0]; return rm ? building.rooms.get(rm)?.center.clone() : null; }
+  return null;
 }
 function reflowSophia() {
   const hint = sophiaState.id ? getHint(sophiaState.id) : null;
@@ -185,11 +238,21 @@ function newGame() {
     .on('change', () => { dirty = true; })
     .on('deploy', ({ product, target }) => { fx.addProp(product, target); dirty = true; firstDeploy(); })
     .on('clue', c => { if (c.type === 'network') fx.addTrail(c.fromRoom, c.room); else fx.addClue(c); dirty = true; })
-    .on('confirm', () => { engine.clues.forEach(c => fx.setClueConfirmed(c.id)); const it = people.get('intruder'); if (it) fx.setReveal(it.group); })
+    .on('confirm', () => {
+      engine.clues.forEach(c => fx.setClueConfirmed(c.id));
+      const it = people.get('intruder'); if (it) fx.setReveal(it.group);
+      // visualise correlation: lines from the XDR console to each active clue
+      const console3 = building.anchors.XDR.clone(); console3.y += 1.2;
+      const pts = engine.clues.filter(c => !c.resolved).map(c => {
+        const d = c.desk && building.desks.get(c.desk); const r = building.rooms.get(c.room);
+        const p = (d ? d.pos.clone() : r?.center.clone()); if (p) p.y += 1.2; return p;
+      }).filter(Boolean);
+      if (pts.length) fx.drawCorrelation(console3, pts);
+    })
     .on('intruder-goto', ({ room, desk }) => { const it = people.get('intruder'); if (it) { it.group.visible = true; people.setRoute(it, desk ? 'desk:' + desk : 'room:' + room); } })
     .on('lock', ({ room, locked }) => fx.lockRoom(room, locked))
     .on('cage-room', ({ room }) => fx.restrictRoom(room))
-    .on('contained', ({ desk }) => { const it = people.get('intruder'); if (it) it.halted = true; if (desk) fx.cageDesk(desk); fx.resolveAllClues(); dirty = true; })
+    .on('contained', ({ desk }) => { const it = people.get('intruder'); if (it) it.halted = true; if (desk) fx.cageDesk(desk); fx.resolveAllClues(); fx.clearCorrelation(); dirty = true; })
     .on('sophia', ({ id }) => showSophia(id))
     .on('toast', p => overlay.toast(p))
     .on('phase', ({ phase }) => { overlay.setPhase(phase); dirty = true; })
@@ -243,7 +306,8 @@ overlay = createOverlay(overlayRoot, {
   onLockdown: room => { engine.lockdownRoom(room); renderInspect(); },
   onRecover: room => { engine.recover(room); renderInspect(); },
   onSophiaMore: () => { sophiaState.expanded = true; reflowSophia(); },
-  onCloseInspect: () => { inspectTarget = null; overlay.clearInspect(); },
+  onFocusClue: id => focusClue(id),
+  onCloseInspect: () => { inspectTarget = null; overlay.clearInspect(); if (fx) fx.clearSelection(); },
   onAgain: () => newGame(),
   onReplayPlay: () => startReplay(),
   onBackToGame: () => { overlay.els.end.classList.remove('replaying'); replay = null; overlay.showEnd(engine); },
@@ -290,4 +354,6 @@ overlay.setPhase('start');
 requestAnimationFrame(frame);
 
 // expose for headless testing
-window.__sentinel = { get engine() { return engine; }, newGame, beginDay, world };
+window.__sentinel = { get engine() { return engine; }, newGame, beginDay, world,
+  inspect(e) { inspectTarget = e; renderInspect(); const p = entityFloorPoint(e); if (p) fx.setSelection(p); },
+  focusClue };

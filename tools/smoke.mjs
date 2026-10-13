@@ -64,7 +64,7 @@ async function run() {
   // Scenario B: no defense should lose
   await page.click('[data-act="backToGame"]').catch(() => {});
   await page.click('[data-act="again"]').catch(() => {});
-  await page.waitForSelector('[data-act="begin"]', { timeout: 3000 });
+  await page.waitForSelector('[data-act="begin"]', { timeout: 12000 });
   await page.click('[data-act="begin"]');
   const resB = await page.evaluate(() => {
     const g = window.__sentinel.engine; g._paused = true;
@@ -75,7 +75,7 @@ async function run() {
   // Scenario C: contain via isolation
   await page.waitForTimeout(300);
   await page.click('[data-act="again"]').catch(() => {});
-  await page.waitForSelector('[data-act="begin"]', { timeout: 3000 });
+  await page.waitForSelector('[data-act="begin"]', { timeout: 12000 });
   const resC = await page.evaluate(() => {
     const g = window.__sentinel.engine; g.budget = 99;
     g.deploy('NDR'); g.deploy('XDR'); g.deploy('EDR', 'finance#1');

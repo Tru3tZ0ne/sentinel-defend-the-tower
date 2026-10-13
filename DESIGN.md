@@ -15,6 +15,16 @@ Status: **Milestone 2 (3D living-building redesign)** · Last updated: 2026-10-1
 > immutable snapshots (recovery needs prior preparation), *not* automatic full backup/restore.
 > The product→metaphor research below still holds; the room/geometry specifics are
 > superseded by `src/data/scenario.js` + `src/world/`.
+>
+> **Milestone 2.5 refinement (presentation).** The building and incident were polished for
+> customer-facing clarity: articulated characters that walk/sit/work, recognizable room
+> identities (reception, offices, meeting room, server room, Data Vault, Security Office,
+> mailroom) through furniture + accent lighting, ACES tone-mapped lighting with better
+> contrast, a glass-partition cutaway, a plaza/skyline backdrop, hover + selection rings,
+> camera focus-on-clue, and legible product effects (EDR shield dome, NDR coverage beam,
+> deploy pulse, XDR correlation lines). The inspect card now shows each room's purpose and a
+> "Visibility here" coverage summary. A pre-existing pointer-events bug that blocked clicking
+> the 3D scene and the language button was fixed. See `TASKS.md` → Milestone 2.5.
 
 ---
 

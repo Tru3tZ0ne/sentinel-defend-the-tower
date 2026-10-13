@@ -12,6 +12,7 @@ export function createFx(scene, building) {
   const locks = new Map();   // roomId -> overlay
   const cages = new Map();   // deskId -> cage
   let revealRing = null;
+  let selRing = null, hoverRing = null;
 
   const emissive = (color, intensity = 0.9) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: intensity, flatShading: true });
 
@@ -51,20 +52,67 @@ export function createFx(scene, building) {
       const base = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 0.5, 6), emissive(0x3fc5ff, 0.4));
       const top = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 0), emissive(0x3fc5ff, 0.9));
       base.position.copy(a); top.position.set(a.x, a.y + 0.9, a.z); mesh.add(base, top);
-    } else if (productId === 'NDR') {        // sensor nodes along the circulation core
+    } else if (productId === 'NDR') {        // coverage up the circulation core + per-floor scan rings
       mesh = new THREE.Group();
+      const coreX = building.dims.coreX;
+      const topY = building.anchors.NDR[building.anchors.NDR.length - 1].y + 1.4;
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, topY, 12, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0x39c0ff, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false }));
+      beam.position.set(coreX, topY / 2, 0); mesh.add(beam);
       for (const pt of building.anchors.NDR) {
-        const s = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), emissive(0x39c0ff, 1.0));
-        s.position.copy(pt); mesh.add(s);
+        const s = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 10), emissive(0x39c0ff, 1.0)); s.position.copy(pt); mesh.add(s);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.03, 8, 26), emissive(0x39c0ff, 0.5));
+        ring.rotation.x = Math.PI / 2; ring.position.set(pt.x, pt.y - 0.3, pt.z); ring.userData.scan = true; mesh.add(ring);
       }
-    } else if (productId === 'EDR') {        // shield hovering over a protected desk
-      const dp = deskPos(target); if (!dp) return null;
-      mesh = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.06, 8, 16), emissive(0x39e08a, 0.9));
-      mesh.rotation.x = Math.PI / 2; mesh.position.set(dp.x, dp.y + 0.35, dp.z);
+      mesh.userData.ndr = true;
+    } else if (productId === 'EDR') {        // protective dome + floor ring over a workstation
+      const d = building.desks.get(target); const dp = deskPos(target); if (!dp) return null;
+      mesh = new THREE.Group();
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.66, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+        new THREE.MeshStandardMaterial({ color: 0x39e08a, emissive: 0x39e08a, emissiveIntensity: 0.3, transparent: true, opacity: 0.14, depthWrite: false }));
+      dome.position.set(dp.x, dp.y - 0.15, dp.z); mesh.add(dome);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.64, 0.035, 8, 28), emissive(0x39e08a, 0.9));
+      ring.rotation.x = Math.PI / 2; ring.position.set(dp.x, dp.y - 0.62, dp.z); mesh.add(ring);
+      if (d?.screen) { d.screen.material.color.setHex(0x4fe6a0); d.screen.material.emissive.setHex(0x3be08a); } // the endpoint now reads as guarded
     }
-    if (mesh) { scene.add(mesh); props.set(key, mesh); }
+    if (mesh) {
+      scene.add(mesh); props.set(key, mesh);
+      const a = propAnchor(productId, target); if (a) spawnPulse(a.x, a.y, a.z, PROD_COLOR[productId] || 0x5fd0ff);
+    }
     return mesh;
   }
+
+  const PROD_COLOR = { AF: 0xff3b5c, IAG: 0xffc24b, XDR: 0x9a7bff, ASTOR: 0x39c0ff, MDR: 0x3fc5ff, NDR: 0x39c0ff, EDR: 0x39e08a };
+  function propAnchor(productId, target) {
+    if (productId === 'EDR') { const dp = deskPos(target); return dp ? dp.clone().setY(dp.y - 0.6) : null; }
+    const a = building.anchors[productId];
+    if (Array.isArray(a)) return a[0]?.clone();
+    return a ? a.clone() : null;
+  }
+
+  // Expanding "what just changed" pulse ring at a deployment point.
+  const pulses = [];
+  function spawnPulse(x, y, z, color) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.05, 8, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false }));
+    ring.rotation.x = Math.PI / 2; ring.position.set(x, y + 0.04, z); scene.add(ring);
+    pulses.push({ ring, born: performance.now() });
+  }
+
+  // XDR correlation: draw lines from the command console to each active clue when confirmed.
+  let corr = null;
+  function drawCorrelation(fromPoint, toPoints) {
+    clearCorrelation();
+    corr = new THREE.Group();
+    for (const p of toPoints) {
+      const geo = new THREE.BufferGeometry().setFromPoints([fromPoint, p]);
+      corr.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xb49cff, transparent: true, opacity: 0.0, depthWrite: false })));
+      // a travelling pip along the correlation line reads as "evidence flowing to the console"
+      const pip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({ color: 0xcdbcff }));
+      pip.userData.from = p.clone(); pip.userData.to = fromPoint.clone(); corr.add(pip);
+    }
+    corr.userData.born = performance.now(); scene.add(corr);
+  }
+  function clearCorrelation() { if (corr) { scene.remove(corr); corr = null; } }
 
   // ---------- clue markers ----------
   function addClue(clue) {
@@ -130,6 +178,27 @@ export function createFx(scene, building) {
   }
   function clearReveal() { if (revealRing) revealRing.visible = false; }
 
+  // ---------- selection + hover feedback ----------
+  function ensureRing(color, rad) {
+    const g = new THREE.Group();
+    const r1 = new THREE.Mesh(new THREE.TorusGeometry(rad, 0.045, 8, 36), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95 }));
+    r1.rotation.x = Math.PI / 2; g.add(r1);
+    const r2 = new THREE.Mesh(new THREE.TorusGeometry(rad * 0.7, 0.03, 8, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6 }));
+    r2.rotation.x = Math.PI / 2; g.add(r2);
+    scene.add(g); return g;
+  }
+  function setSelection(point) {
+    if (!point) { if (selRing) selRing.visible = false; return; }
+    if (!selRing) selRing = ensureRing(0x5fd0ff, 0.7);
+    selRing.position.set(point.x, point.y + 0.03, point.z); selRing.visible = true; selRing.userData.born = performance.now();
+  }
+  function clearSelection() { if (selRing) selRing.visible = false; }
+  function setHover(point) {
+    if (!point) { if (hoverRing) hoverRing.visible = false; return; }
+    if (!hoverRing) { hoverRing = ensureRing(0xffffff, 0.55); hoverRing.children.forEach(m => { m.material.opacity *= 0.5; }); }
+    hoverRing.position.set(point.x, point.y + 0.02, point.z); hoverRing.visible = true;
+  }
+
   function update(dt) {
     const now = performance.now();
     for (const m of clues) {
@@ -149,10 +218,30 @@ export function createFx(scene, building) {
       revealRing.position.set(g.position.x, g.position.y + 0.05, g.position.z);
       revealRing.rotation.z += dt * 2;
     }
+    if (selRing?.visible) { const s = 1 + Math.sin(now * 0.006) * 0.12; selRing.scale.setScalar(s); selRing.rotation.y += dt * 0.6; }
+    // deploy pulses: expand and fade
+    for (let i = pulses.length - 1; i >= 0; i--) {
+      const age = (now - pulses[i].born) / 1000;
+      pulses[i].ring.scale.setScalar(1 + age * 5);
+      pulses[i].ring.material.opacity = Math.max(0, 0.9 - age * 1.1);
+      if (age > 0.9) { scene.remove(pulses[i].ring); pulses.splice(i, 1); }
+    }
+    // NDR scan rings: gentle pulse so coverage reads as "watching"
+    const ndr = props.get('NDR:');
+    if (ndr) ndr.traverse(o => { if (o.userData?.scan) { const s = 1 + Math.sin(now * 0.004 + o.position.y) * 0.18; o.scale.setScalar(s); } });
+    // XDR correlation: lines shimmer; pips travel from each clue to the console
+    if (corr) {
+      const op = Math.min(0.9, (now - corr.userData.born) / 500) * (0.75 + Math.sin(now * 0.006) * 0.25);
+      const frac = ((now - corr.userData.born) / 1400) % 1;
+      corr.children.forEach(o => {
+        if (o.isLine) o.material.opacity = op;
+        else if (o.userData.from) o.position.lerpVectors(o.userData.from, o.userData.to, frac);
+      });
+    }
     // animate storage/vault/mdr props gently
     const astor = props.get('ASTOR:'); if (astor) astor.rotation.y += dt * 0.6;
     const vault = building.desks.get('vault#core'); if (vault?.coreMesh) vault.coreMesh.rotation.y += dt * 0.4;
   }
 
-  return { addProp, addClue, setClueConfirmed, resolveClue, resolveAllClues, addTrail, lockRoom, restrictRoom, cageDesk, setReveal, clearReveal, update, clues };
+  return { addProp, addClue, setClueConfirmed, resolveClue, resolveAllClues, addTrail, lockRoom, restrictRoom, cageDesk, setReveal, clearReveal, setSelection, clearSelection, setHover, drawCorrelation, clearCorrelation, update, clues };
 }

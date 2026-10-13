@@ -3,3 +3,10 @@ tools/shots/
 *.log
 .DS_Store
 tools/_capture.mjs
+tools/_diag.mjs
+tools/_capture2.mjs
+tools/_lang.mjs
+tools/_lang2.mjs
+tools/_lang3.mjs
+tools/_lang4.mjs
+tools/_zhcheck.mjs
