@@ -13,6 +13,51 @@ export function createFx(scene, building) {
   const cages = new Map();   // deskId -> cage
   let revealRing = null;
   let selRing = null, hoverRing = null;
+  const scanFields = new Map();   // roomId -> cyan coverage grid
+  const blinds = new Map();       // roomId -> fog-of-war veil (unobserved)
+  const scanWaves = [];           // expanding deploy sweeps
+
+  // Fog-of-war veil: an unobserved room is shrouded (dims even emissive glows); lifting it
+  // with a scan wave is the "sensor brings this area online" moment.
+  function setBlind(roomId, on) {
+    if (on) {
+      if (!blinds.has(roomId)) {
+        const r = building.rooms.get(roomId); if (!r) return;
+        const h = (building.dims.WH || 1.4) + 0.7;
+        const m = new THREE.Mesh(new THREE.BoxGeometry(r.width - 0.2, h, r.depth - 0.2),
+          new THREE.MeshBasicMaterial({ color: 0x060b16, transparent: true, opacity: 0, depthWrite: false }));
+        m.position.set(r.center.x, h / 2 - 0.1, r.center.z); m.userData.veil = true; scene.add(m); blinds.set(roomId, m);
+      }
+      const m = blinds.get(roomId); m.visible = true; m.userData.target = 0.7; m.material.opacity = 0.7; // snap on: security view engages
+    } else if (blinds.has(roomId)) { blinds.get(roomId).userData.target = 0; } // lift smoothly on reveal
+  }
+
+  function gridTex() {
+    const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+    x.strokeStyle = 'rgba(100,215,255,0.95)'; x.lineWidth = 3;
+    for (let i = 0; i <= 128; i += 32) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 128); x.stroke(); x.beginPath(); x.moveTo(0, i); x.lineTo(128, i); x.stroke(); }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+  }
+  // Coverage: a holographic cyan grid resolves over a room your sensors can see.
+  function setScan(roomId, on) {
+    if (on) {
+      if (!scanFields.has(roomId)) {
+        const r = building.rooms.get(roomId); if (!r) return;
+        const tex = gridTex(); tex.repeat.set((r.width - 1) / 2.2, (r.depth - 1) / 2.2);
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(r.width - 0.9, r.depth - 0.9).rotateX(-Math.PI / 2),
+          new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+        m.position.set(r.center.x, 0.09, r.center.z); scene.add(m); scanFields.set(roomId, m);
+      }
+      scanFields.get(roomId).visible = true;
+    } else if (scanFields.has(roomId)) { scanFields.get(roomId).visible = false; }
+  }
+  function scanWave(roomId) {
+    const r = building.rooms.get(roomId); if (!r) return;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.06, 8, 44), new THREE.MeshBasicMaterial({ color: 0x5ad2ff, transparent: true, opacity: 0.95, depthWrite: false }));
+    ring.rotation.x = Math.PI / 2; ring.position.set(r.center.x, 0.14, r.center.z); scene.add(ring);
+    scanWaves.push({ ring, born: performance.now(), max: Math.max(r.width, r.depth) * 0.62 });
+  }
+  function clearScans() { for (const m of scanFields.values()) m.visible = false; for (const m of blinds.values()) { m.visible = false; m.userData.target = 0; m.material.opacity = 0; } }
 
   const emissive = (color, intensity = 0.9) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: intensity, flatShading: true });
 
@@ -220,6 +265,21 @@ export function createFx(scene, building) {
       revealRing.rotation.z += dt * 2;
     }
     if (selRing?.visible) { const s = 1 + Math.sin(now * 0.006) * 0.12; selRing.scale.setScalar(s); selRing.rotation.y += dt * 0.6; }
+    // per-room light dimming toward target (blind spots fall dark, covered rooms stay lit)
+    for (const r of building.rooms.values()) { const l = r.light; if (l && l.userData.target != null) l.intensity += (l.userData.target - l.intensity) * Math.min(1, dt * 3); }
+    // coverage grids: scroll + pulse
+    for (const m of scanFields.values()) { if (!m.visible) continue; m.material.map.offset.y = (m.material.map.offset.y + dt * 0.25) % 1; m.material.opacity = 0.1 + Math.sin(now * 0.004) * 0.05; }
+    // fog-of-war veils: fade toward target, hide when clear
+    for (const m of blinds.values()) {
+      const tgt = m.userData.target || 0; m.material.opacity += (tgt - m.material.opacity) * Math.min(1, dt * 3);
+      if (tgt === 0 && m.material.opacity < 0.02) m.visible = false;
+    }
+    // deploy scan waves: expand + fade
+    for (let i = scanWaves.length - 1; i >= 0; i--) {
+      const w = scanWaves[i], age = (now - w.born) / 1000, s = 1 + age * 9;
+      w.ring.scale.setScalar(s); w.ring.material.opacity = Math.max(0, 0.95 - age * 1.1);
+      if (s > w.max || age > 1) { scene.remove(w.ring); scanWaves.splice(i, 1); }
+    }
     // deploy pulses: expand and fade
     for (let i = pulses.length - 1; i >= 0; i--) {
       const age = (now - pulses[i].born) / 1000;
@@ -244,5 +304,5 @@ export function createFx(scene, building) {
     const vault = building.desks.get('vault#core'); if (vault?.coreMesh) vault.coreMesh.rotation.y += dt * 0.4;
   }
 
-  return { addProp, addClue, setClueConfirmed, resolveClue, resolveAllClues, addTrail, lockRoom, restrictRoom, cageDesk, setReveal, clearReveal, setSelection, clearSelection, setHover, drawCorrelation, clearCorrelation, update, clues };
+  return { addProp, addClue, setClueConfirmed, resolveClue, resolveAllClues, addTrail, lockRoom, restrictRoom, cageDesk, setReveal, clearReveal, setSelection, clearSelection, setHover, drawCorrelation, clearCorrelation, setScan, setBlind, scanWave, clearScans, update, clues };
 }

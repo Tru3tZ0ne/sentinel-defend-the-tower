@@ -15,3 +15,7 @@ tools/_load.mjs
 tools/_boot.mjs
 tools/_pick.mjs
 tools/_zhui.mjs
+tools/_perf.mjs
+tools/_cov.mjs
+tools/_dbg.mjs
+tools/_dbg2.mjs

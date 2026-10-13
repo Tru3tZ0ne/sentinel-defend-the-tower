@@ -15,7 +15,7 @@ const P = {
   pot: 0xb07a4e, leaf: 0x4f9e63, leaf2: 0x5fae70,
   rack: 0x39414f, rackCyan: 0x46e0d0, serverGlow: 0x3fd0ff,
   vaultCore: 0xffd166, vaultPlinth: 0xbfa150, gold: 0xffcf6e,
-  brand: 0xE60027, signBg: 0x1b2230, signInk: 0xf2f5fb, accentCyan: 0x39c0ff,
+  brand: 0x72bb38, signBg: 0x1b2230, signInk: 0xf2f5fb, accentCyan: 0x39c0ff,
   door: 0x7f8aa0, exit: 0x46e0a0,
 };
 
@@ -36,6 +36,8 @@ export function buildBuilding(THREE, LAYOUT) {
   const YUP = new THREE.Vector3(0, 1, 0);
   const ROOM_LIGHT = { office: [0xbcd0f0, 5.5], meeting: [0xc2d2ee, 5], lobby: [0xffe0b8, 6.5], command: [0x9a86ff, 5.5], server: [0x3fb0ff, 6.5], vault: [0xffcf6e, 7.5], egress: [0x9fe0c0, 4.5] };
 
+  const logoTex = new THREE.TextureLoader().load('assets/brand/sangfor-logo-white.png');
+  logoTex.colorSpace = THREE.SRGBColorSpace; logoTex.anisotropy = 8;
   const rooms = new Map(), desks = new Map(), pickables = [], anchors = {}, lights = [], signs = [];
   const nav = { nodes: new Map(), adj: new Map() };
   const node = (id, pos) => { nav.nodes.set(id, { id, pos: pos.clone ? pos.clone() : V(pos.x, pos.y, pos.z), floor: 0 }); nav.adj.set(id, nav.adj.get(id) || []); };
@@ -219,7 +221,9 @@ export function buildBuilding(THREE, LAYOUT) {
   function furnish(r, cx, cz, rw, rd) {
     ceilingStrips(cx, cz, rw);
     const [lc, li] = ROOM_LIGHT[r.type] || [0xbcd0f0, 5];
-    addLight(cx, WH + 0.1, cz, lc, li, Math.max(rw, rd) * 0.9);
+    const rl = addLight(cx, WH + 0.1, cz, lc, li, Math.max(rw, rd) * 1.0);
+    rl.userData.base = li; rl.userData.target = li;
+    const rr = rooms.get(r.id); if (rr) rr.light = rl;
     if (r.type === 'office') {
       // four workstation pods; the front pair face the corridor, the back pair face front
       [['office#1', cx - 3.2, cz + 1.4, 0], ['office#2', cx - 0.6, cz + 1.4, 0],
@@ -231,8 +235,10 @@ export function buildBuilding(THREE, LAYOUT) {
       // reception counter + logo wall + waiting lounge
       const counter = box(3.0, 1.0, 0.75, mat(P.wood)); add(counter, cx, 0.5, r.rect.z0 + 1.3);
       add(box(3.2, 0.07, 0.95, mat(P.deskTop), false), cx, 1.0, r.rect.z0 + 1.3);
-      add(box(2.4, 1.3, 0.12, mat(P.brand), true), cx, 1.1, r.rect.z0 + 0.25);   // red logo wall
-      add(box(2.0, 0.5, 0.02, emis(0xffffff, 0.25), false), cx, 1.2, r.rect.z0 + 0.32);
+      add(box(2.7, 1.45, 0.12, mat(0x16203a), true), cx, 1.12, r.rect.z0 + 0.24);   // brand wall
+      add(box(2.7, 0.06, 0.13, emis(P.brand, 0.6), false), cx, 1.86, r.rect.z0 + 0.24); // green brand rail
+      const logoWall = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 0.69), new THREE.MeshBasicMaterial({ map: logoTex, transparent: true }));
+      logoWall.position.set(cx, 1.16, r.rect.z0 + 0.31); group.add(logoWall);
       chair(cx, r.rect.z0 + 2.0, 0);
       // lounge
       add(box(2.0, 0.42, 0.7, mat(P.sofa)), cx + 1.4, 0.3, r.rect.z1 - 1.4); add(box(2.0, 0.5, 0.18, mat(P.sofa)), cx + 1.4, 0.5, r.rect.z1 - 1.1);
@@ -282,7 +288,7 @@ export function buildBuilding(THREE, LAYOUT) {
   }
 
   // ---------- accent lights (few; one shadow light lives in world.js) ----------
-  function addLight(x, y, z, color, intensity, dist) { const l = new THREE.PointLight(color, intensity, dist, 2); l.position.set(x, y, z); group.add(l); lights.push(l); }
+  function addLight(x, y, z, color, intensity, dist) { const l = new THREE.PointLight(color, intensity, dist, 2); l.position.set(x, y, z); group.add(l); lights.push(l); return l; }
 
   function refreshSigns() { for (const s of signs) { drawSign(s.canvas, loc(s.r.name), s.r.type === 'server' ? '#39c0ff' : s.r.type === 'vault' ? '#ffcf6e' : '#' + P.brand.toString(16).padStart(6, '0')); s.tex.needsUpdate = true; } }
 

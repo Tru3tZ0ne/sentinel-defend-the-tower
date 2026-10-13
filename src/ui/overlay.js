@@ -11,6 +11,8 @@ const clamp = v => Math.max(0, Math.min(100, v));
 
 export function createOverlay(root, h) {
   root.innerHTML = `
+    <div id="fxlayer" class="fxlayer"></div>
+    <div id="boot" class="boot hidden"></div>
     <div id="labels" class="labels"></div>
     <header id="hud" class="hud hidden"></header>
     <div id="rightcol" class="rightcol hidden">
@@ -32,8 +34,10 @@ export function createOverlay(root, h) {
   };
   let tab = 'defense';
 
-  const brand = () => `<span class="brand"><span class="brand-glyph">${icon('sophia')}</span>
-    <span class="brand-stack"><span class="brand-word">SANGFOR</span><span class="brand-sub">SENTINEL · ${t('game.subtitle')}</span></span>
+  const brand = () => `<span class="brand">
+    <img class="brand-logo" src="assets/brand/sangfor-logo-white.png" alt="Sangfor" />
+    <span class="brand-divider"></span>
+    <span class="brand-stack"><span class="brand-word">SENTINEL</span><span class="brand-sub">${t('game.subtitle')}</span></span>
     <span class="brand-badge">${t('badge.placeholder')}</span></span>`;
   const langBtn = () => `<button class="iconbtn" data-act="lang" title="${t('lang.toggle')}">${getLang() === 'en' ? '中文' : 'EN'}</button>`;
 

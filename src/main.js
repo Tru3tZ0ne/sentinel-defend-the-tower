@@ -143,6 +143,37 @@ function roomCoverage(roomId) {
   if (engine.astorReady && r.type === 'server') out.push('astor');
   return out;
 }
+// ---- literal fog-of-war: which rooms your deployed sensors can actually see ----
+function roomObserved(roomId) {
+  const r = LAYOUT.rooms.find(x => x.id === roomId); if (!r) return false;
+  if (engine.hasNDR) return true;                                        // floor-wide movement visibility
+  if ([...engine.edrDesks].some(d => d.split('#')[0] === roomId)) return true;
+  if (engine.hasAF && r.type === 'lobby') return true;
+  if (engine.hasIAG && r.type === 'egress') return true;
+  if (engine.hasXDR && r.type === 'command') return true;
+  return false;
+}
+function coveredRooms(product, target) {
+  if (product === 'NDR') return LAYOUT.rooms.map(r => r.id);
+  if (product === 'EDR' && target) return [target.split('#')[0]];
+  if (product === 'AF') return LAYOUT.rooms.filter(r => r.type === 'lobby').map(r => r.id);
+  if (product === 'IAG') return LAYOUT.rooms.filter(r => r.type === 'egress').map(r => r.id);
+  if (product === 'XDR') return LAYOUT.rooms.filter(r => r.type === 'command').map(r => r.id);
+  return [];
+}
+function applyCoverage(sweep) {
+  if (!engine || !building || !fx) return;
+  const incident = engine.phase === 'incident';
+  for (const r of LAYOUT.rooms) {
+    const room = building.rooms.get(r.id); if (!room || !room.light) continue;
+    const obs = roomObserved(r.id);
+    fx.setScan(r.id, obs);
+    fx.setBlind(r.id, incident && !obs);
+    room.light.userData.target = (!incident || obs) ? room.light.userData.base : room.light.userData.base * 0.3;
+  }
+  if (sweep) for (const id of sweep) fx.scanWave(id);
+}
+
 function coverageHtml(cover) {
   if (!cover.length) return `<div class="cover none">${icon('attacker')} ${t('inspect.noCoverage')}</div>`;
   return `<div class="cover-list">${cover.map(c => `<span class="cover-pill ${c}">${icon(c === 'af' ? 'af' : c === 'ndr' ? 'ndr' : c === 'edr' ? 'edr' : c === 'iag' ? 'iag' : c === 'xdr' ? 'xdr' : 'astor')} ${t('cover.' + c)}</span>`).join('')}</div>`;
@@ -253,7 +284,7 @@ function newGame() {
   placing = null; inspectTarget = null; replay = null;
   engine
     .on('change', () => { dirty = true; })
-    .on('deploy', ({ product, target }) => { fx.addProp(product, target); dirty = true; firstDeploy(); })
+    .on('deploy', ({ product, target }) => { fx.addProp(product, target); applyCoverage(coveredRooms(product, target)); dirty = true; firstDeploy(); })
     .on('clue', c => { if (c.type === 'network') fx.addTrail(c.fromRoom, c.room); else fx.addClue(c); setTicker(`${t('clue.' + c.type)} · ${roomName(c.room)}`); dirty = true; })
     .on('confirm', () => {
       engine.clues.forEach(c => fx.setClueConfirmed(c.id));
@@ -273,7 +304,7 @@ function newGame() {
     .on('contained', ({ desk }) => { const it = people.get('intruder'); if (it) it.halted = true; if (desk) fx.cageDesk(desk); fx.resolveAllClues(); fx.clearCorrelation(); setTicker(t('resp.contained'), 'good'); dirty = true; })
     .on('sophia', ({ id }) => showSophia(id))
     .on('toast', p => overlay.toast(p))
-    .on('phase', ({ phase }) => { overlay.setPhase(phase); if (phase === 'incident') overlay.setEvent(lastEvent, false); dirty = true; })
+    .on('phase', ({ phase }) => { overlay.setPhase(phase); if (phase === 'incident') { overlay.setEvent(lastEvent, false); applyCoverage(); } dirty = true; })
     .on('end', () => endGame());
 
   lastEvent = '';

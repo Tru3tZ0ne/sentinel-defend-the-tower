@@ -8,7 +8,7 @@ const DICT = {
   'game.subtitle': { en: 'Defend the Tower', zh: '守护大厦' },
   'game.byline':   { en: 'A Sangfor security experience', zh: '深信服安全体验' },
   'lang.toggle':   { en: '中文', zh: 'EN' },
-  'badge.placeholder': { en: 'original art · official logo TBD', zh: '原创美术 · 官方标识待替换' },
+  'badge.placeholder': { en: 'Official Sangfor logo · original game art', zh: '官方 Sangfor 标识 · 原创游戏美术' },
 
   // start
   'start.tagline': { en: 'A living building. A quiet intruder. You only see what you choose to watch.', zh: '一座鲜活的大厦，一个悄无声息的入侵者。你选择看守哪里，就只能看见哪里。' },

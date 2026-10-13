@@ -2,7 +2,13 @@
    Brand red is a reasoned placeholder; confirm the exact Sangfor hex before customer use
    (assets/brand/ASSETS.md). */
 :root {
-  --brand: #E60027; --brand-2: #ff2d55;
+  /* Brand accents sampled from Sangfor's OFFICIAL logo assets (media kit 2026); the kit
+     publishes no numeric values, so confirm exact hex/Pantone with Sangfor brand guidelines.
+     Change these two tokens to re-skin the whole UI. See assets/brand/ASSETS.md. */
+  --brand: #72bb38;          /* Sangfor green (globe) */
+  --brand-2: #16ca78;        /* Sangfor Athena teal */
+  --athena-blue: #1e91ed;
+  --danger: #ff4d5e;         /* threat/response only — NOT a brand colour */
   --bg: #05070e; --ink: #eaf2ff; --ink-dim: #9fb3d6; --ink-mute: #6b80a8;
   --panel: rgba(12,19,33,.82); --panel-2: rgba(20,30,50,.72); --panel-solid: #0c1322;
   --line: rgba(92,124,176,.26); --line-2: rgba(92,124,176,.14);
@@ -17,7 +23,7 @@ svg { width: 1em; height: 1em; display: block; }
 #scene { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; z-index: 0; touch-action: none; }
 #overlay { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
 #overlay > * { pointer-events: auto; }
-#overlay > #labels, #overlay > #toasts { pointer-events: none; }
+#overlay > #labels, #overlay > #toasts, #overlay > #fxlayer, #overlay > #boot { pointer-events: none; }
 #labels *, #toasts { pointer-events: none; }
 .hidden { display: none !important; }
 
@@ -26,7 +32,7 @@ svg { width: 1em; height: 1em; display: block; }
   padding: 9px 14px; border-radius: 9px; cursor: pointer; transition: .15s; display: inline-flex; align-items: center; gap: 7px; }
 .btn:hover { border-color: var(--cyan); color: #fff; }
 .btn.ghost { background: rgba(14,22,38,.6); }
-.btn.primary { background: linear-gradient(135deg, var(--brand), var(--brand-2)); border: none; font-weight: 700; color: #fff; box-shadow: 0 8px 22px rgba(230,0,39,.4); }
+.btn.primary { background: linear-gradient(135deg, var(--brand), var(--brand-2)); border: none; font-weight: 700; color: #04210f; box-shadow: 0 8px 22px rgba(22,202,120,.35); }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.big { font-size: 16px; padding: 13px 24px; }
 .btn.block { width: 100%; justify-content: center; margin-top: 10px; }
@@ -39,12 +45,13 @@ svg { width: 1em; height: 1em; display: block; }
 .linklike { background: none; border: none; color: var(--cyan); cursor: pointer; font: inherit; font-size: 11.5px; padding: 0; text-decoration: none; opacity: .85; }
 .linklike:hover { opacity: 1; text-decoration: underline; }
 
-/* brand */
-.brand { display: inline-flex; align-items: center; gap: 10px; }
-.brand-glyph { font-size: 23px; color: var(--brand); filter: drop-shadow(0 0 6px rgba(230,0,39,.5)); }
+/* brand — official Sangfor logo + original "Sentinel" game lockup */
+.brand { display: inline-flex; align-items: center; gap: 11px; }
+.brand-logo { height: 22px; width: auto; display: block; }
+.brand-divider { width: 1px; height: 24px; background: var(--line); }
 .brand-stack { display: flex; flex-direction: column; line-height: 1.05; }
-.brand-word { font-weight: 800; letter-spacing: 2.5px; font-size: 16px; }
-.brand-sub { font-size: 9px; letter-spacing: 2px; color: var(--ink-mute); text-transform: uppercase; }
+.brand-word { font-weight: 800; letter-spacing: 3px; font-size: 15px; color: #fff; }
+.brand-sub { font-size: 8.5px; letter-spacing: 2px; color: var(--ink-mute); text-transform: uppercase; }
 .brand-badge { font-size: 8.5px; color: var(--ink-mute); border: 1px dashed var(--line); padding: 2px 6px; border-radius: 20px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
 .hud .brand-badge { display: none; }
 
@@ -129,10 +136,10 @@ svg { width: 1em; height: 1em; display: block; }
 
 /* Sophia */
 .sophia { margin-top: auto; }
-.sophia.pulse { box-shadow: 0 0 0 2px rgba(230,0,39,.5), var(--shadow); }
+.sophia.pulse { box-shadow: 0 0 0 2px rgba(30,145,237,.55), var(--shadow); }
 .sophia-top { display: flex; align-items: center; gap: 11px; margin-bottom: 9px; }
-.sophia-av { position: relative; width: 42px; height: 42px; display: grid; place-items: center; font-size: 24px; color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-2)); border-radius: 12px; box-shadow: 0 4px 14px rgba(230,0,39,.35); }
-.sophia-av::after { content: ""; position: absolute; inset: -3px; border-radius: 15px; border: 1.5px solid rgba(255,120,140,.4); animation: breathe 3s ease-in-out infinite; }
+.sophia-av { position: relative; width: 42px; height: 42px; display: grid; place-items: center; font-size: 24px; color: #fff; background: linear-gradient(135deg, var(--athena-blue), var(--brand-2)); border-radius: 12px; box-shadow: 0 4px 16px rgba(30,145,237,.4); }
+.sophia-av::after { content: ""; position: absolute; inset: -3px; border-radius: 15px; border: 1.5px solid rgba(90,200,255,.45); animation: breathe 3s ease-in-out infinite; }
 @keyframes breathe { 50% { transform: scale(1.08); opacity: .4; } }
 .sophia-dot { position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; background: var(--good); border: 2px solid var(--panel-solid); }
 .sophia-id { display: flex; flex-direction: column; } .sophia-id b { font-size: 13px; } .sophia-id span { font-size: 10.5px; color: var(--ink-mute); }
@@ -149,7 +156,7 @@ svg { width: 1em; height: 1em; display: block; }
 .deck { display: flex; gap: 8px; padding: 10px; overflow-x: auto; }
 .pcard { flex: 1 1 0; min-width: 118px; display: grid; gap: 3px; align-content: start; text-align: left; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; cursor: pointer; color: var(--ink); transition: .15s; }
 .pcard:hover:not(:disabled) { border-color: var(--cyan); transform: translateY(-2px); }
-.pcard.placing { border-color: var(--brand); box-shadow: 0 0 0 2px rgba(230,0,39,.4) inset; }
+.pcard.placing { border-color: var(--brand); box-shadow: 0 0 0 2px rgba(114,187,56,.45) inset; }
 .pcard.is-on { border-color: rgba(46,230,160,.4); background: rgba(46,230,160,.06); }
 .pcard.dim { opacity: .5; } .pcard:disabled { cursor: default; }
 .pcard-top { display: flex; justify-content: space-between; align-items: center; }
@@ -181,11 +188,18 @@ svg { width: 1em; height: 1em; display: block; }
 .toast.good { border-color: var(--good); } .toast.bad { border-color: var(--bad); } .toast.warn { border-color: var(--warn); } .toast.info { border-color: var(--cyan); }
 .ev-perimeter { color: var(--bad); } .ev-endpoint { color: var(--good); } .ev-network { color: var(--cyan); } .ev-exfil { color: var(--warn); }
 
+/* ---------- command-monitor ambiance: subtle scanlines + vignette ---------- */
+.fxlayer { position: fixed; inset: 0; z-index: 45; pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(8,16,28,.11) 3px, rgba(0,0,0,0) 4px),
+    radial-gradient(135% 125% at 50% 44%, transparent 56%, rgba(2,5,11,.5) 100%);
+  mix-blend-mode: normal; }
+
 /* ---------- labels (empty; signage is in-world) ---------- */
 .labels { position: fixed; inset: 0; z-index: 8; }
 
 /* ---------- start ---------- */
-.startScreen { position: fixed; inset: 0; z-index: 30; background: radial-gradient(1200px 700px at 72% -10%, rgba(230,0,39,.14), transparent 60%), rgba(5,7,14,.86); backdrop-filter: blur(4px); display: grid; overflow: auto; }
+.startScreen { position: fixed; inset: 0; z-index: 30; background: radial-gradient(1200px 700px at 72% -10%, rgba(22,202,120,.14), transparent 60%), rgba(5,7,14,.86); backdrop-filter: blur(4px); display: grid; overflow: auto; }
 .start-inner { max-width: 1180px; width: 100%; margin: 0 auto; padding: 24px clamp(16px,4vw,44px); }
 .start-top { display: flex; justify-content: space-between; align-items: center; }
 .start-hero { max-width: 660px; margin: 9vh auto 0; text-align: center; }
@@ -198,7 +212,7 @@ svg { width: 1em; height: 1em; display: block; }
 .hero-brief li::before { content: "▸"; color: var(--cyan); position: absolute; left: 4px; }
 
 /* ---------- end / replay ---------- */
-.endScreen { position: fixed; inset: 0; z-index: 30; overflow: auto; background: radial-gradient(1200px 700px at 72% -10%, rgba(230,0,39,.1), transparent 60%), rgba(5,7,14,.9); backdrop-filter: blur(5px); transition: .4s; }
+.endScreen { position: fixed; inset: 0; z-index: 30; overflow: auto; background: radial-gradient(1200px 700px at 72% -10%, rgba(30,145,237,.12), transparent 60%), rgba(5,7,14,.9); backdrop-filter: blur(5px); transition: .4s; }
 .endScreen.replaying { background: none; backdrop-filter: none; pointer-events: none; }
 .endScreen.replaying .end-inner { position: fixed; right: 12px; top: 12px; bottom: 12px; width: 370px; margin: 0; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); pointer-events: auto; }
 .endScreen.replaying .end-head, .endScreen.replaying .end-stats { display: none; }
