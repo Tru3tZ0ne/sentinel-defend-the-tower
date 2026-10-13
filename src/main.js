@@ -11,10 +11,13 @@ import { createFx } from './world/fx.js';
 import { createPeople } from './world/people.js';
 import { GLTFLoader } from './vendor/three/GLTFLoader.js';
 
-// Realistic rigged+animated NPC model (swap this path for a licensed business-character pack).
+// Art direction: premium STYLIZED (not photoreal). Characters are original stylized art.
+// The GLB pipeline is retained for later (set USE_GLB_CHARACTERS + CHAR_MODEL to enable a
+// licensed character pack), but the shipped look is the crafted stylized figure.
+const USE_GLB_CHARACTERS = false;
 const CHAR_MODEL = 'assets/models/CesiumMan.glb';
 let charGltf = null;
-new GLTFLoader().load(CHAR_MODEL, g => { charGltf = g; }, undefined, () => { charGltf = null; });
+if (USE_GLB_CHARACTERS) new GLTFLoader().load(CHAR_MODEL, g => { charGltf = g; }, undefined, () => { charGltf = null; });
 import { Engine } from './game/engine.js';
 import { getHint } from './game/sophia.js';
 import { icon } from './ui/icons.js';

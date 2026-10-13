@@ -59,8 +59,8 @@ export function createWorld(canvas) {
   // lighting — night ops. A cool moonlight key (soft shadows) + very low fill; the building's
   // own warm interior lights and glowing screens do most of the work, so the model reads like
   // a lit scale model at night.
-  scene.add(new THREE.HemisphereLight(0x3f557c, 0x090b12, 0.3));
-  scene.add(new THREE.AmbientLight(0x4a5a78, 0.16));
+  scene.add(new THREE.HemisphereLight(0x3f557c, 0x090b12, 0.24));
+  scene.add(new THREE.AmbientLight(0x4a5a78, 0.12));
   const key = new THREE.DirectionalLight(0xaec6f2, 0.62);
   key.position.set(16, 30, 16); key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);

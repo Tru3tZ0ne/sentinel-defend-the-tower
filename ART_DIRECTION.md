@@ -1,6 +1,28 @@
 # Art Direction — Sentinel: Defend the Tower
 
-## Direction (current): "Night-Ops Command"
+## Direction (DECIDED 2026-10-13): Premium **stylized** — not photoreal
+After evaluating realistic 3D (GTA-style): free, license-clean, business-attired realistic
+office NPCs don't exist/aren't reachable (Ready Player Me host blocked; Quaternius is stylized;
+Mixamo needs an Adobe login; the only free reachable realistic humans are a soldier / nude
+mannequin / plain CesiumMan), and realistic props need licensed PBR assets. A realistic-GLB
+pipeline **is** built and proven (vendored GLTFLoader/SkeletonUtils; `USE_GLB_CHARACTERS` flag
++ `CHAR_MODEL` in `main.js`) so a licensed business-character pack can be dropped in later.
+
+**The shipped look is a cohesive, high-end STYLIZED art direction** (think a polished modern
+strategy game), chosen by the client:
+- **Characters:** original stylized figures built from **smooth rounded forms** — capsule
+  limbs, a sphere head with hair + a simple face, clean proportions, soft matte materials.
+  Deliberately not blocky/"Lego", not photoreal. Walk / sit-to-work / idle animation.
+- **Environment:** smooth shading (no flat-shaded facets), cohesive matte materials with
+  subtle image-based-lighting reflections, signature per-room glow (gold Data Room, cyan
+  Server Room), official Sangfor branding.
+- **No "mini-game" framing:** the diorama base + holographic grid are removed; the floor is a
+  real slab in a night-tower context (city skyline below).
+- Accents: Sangfor green / Athena teal for brand; cyan for sensing; red for threat only.
+
+---
+
+## Earlier direction: "Night-Ops Command"
 A **Sangfor security-operations command centre at night**. The enterprise floor is a lit
 scale model on a dark command table; you are the operator. Identity pillars:
 - **Cinematic night mood** — dark void + a faint holographic grid base; the building is lit by

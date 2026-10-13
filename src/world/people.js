@@ -25,9 +25,11 @@ export function createPeople(scene, building, publicNodes, charGltf) {
     glb = { scale: 1.25, yOffset: 0, faceY: Math.PI, animations: charGltf.animations || [] };
   }
 
-  const mat = (c, rough = 0.82) => new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: 0.0 });
+  const mat = (c, rough = 0.62) => new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: 0.02 });
   const box = (w, hh, d, m) => { const x = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), m); x.castShadow = true; return x; };
-  const ball = (r, m, seg = 14) => { const x = new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg - 2), m); x.castShadow = true; return x; };
+  const ball = (r, m, seg = 16) => { const x = new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg), m); x.castShadow = true; return x; };
+  // smooth capsule limb (premium-stylized, not blocky)
+  const cap = (r, len, m) => { const x = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 6, 14), m); x.castShadow = true; return x; };
 
   // ---------- GLB figure ----------
   function makeGLB(seed) {
@@ -45,38 +47,44 @@ export function createPeople(scene, building, publicNodes, charGltf) {
     return { root, mixer, action, isGLB: true };
   }
 
-  // ---------- procedural fallback figure ----------
+  // ---------- premium stylized figure (original art: smooth rounded forms) ----------
   function makeFigure(seed, visitor) {
     const skin = SKIN[seed % SKIN.length], hair = HAIR[(seed * 3 + 1) % HAIR.length];
     const shirt = SHIRTS[(seed * 5 + 2) % SHIRTS.length], pants = PANTS[(seed * 7 + 3) % PANTS.length];
-    const skinMat = mat(skin, 0.7), shirtMat = mat(shirt), pantsMat = mat(pants), hairMat = mat(hair, 0.65), shoeMat = mat(0x1b2030, 0.6);
-    const root = new THREE.Group(); const HIP = 0.70;
+    const skinMat = mat(skin, 0.55), shirtMat = mat(shirt, 0.6), pantsMat = mat(pants, 0.62), hairMat = mat(hair, 0.5), shoeMat = mat(0x20262f, 0.45), eyeMat = mat(0x1a1c22, 0.4);
+    const root = new THREE.Group(); const HIP = 0.72;
     function leg(sx) {
       const thigh = new THREE.Group(); thigh.position.set(sx, HIP, 0);
-      const tm = box(0.17, 0.34, 0.19, pantsMat); tm.position.y = -0.17; thigh.add(tm);
+      const tm = cap(0.085, 0.18, pantsMat); tm.position.y = -0.16; thigh.add(tm);
       const calf = new THREE.Group(); calf.position.y = -0.34; thigh.add(calf);
-      const cm = box(0.15, 0.32, 0.17, pantsMat); cm.position.y = -0.16; calf.add(cm);
-      const shoe = box(0.17, 0.1, 0.28, shoeMat); shoe.position.set(0, -0.33, 0.05); calf.add(shoe);
+      const cm = cap(0.07, 0.17, pantsMat); cm.position.y = -0.15; calf.add(cm);
+      const shoe = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), shoeMat); shoe.scale.set(1, 0.7, 1.6); shoe.position.set(0, -0.32, 0.05); shoe.castShadow = true; calf.add(shoe);
       return { thigh, calf };
     }
-    const legL = leg(-0.11), legR = leg(0.11); root.add(legL.thigh, legR.thigh);
+    const legL = leg(-0.1), legR = leg(0.1); root.add(legL.thigh, legR.thigh);
     const upper = new THREE.Group(); upper.position.y = HIP; root.add(upper);
-    upper.add((() => { const m = box(0.38, 0.16, 0.24, pantsMat); m.position.y = 0.06; return m; })());
-    const torso = box(0.40, 0.44, 0.24, shirtMat); torso.position.y = 0.36; upper.add(torso);
+    const hips = cap(0.15, 0.06, pantsMat); hips.rotation.z = Math.PI / 2; hips.position.y = 0.05; upper.add(hips);
+    const torso = cap(0.165, 0.26, shirtMat); torso.position.y = 0.34; upper.add(torso);           // smooth rounded torso
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.19, 16, 14), shirtMat); chest.scale.set(1, 0.7, 0.85); chest.position.y = 0.47; chest.castShadow = true; upper.add(chest);
     function arm(sx) {
       const sh = new THREE.Group(); sh.position.set(sx, 0.56, 0);
-      const ua = box(0.12, 0.26, 0.14, shirtMat); ua.position.y = -0.13; sh.add(ua);
-      const el = new THREE.Group(); el.position.y = -0.26; sh.add(el);
-      const fa = box(0.11, 0.24, 0.12, skinMat); fa.position.y = -0.12; el.add(fa);
-      const hand = box(0.12, 0.1, 0.13, skinMat); hand.position.y = -0.26; el.add(hand);
+      const ua = cap(0.052, 0.18, shirtMat); ua.position.y = -0.12; sh.add(ua);
+      const el = new THREE.Group(); el.position.y = -0.25; sh.add(el);
+      const fa = cap(0.046, 0.16, skinMat); fa.position.y = -0.11; el.add(fa);
+      const hand = ball(0.055, skinMat, 12); hand.position.y = -0.24; el.add(hand);
       return { shoulder: sh, elbow: el };
     }
-    const armL = arm(-0.26), armR = arm(0.26); upper.add(armL.shoulder, armR.shoulder);
-    const neck = box(0.1, 0.08, 0.1, skinMat); neck.position.y = 0.62; upper.add(neck);
-    const headPivot = new THREE.Group(); headPivot.position.y = 0.70; upper.add(headPivot);
-    const head = ball(0.155, skinMat, 14); head.scale.set(1, 1.08, 0.98); head.position.y = 0.12; headPivot.add(head);
-    const hairMesh = ball(0.168, hairMat, 14); hairMesh.scale.set(1, (seed % 3 === 2) ? 0.55 : 0.9, 1); hairMesh.position.y = (seed % 3 === 2) ? 0.17 : 0.15; headPivot.add(hairMesh);
-    if (visitor) { const card = box(0.12, 0.16, 0.02, mat(0xeef2fb, 0.5)); card.position.set(0, 0.14, 0.14); upper.add(card); }
+    const armL = arm(-0.2), armR = arm(0.2); upper.add(armL.shoulder, armR.shoulder);
+    const neck = cap(0.05, 0.04, skinMat); neck.position.y = 0.64; upper.add(neck);
+    const headPivot = new THREE.Group(); headPivot.position.y = 0.72; upper.add(headPivot);
+    const head = ball(0.15, skinMat, 18); head.scale.set(0.95, 1.05, 0.98); head.position.y = 0.11; headPivot.add(head);
+    // simple stylized face (reads as a person without being a cube)
+    for (const ex of [-0.055, 0.055]) { const eye = ball(0.02, eyeMat, 8); eye.position.set(ex, 0.12, 0.135); headPivot.add(eye); }
+    const hs = seed % 3;
+    const hairMesh = new THREE.Mesh(new THREE.SphereGeometry(0.162, 16, 14, 0, Math.PI * 2, 0, Math.PI * (hs === 2 ? 0.55 : 0.72)), hairMat);
+    hairMesh.position.y = 0.11 + (hs === 2 ? 0.02 : 0.0); hairMesh.scale.set(1, 1.05, 1); hairMesh.castShadow = true; headPivot.add(hairMesh);
+    if (hs === 0) { const bun = ball(0.06, hairMat, 10); bun.position.set(0, 0.16, -0.1); headPivot.add(bun); }
+    if (visitor) { const strap = box(0.02, 0.2, 0.01, mat(0x9aa6bd, 0.5)); strap.position.set(0, 0.42, 0.14); upper.add(strap); const card = box(0.1, 0.13, 0.015, mat(0xeef2fb, 0.4)); card.position.set(0, 0.3, 0.15); upper.add(card); }
     root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
     return { root, legL, legR, armL, armR, upper, headPivot, torso, isGLB: false };
   }

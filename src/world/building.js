@@ -24,9 +24,9 @@ export function buildBuilding(THREE, LAYOUT) {
   const { bounds: B, corridor: C, wallH: WH } = LAYOUT;
   const FW = B.x1 - B.x0, FD = B.z1 - B.z0, MX = (B.x0 + B.x1) / 2, MZ = (B.z0 + B.z1) / 2;
 
-  const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.85, metalness: 0.0, ...o });
-  const glassMat = () => new THREE.MeshStandardMaterial({ color: P.glass, transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0, flatShading: true });
-  const emis = (color, i = 0.9, o = {}) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: i, flatShading: true, roughness: 0.5, ...o });
+  const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0.0, ...o });
+  const glassMat = () => new THREE.MeshStandardMaterial({ color: P.glass, transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0 });
+  const emis = (color, i = 0.9, o = {}) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: i, roughness: 0.5, ...o });
   const geomBox = (w, h, d) => new THREE.BoxGeometry(w, h, d);
   const mesh = (g, m, cast = true, recv = true) => { const x = new THREE.Mesh(g, m.isMaterial ? m : mat(m)); x.castShadow = cast; x.receiveShadow = recv; return x; };
   const box = (w, h, d, m, cast, recv) => mesh(geomBox(w, h, d), m, cast, recv);
@@ -266,7 +266,7 @@ export function buildBuilding(THREE, LAYOUT) {
       node('desk:server#core', V(r.rect.x0 + 1.0, 0.05, C.z0 - 1.2)); link('desk:server#core', 'room:server');
     } else if (r.type === 'vault') {
       const plinth = cyl(1.05, 1.15, 0.24, mat(P.vaultPlinth), 10); add(plinth, cx, 0.12, cz);
-      const core = mesh(new THREE.IcosahedronGeometry(0.66, 0), new THREE.MeshStandardMaterial({ color: P.vaultCore, emissive: P.vaultCore, emissiveIntensity: 0.8, flatShading: true, roughness: 0.3 }));
+      const core = mesh(new THREE.IcosahedronGeometry(0.66, 0), new THREE.MeshStandardMaterial({ color: P.vaultCore, emissive: P.vaultCore, emissiveIntensity: 0.8, roughness: 0.3 }));
       core.position.set(cx, 1.1, cz); core.userData = { kind: 'desk', deskId: 'vault#core', roomId: 'vault' }; group.add(core); pickables.push(core);
       for (const [dx, dz, rot] of [[0, 1.35, 0], [0, -1.35, 0], [1.35, 0, Math.PI / 2], [-1.35, 0, Math.PI / 2]]) { const bar = box(2.4, 0.05, 0.05, emis(P.gold, 0.4), false); bar.position.set(cx + dx, 0.78, cz + dz); bar.rotation.y = rot; group.add(bar); }
       desks.set('vault#core', { id: 'vault#core', roomId: 'vault', pos: V(cx, 1.1, cz), coreMesh: core });
