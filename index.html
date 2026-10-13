@@ -4,12 +4,17 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Sentinel · Defend the Tower — a Sangfor security experience</title>
-  <meta name="description" content="An interactive 'protect the building' game that shows how Sangfor's cybersecurity, cloud, and AI products work together." />
-  <!-- All paths are relative so the app runs from a GitHub Pages /<repo>/ subpath. -->
+  <meta name="description" content="A living 3D building where you deploy Sangfor cybersecurity, cloud, and AI capabilities to see and stop a quiet intruder." />
   <link rel="stylesheet" href="./src/style/main.css" />
+  <!-- Vendored Three.js (local, offline-friendly). Relative paths → GitHub Pages ready. -->
+  <script type="importmap">
+  { "imports": { "three": "./src/vendor/three/three.module.js" } }
+  </script>
 </head>
 <body>
-  <div id="app" class="app"><noscript>This experience needs JavaScript enabled.</noscript></div>
+  <canvas id="scene"></canvas>
+  <div id="overlay"></div>
+  <noscript>This experience needs JavaScript and WebGL enabled.</noscript>
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>

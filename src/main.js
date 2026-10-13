@@ -1,283 +1,291 @@
-// App controller — screens, timer, event wiring. Keeps the engine pure; this file
-// owns the DOM and the tick timer.
-
-import { t, loc, setLang, getLang } from './i18n.js';
-import { PRODUCTS, PRODUCT_ORDER } from './data/products.js';
-import { LEVEL1 } from './data/level1.js';
-import { Game } from './game/engine.js';
+// Orchestrator: wires the 3D world, the engine, the DOM overlay, interaction, and the
+// spatial replay. Runs one render loop; the engine only advances during the 'incident'
+// phase, so the setup phase has no time pressure.
+import * as THREE from 'three';
+import { setLang, getLang, loc, t } from './i18n.js';
+import { LAYOUT, EMPLOYEES, INCIDENT } from './data/scenario.js';
+import { PRODUCTS } from './data/products.js';
+import { createWorld } from './world/world.js';
+import { buildBuilding } from './world/building.js';
+import { createFx } from './world/fx.js';
+import { createPeople } from './world/people.js';
+import { Engine } from './game/engine.js';
 import { getHint } from './game/sophia.js';
 import { icon } from './ui/icons.js';
-import { deployPanel, building, clueFeed, responses } from './ui/render.js';
+import { createOverlay } from './ui/overlay.js';
 
-const root = document.getElementById('app');
-let game = null;
-let timer = null;
-let placing = null;               // product id being placed, or null
-let sophia = { id: 'intro', expanded: false };
+const canvas = document.getElementById('scene');
+const overlayRoot = document.getElementById('overlay');
+const world = createWorld(canvas);
 
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const $ = sel => root.querySelector(sel);
+let stage, building, fx, people, engine, overlay;
+let placing = null, dirty = false, inspectTarget = null;
+let sophiaState = { id: null, expanded: false };
+const highlighted = [];
+const labelEls = new Map();
+let replay = null;
+const publicNodes = LAYOUT.rooms.filter(r => !['server', 'vault'].includes(r.type)).map(r => 'room:' + r.id);
 
-// Original placeholder wordmark (clearly our art; official logo swaps in later).
-function brandMark() {
-  return `<span class="brand">
-    <span class="brand-glyph">${icon('sophia')}</span>
-    <span class="brand-word">SANGFOR</span>
-    <span class="brand-badge" title="${t('badge.placeholder')}">${t('badge.placeholder')}</span>
-  </span>`;
+// ---------- world (re)build ----------
+function initStage() {
+  if (stage) world.scene.remove(stage);
+  stage = new THREE.Group(); world.scene.add(stage);
+  building = buildBuilding(THREE, LAYOUT); stage.add(building.group);
+  fx = createFx(stage, building);
+  people = createPeople(stage, building.nav, publicNodes);
+  for (const e of EMPLOYEES) people.add({ id: e.id, startNode: 'room:' + e.home, role: 'employee' });
+  const intr = people.add({ id: 'intruder', startNode: 'entrance', role: 'intruder', visitor: true });
+  intr.group.visible = false; intr.wander = false;
+  // room labels
+  labelEls.clear(); overlay.els.labels.innerHTML = '';
+  for (const r of LAYOUT.rooms) {
+    const d = document.createElement('div'); d.className = 'rlabel'; d.textContent = loc(r.name);
+    overlay.els.labels.appendChild(d); labelEls.set(r.id, d);
+  }
 }
 
-function langToggle() {
-  return `<button class="btn ghost" data-lang="1" title="language">${t('lang.toggle')}</button>`;
+// ---------- helpers ----------
+function personRoom(p) {
+  const n = p.currentNode || '';
+  if (n.startsWith('room:')) return n.slice(5);
+  if (n.startsWith('desk:')) return n.slice(5).split('#')[0];
+  return null;
+}
+function roomOccupants(roomId) { return people.list.filter(p => p.id !== 'intruder' && personRoom(p) === roomId); }
+
+function clearHighlight() { for (const h of highlighted) { h.mesh.material.emissive.setHex(h.e); h.mesh.material.emissiveIntensity = h.i; } highlighted.length = 0; }
+function hl(mesh, color = 0xE60027, inten = 0.5) {
+  if (!mesh?.material?.emissive) return;
+  highlighted.push({ mesh, e: mesh.material.emissive.getHex(), i: mesh.material.emissiveIntensity });
+  mesh.material.emissive.setHex(color); mesh.material.emissiveIntensity = inten;
+}
+function highlightPlacement(prod) {
+  clearHighlight();
+  if (prod === 'EDR') {
+    for (const d of building.desks.values()) { const m = d.deskMesh || d.coreMesh; if (m && !engine.edrDesks.has(d.id)) hl(m, 0x39e08a, 0.55); }
+  } else {
+    const elig = engine.eligible(prod);
+    if (elig.room) { const r = building.rooms.get(elig.room); if (r) hl(r.pad, 0xE60027, 0.6); }
+    else { for (const r of building.rooms.values()) hl(r.pad, 0x39c0ff, 0.28); } // network / offsite: anywhere
+  }
 }
 
-// ---------------- Start screen ----------------
-function renderStart() {
-  stopTimer();
-  root.innerHTML = `
-    <div class="screen start">
-      <div class="start-top">${brandMark()}${langToggle()}</div>
-      <div class="start-hero">
-        <div class="hero-title"><span class="t1">${t('game.title')}</span><span class="t2">${t('game.subtitle')}</span></div>
-        <p class="hero-byline">${t('game.byline')}</p>
-        <p class="hero-tagline">${t('start.tagline')}</p>
-        <ul class="hero-brief">
-          <li>${t('start.brief1')}</li>
-          <li>${t('start.brief2')}</li>
-          <li>${t('start.brief3')}</li>
-        </ul>
-        <button class="btn primary big" data-start="1">${t('start.play')} →</button>
-      </div>
-      ${sophiaDock(getHint('intro'), false, t('sophia.greet'))}
-    </div>`;
-  $('[data-start]').onclick = startGame;
-  $('[data-lang]').onclick = toggleLang;
-  wireSophia();
+// ---------- interaction ----------
+function worldClick(ev) {
+  const hit = world.pick(ev.clientX, ev.clientY, building.pickables);
+  const entity = hit?.entity || null;
+  if (placing) return tryDeploy(entity);
+  inspectTarget = entity; renderInspect();
+}
+function tryDeploy(entity) {
+  const prod = placing; const elig = engine.eligible(prod);
+  let ok = false, target = null;
+  if (prod === 'EDR') { if (entity?.kind === 'desk') { target = entity.deskId; ok = true; } }
+  else if (elig.room) { if (entity && (entity.roomId === elig.room || (entity.kind === 'room' && entity.roomId === elig.room))) ok = true; }
+  else { if (entity) ok = true; }  // network / offsite — any click inside the building confirms
+  if (!ok) { overlay.toast({ kind: 'warn', key: 'tray.clickWorld' }); return; }
+  const res = engine.deploy(prod, target);
+  if (res.ok) { placing = null; clearHighlight(); overlay.renderTray(engine, placing); }
 }
 
-// ---------------- Play screen ----------------
-function startGame() {
-  game = new Game(LEVEL1);
-  placing = null;
-  sophia = { id: null, expanded: false };
-  game.on('change', updatePlay)
-      .on('sophia', ({ id }) => showSophia(id))
-      .on('toast', showToast)
-      .on('end', onEnd);
-  renderPlaySkeleton();
-  game.start();
-  startTimer();
-  updatePlay();
+function onPointerMove(ev) {
+  const hit = world.pick(ev.clientX, ev.clientY, building.pickables);
+  canvas.style.cursor = hit ? 'pointer' : (placing ? 'crosshair' : 'grab');
 }
 
-function renderPlaySkeleton() {
-  stopTimer();
-  root.innerHTML = `
-    <div class="screen play">
-      <header class="topbar">
-        <div class="tb-left">${brandMark()}</div>
-        <div class="tb-hud" id="hud"></div>
-        <div class="tb-right" id="controls"></div>
-      </header>
-      <main class="stage">
-        <section class="col col-left"><div id="deploy"></div></section>
-        <section class="col col-center"><div id="buildingWrap"></div></section>
-        <section class="col col-right">
-          <h2 class="panel-title">${t('clue.feed')}</h2>
-          <div id="feed" class="feed"></div>
-          <h2 class="panel-title">${t('panel.response')}</h2>
-          <div id="resp" class="resp"></div>
-        </section>
-      </main>
-      <div id="sophiaDock"></div>
-      <div id="toasts" class="toasts"></div>
-    </div>`;
-  wirePlayEvents();
+// ---------- inspect card ----------
+function renderInspect() {
+  if (!inspectTarget) return overlay.clearInspect();
+  const e = inspectTarget;
+  let html = '';
+  if (e.kind === 'room') html = inspectRoom(e.roomId);
+  else if (e.kind === 'desk') html = inspectDesk(e.deskId, e.roomId);
+  else if (e.kind === 'person') html = inspectPerson(e.personId);
+  else if (e.kind === 'clue') html = inspectClue(e.clueId);
+  overlay.showInspect({ html });
 }
-
-function hud() {
-  const pct = Math.min(100, (game.time / game.level.duration) * 100);
-  const bar = (label, val, cls) => `
-    <div class="meter ${cls}">
-      <div class="meter-top"><span>${label}</span><span>${Math.round(val)}%</span></div>
-      <div class="meter-bar"><i style="width:${Math.max(0, Math.min(100, val))}%"></i></div>
-    </div>`;
+function roomName(id) { const r = LAYOUT.rooms.find(x => x.id === id); return r ? loc(r.name) : id; }
+function inspectRoom(roomId) {
+  const r = LAYOUT.rooms.find(x => x.id === roomId); if (!r) return '';
+  const occ = roomOccupants(roomId).length;
+  const edrHere = [...engine.edrDesks].some(d => d.split('#')[0] === roomId);
+  const locked = engine.lockedRooms.has(roomId);
+  const inc = engine.phase === 'incident';
+  const actions = [];
+  if (inc && locked) actions.push(`<button class="btn mini good" data-act="recover" data-room="${roomId}">${icon('astor')} ${t('resp.recover')}</button>`);
+  if (inc && !locked) actions.push(`<button class="btn mini" data-act="lockdown" data-room="${roomId}">${icon('lock')} ${t('resp.lockdown')}</button>`);
   return `
-    <div class="hud-time">
-      <div class="meter-top"><span>${esc(loc(game.level.name))}</span><span>${Math.ceil(game.time)}s / ${game.level.duration}s</span></div>
-      <div class="meter-bar time"><i style="width:${pct}%"></i></div>
+    <div class="ins-head"><h3>${icon(roomIcon(r.type))} ${loc(r.name)}</h3><span class="ins-sub">${t('inspect.floor')} ${r.floor}</span></div>
+    <div class="ins-rows">
+      <div><span>${t('inspect.occupants')}</span><b>${occ}</b></div>
+      <div><span>${locked ? `<span class="warn">${t('clue.endpoint') && ''}` : ''}${edrHere ? t('inspect.protected') : t('inspect.unprotected')}</span></div>
+      ${locked ? `<div class="locked-row">${icon('lock')} ${t('resp.recover')}</div>` : ''}
     </div>
-    ${bar(t('hud.uptime'), game.uptime, 'up')}
-    ${bar(t('hud.data'), game.data, 'data')}
-    <div class="hud-budget"><span>${t('hud.budget')}</span><b>${game.budget}</b><span>${t('hud.credits')}</span></div>`;
+    ${actions.length ? `<div class="ins-actions">${actions.join('')}</div>` : ''}`;
 }
-
-function controls() {
-  const sp = s => `<button class="btn chip ${game.speed === s ? 'on' : ''}" data-speed="${s}">${s}×</button>`;
+function roomIcon(type) { return { lobby: 'af', command: 'xdr', egress: 'iag', server: 'astor', vault: 'check', office: 'edr', meeting: 'mdr' }[type] || 'edr'; }
+function inspectDesk(deskId, roomId) {
+  const edr = engine.edrDesks.has(deskId);
+  const inc = engine.phase === 'incident';
+  const action = (inc && edr) ? `<div class="ins-actions"><button class="btn mini good" data-act="isolate" data-desk="${deskId}">${icon('edr')} ${t('resp.isolate')}</button></div>` : '';
   return `
-    <button class="btn ghost" data-pause="1">${game.running ? t('hud.pause') : t('hud.resume')}</button>
-    <span class="speed">${t('hud.speed')}: ${sp(1)}${sp(2)}${sp(4)}</span>
-    ${langToggle()}`;
+    <div class="ins-head"><h3>${icon('edr')} ${t('inspect.workstation')}</h3><span class="ins-sub">${roomName(roomId)}</span></div>
+    <div class="ins-rows"><div><span>${edr ? t('inspect.protected') : t('inspect.unprotected')}</span>${edr ? `<b class="ok">●</b>` : ''}</div></div>
+    ${action}`;
 }
-
-function updatePlay() {
-  if (!game || game.ended) return;
-  game._placingEligible = placing ? new Set(game.eligibleTargets(placing)) : null;
-  $('#hud').innerHTML = hud();
-  $('#controls').innerHTML = controls();
-  $('#deploy').innerHTML = deployPanel(game, placing);
-  $('#buildingWrap').innerHTML = building(game);
-  $('#feed').innerHTML = clueFeed(game);
-  $('#resp').innerHTML = responses(game);
+function inspectPerson(id) {
+  const emp = EMPLOYEES.find(e => e.id === id);
+  const name = id === 'intruder' ? loc(INCIDENT.intruder.name) : (emp ? loc(emp.name) : t('inspect.person'));
+  return `<div class="ins-head"><h3>${icon('mdr')} ${esc(name)}</h3><span class="ins-sub">${t('inspect.person')}</span></div>
+    <div class="ins-note">${t('inspect.personNote')}</div>`;
 }
-
-function wirePlayEvents() {
-  root.addEventListener('click', (e) => {
-    const target = e.target.closest('[data-product],[data-cancel],[data-room],[data-slot-target],[data-isolate],[data-recover],[data-pause],[data-speed],[data-lang],[data-sophia-ask],[data-sophia-more],[data-sophia-close]');
-    if (!target || !game) return;
-
-    if (target.dataset.lang) return toggleLang();
-    if (target.dataset.pause) { game.running ? game.pause() : game.resume(); return updatePlay(); }
-    if (target.dataset.speed) { game.setSpeed(Number(target.dataset.speed)); return updatePlay(); }
-
-    if (target.dataset.product) {
-      const id = target.dataset.product;
-      if (target.disabled) return;
-      placing = (placing === id) ? null : id;
-      return updatePlay();
-    }
-    if (target.dataset.cancel) { placing = null; return updatePlay(); }
-
-    // placement target
-    const slotTarget = target.dataset.slotTarget;
-    const roomTarget = target.closest('[data-room]')?.dataset.room;
-    const tgt = slotTarget || roomTarget;
-    if (placing && tgt) {
-      const res = game.deploy(placing, tgt);
-      if (res.ok) placing = null;
-      return updatePlay();
-    }
-
-    if (target.dataset.isolate) { game.isolate(target.dataset.isolate); return; }
-    if (target.dataset.recover) { game.recover(target.dataset.recover); return; }
-
-    if (target.dataset.sophiaAsk !== undefined) { sophia.expanded = false; return reflowSophia(); }
-    if (target.dataset.sophiaMore !== undefined) { sophia.expanded = true; return reflowSophia(); }
-    if (target.dataset.sophiaClose !== undefined) { $('#sophiaDock').classList.add('min'); return; }
-  });
+function inspectClue(id) {
+  const c = engine.clues.find(x => x.id === id); if (!c) return '';
+  return `<div class="ins-head"><h3 class="ev-${c.type}">${icon(c.type)} ${t('clue.' + c.type)}</h3><span class="ins-sub">${roomName(c.room)}</span></div>
+    <div class="ins-note">${c.confidence === 'confirmed' ? t('clue.confirmed') : t('clue.weak')}</div>`;
 }
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
-// ---------------- Sophia ----------------
-function sophiaDock(hint, expanded, greetOverride) {
-  const name = t('sophia.name'), roleTxt = t('sophia.role');
-  const body = greetOverride || (hint ? (expanded ? loc(hint.more) : loc(hint.dir)) : '');
-  const moreBtn = (hint && !expanded && !greetOverride) ? `<button class="linklike" data-sophia-more>${t('sophia.more')} ↓</button>` : '';
-  return `
-    <div class="sophia" id="sophiaCard">
-      <div class="sophia-avatar">${icon('sophia')}</div>
-      <div class="sophia-text">
-        <div class="sophia-name">${name} <span>· ${roleTxt}</span></div>
-        <div class="sophia-body">${esc(body)}</div>
-        <div class="sophia-actions">${moreBtn}</div>
-      </div>
-    </div>`;
-}
-
+// ---------- Sophia ----------
 function showSophia(id) {
-  const hint = getHint(id);
-  if (!hint) return;
-  sophia = { id, expanded: false };
-  reflowSophia();
-  const dock = $('#sophiaDock'); if (dock) { dock.classList.remove('min'); dock.classList.add('pulse'); setTimeout(() => dock.classList.remove('pulse'), 1200); }
+  const hint = getHint(id); if (!hint) return;
+  sophiaState = { id, expanded: false };
+  overlay.renderSophia(hint, false, null); overlay.pulseSophia();
 }
-
 function reflowSophia() {
-  const dock = $('#sophiaDock'); if (!dock) return;
-  const hint = sophia.id ? getHint(sophia.id) : null;
-  dock.innerHTML = sophiaDock(hint, sophia.expanded, sophia.id ? null : t('sophia.greet'));
+  const hint = sophiaState.id ? getHint(sophiaState.id) : null;
+  overlay.renderSophia(hint, sophiaState.expanded, sophiaState.id ? null : t('sophia.greet'));
 }
 
-function wireSophia() { /* start-screen sophia is static greet; clicks handled by delegation when in play */ }
-
-// ---------------- Toasts ----------------
-function showToast(p) {
-  const box = $('#toasts'); if (!box) return;
-  const txt = p.clue ? t('clue.' + p.clue) : t(p.key || '');
-  const node = document.createElement('div');
-  node.className = `toast ${p.kind || 'info'}`;
-  node.innerHTML = p.clue ? `<span class="toast-icon ev-${p.clue}">${icon(p.clue)}</span> ${esc(txt)}` : esc(txt);
-  box.appendChild(node);
-  setTimeout(() => node.classList.add('in'), 10);
-  setTimeout(() => { node.classList.remove('in'); setTimeout(() => node.remove(), 300); }, 2600);
+// ---------- labels ----------
+const _v = new THREE.Vector3();
+function updateLabels() {
+  for (const [id, el] of labelEls) {
+    const r = building.rooms.get(id); if (!r) continue;
+    _v.copy(r.center); _v.y += 1.7; _v.project(world.camera);
+    const vis = _v.z < 1 && _v.x > -1 && _v.x < 1 && _v.y > -1 && _v.y < 1;
+    if (!vis) { el.style.display = 'none'; continue; }
+    el.style.display = 'block';
+    el.style.left = ((_v.x * 0.5 + 0.5) * canvas.clientWidth) + 'px';
+    el.style.top = ((-_v.y * 0.5 + 0.5) * canvas.clientHeight) + 'px';
+    const locked = engine && engine.lockedRooms.has(id);
+    el.classList.toggle('locked', !!locked);
+  }
 }
 
-// ---------------- End / replay ----------------
-function onEnd({ result, score }) {
-  stopTimer();
-  const win = result === 'win';
-  const rooms = new Map(game.level.rooms.map(r => [r.id, loc(r.name)]));
-  const locName = n => rooms.get(n) || (n === 'perimeter' ? loc(game.level.slots[0].name) : n);
+// ---------- game flow ----------
+function newGame() {
+  initStage();
+  engine = new Engine({ LAYOUT, EMPLOYEES, INCIDENT });
+  engine.speed = 1; engine._paused = false;
+  placing = null; inspectTarget = null; replay = null;
+  engine
+    .on('change', () => { dirty = true; })
+    .on('deploy', ({ product, target }) => { fx.addProp(product, target); dirty = true; firstDeploy(); })
+    .on('clue', c => { if (c.type === 'network') fx.addTrail(c.fromRoom, c.room); else fx.addClue(c); dirty = true; })
+    .on('confirm', () => { engine.clues.forEach(c => fx.setClueConfirmed(c.id)); const it = people.get('intruder'); if (it) fx.setReveal(it.group); })
+    .on('intruder-goto', ({ room, desk }) => { const it = people.get('intruder'); if (it) { it.group.visible = true; people.setRoute(it, desk ? 'desk:' + desk : 'room:' + room); } })
+    .on('lock', ({ room, locked }) => fx.lockRoom(room, locked))
+    .on('cage-room', ({ room }) => fx.restrictRoom(room))
+    .on('contained', ({ desk }) => { const it = people.get('intruder'); if (it) it.halted = true; if (desk) fx.cageDesk(desk); fx.resolveAllClues(); dirty = true; })
+    .on('sophia', ({ id }) => showSophia(id))
+    .on('toast', p => overlay.toast(p))
+    .on('phase', ({ phase }) => { overlay.setPhase(phase); dirty = true; })
+    .on('end', () => endGame());
 
-  const attacks = game.log.filter(l => l.kind === 'attack');
-  const timeline = attacks.map(a => {
-    const step = game.level.plan.find(s => s.act === a.act && s.node === a.node);
-    const truth = step ? loc(step.truth) : a.act;
-    let status, cls;
-    if (a.blocked) { status = t('end.blocked'); cls = 'good'; }
-    else if (a.prevented) { status = t('resp.contained'); cls = 'good'; }
-    else if (a.visible) { status = t('end.detected'); cls = 'seen'; }
-    else { status = t('end.missed'); cls = 'bad'; }
-    return `<li class="tl-row ${cls}">
-      <span class="tl-time">${Math.round(a.t)}s</span>
-      <span class="tl-ev ev-${a.ev}">${icon(a.ev)}</span>
-      <span class="tl-truth">${esc(truth)} <em>· ${esc(locName(a.node))}</em></span>
-      <span class="tl-status ${cls}">${status}</span>
-    </li>`;
-  }).join('');
+  overlay.hideStart(); overlay.hideEnd();
+  overlay.setPhase('prep');
+  overlay.renderHud(engine); overlay.renderTray(engine, placing); overlay.renderFeed(engine);
+  showSophia('welcome');
+  clearInterval(prepTimer);
+  prepTimer = setTimeout(() => { if (engine && engine.phase === 'prep' && engine.deployed.length === 0) showSophia('deployFirst'); }, 5000);
+}
+let prepTimer = null, _firstDeployed = false;
+function firstDeploy() { if (!_firstDeployed) { _firstDeployed = true; setTimeout(() => { if (engine.phase === 'prep') showSophia('readyToBegin'); }, 800); } }
 
-  const detected = attacks.filter(a => a.visible || a.blocked || a.prevented).length;
-  const summary = win
-    ? (game.attacker.contained ? t('resp.contained') : t('end.win.msg'))
-    : (result === 'lose-breach' ? t('end.lose.breach') : t('end.lose.uptime'));
+function beginDay() { if (engine) engine.beginDay(); }
+function endGame() { clearHighlight(); placing = null; overlay.clearInspect(); overlay.setPhase('review'); overlay.showEnd(engine); }
 
-  root.innerHTML = `
-    <div class="screen end ${win ? 'win' : 'lose'}">
-      <div class="start-top">${brandMark()}${langToggle()}</div>
-      <div class="end-head">
-        <div class="end-badge">${win ? icon('check') : icon('attacker')}</div>
-        <h1>${win ? t('end.win.title') : t('end.lose.title')}</h1>
-        <p>${esc(summary)}</p>
-        <div class="end-stats">
-          <div><b>${score}</b><span>${t('end.score')}</span></div>
-          <div><b>${Math.round(game.uptime)}%</b><span>${t('hud.uptime')}</span></div>
-          <div><b>${Math.round(game.data)}%</b><span>${t('hud.data')}</span></div>
-          <div><b>${detected}/${attacks.length}</b><span>${t('end.detected')}</span></div>
-        </div>
-      </div>
-      <div class="replay">
-        <h2>${t('end.replay')}</h2>
-        <p class="replay-sub">${t('end.replay.sub')}</p>
-        <ol class="timeline">${timeline}</ol>
-      </div>
-      <button class="btn primary big" data-again="1">${t('end.again')}</button>
-    </div>`;
-  $('[data-again]').onclick = renderStart;
-  $('[data-lang]').onclick = toggleLang;
+// ---------- spatial replay ----------
+function startReplay() {
+  overlay.els.end.classList.add('replaying');
+  const it = people.get('intruder');
+  if (it) { it.halted = false; it.group.visible = true; const start = building.nav.nodes.get('entrance'); it.group.position.copy(start.pos); it.currentNode = 'entrance'; it.path = null; fx.setReveal(it.group); }
+  replay = { index: 0, timer: 0, beats: engine.inc.beats };
+  overlay.highlightStep(0);
+}
+function stepReplay(dt) {
+  if (!replay) return;
+  const it = people.get('intruder'); if (!it) return;
+  people.update(dt * 1.2);
+  replay.timer += dt;
+  if (replay.timer >= 1.8) {
+    replay.timer = 0; replay.index++;
+    if (replay.index >= replay.beats.length) { replay = null; return; }
+    const b = replay.beats[replay.index];
+    people.setRoute(it, b.desk ? 'desk:' + b.desk : 'room:' + b.room);
+    overlay.highlightStep(replay.index);
+  }
 }
 
-// ---------------- misc ----------------
-function toggleLang() {
-  setLang(getLang() === 'en' ? 'zh' : 'en');
-  if (game && !game.ended) { renderPlaySkeleton(); updatePlay(); reflowSophia(); }
-  else if (game && game.ended) onEnd({ result: game.ended, score: game.score });
-  else renderStart();
+// ---------- overlay handlers ----------
+overlay = createOverlay(overlayRoot, {
+  onStart: newGame,
+  onBeginDay: beginDay,
+  onPickProduct: id => { placing = (placing === id) ? null : id; if (placing) highlightPlacement(id); else clearHighlight(); overlay.renderTray(engine, placing); },
+  onCancelPlacing: () => { placing = null; clearHighlight(); overlay.renderTray(engine, placing); },
+  onPauseToggle: () => { engine._paused = !engine._paused; overlay.renderHud(engine); },
+  onSpeed: s => { engine.speed = s; overlay.renderHud(engine); },
+  onLang: () => { setLang(getLang() === 'en' ? 'zh' : 'en'); refreshAll(); },
+  onIsolate: desk => { engine.isolateDevice(desk); renderInspect(); },
+  onLockdown: room => { engine.lockdownRoom(room); renderInspect(); },
+  onRecover: room => { engine.recover(room); renderInspect(); },
+  onSophiaMore: () => { sophiaState.expanded = true; reflowSophia(); },
+  onCloseInspect: () => { inspectTarget = null; overlay.clearInspect(); },
+  onAgain: () => newGame(),
+  onReplayPlay: () => startReplay(),
+  onBackToGame: () => { overlay.els.end.classList.remove('replaying'); replay = null; overlay.showEnd(engine); },
+});
+
+function refreshAll() {
+  // rebuild room labels text for language + re-render panels/screens
+  for (const [id, el] of labelEls) { const r = LAYOUT.rooms.find(x => x.id === id); if (r) el.textContent = loc(r.name); }
+  if (!engine) { overlay.showStart(); return; }
+  if (engine.phase === 'review') { overlay.showEnd(engine); return; }
+  overlay.renderHud(engine); overlay.renderTray(engine, placing); overlay.renderFeed(engine); reflowSophia(); renderInspect();
 }
 
-function startTimer() { stopTimer(); timer = setInterval(() => { if (game && game.running) game.tick(0.1); }, 100); }
-function stopTimer() { if (timer) clearInterval(timer); timer = null; }
+// ---------- main loop ----------
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const incidentRunning = engine && engine.phase === 'incident' && !engine._paused;
+  const simDt = incidentRunning ? dt * engine.speed : dt;
+  if (people) people.update(incidentRunning ? dt * engine.speed : dt);
+  if (incidentRunning) engine.tick(dt * engine.speed);
+  if (replay) stepReplay(dt);
+  if (fx) fx.update(dt);
+  if (engine) updateLabels();
+  world.render();
+  requestAnimationFrame(frame);
+}
+
+// UI flush (throttled) so per-tick state changes don't thrash the DOM.
+setInterval(() => {
+  if (!dirty || !engine) return; dirty = false;
+  if (engine.phase === 'review') return;
+  overlay.renderHud(engine); overlay.renderTray(engine, placing); overlay.renderFeed(engine);
+  if (inspectTarget) renderInspect();
+}, 140);
+
+canvas.addEventListener('click', worldClick);
+canvas.addEventListener('pointermove', onPointerMove);
 
 // boot
-renderStart();
+initStage();
+overlay.showStart();
+overlay.setPhase('start');
+requestAnimationFrame(frame);
 
 // expose for headless testing
-window.__sentinel = { get game() { return game; }, startGame, renderStart };
+window.__sentinel = { get engine() { return engine; }, newGame, beginDay, world };

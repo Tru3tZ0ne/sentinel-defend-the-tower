@@ -1,327 +1,291 @@
-// Engine — game state + simulation. Framework-free. The UI registers listeners and
-// re-renders on 'change'. Time advances via tick(realDt); the harness (main.js) owns
-// the timer so the engine stays easy to test headlessly.
+// Engine (Milestone 2) — phase-based, spatial. Logic only; it emits events that main.js
+// turns into world effects (props, clues, trails, containment) and UI updates.
 //
-// Core idea (fog-of-war): the attacker's plan is ground truth, but the player only
-// sees evidence that a *deployed sensor* is watching for, at the moment it happens.
-// XDR correlates >=2 visible clue types into a CONFIRMED incident; MDR adds analyst
-// recommendations and one assisted containment.
+// Phases: 'prep' (no clock — learn, inspect, deploy) → 'incident' (clock runs, the story
+// unfolds) → 'review'. Fog-of-war: a beat's evidence becomes a visible clue only where a
+// matching sensor is deployed. XDR correlates; MDR advises & assists. Containment and
+// recovery are honest about what each product actually does.
 
 import { PRODUCTS } from '../data/products.js';
 
-let uid = 0;
-const nid = () => ++uid;
+let uid = 0; const nid = () => ++uid;
 
-export class Game {
-  constructor(level) {
-    this.level = level;
+export class Engine {
+  constructor(scenario) {
+    this.sc = scenario;                  // { LAYOUT, EMPLOYEES, INCIDENT }
+    this.inc = scenario.INCIDENT;
+    this.phase = 'prep';
     this.time = 0;
-    this.running = false;
-    this.speed = 1;
-    this.ended = null;                 // null | 'win' | 'lose-breach' | 'lose-uptime'
+    this.ended = null;                   // 'win' | 'lose-breach' | 'lose-uptime'
+    this.result = null;
 
-    this.budget = level.startBudget;
+    this.budget = 15;
     this._incomeAcc = 0;
-
     this.uptime = 100;
     this.data = 100;
 
-    this.rooms = new Map(level.rooms.map(r => [r.id, { ...r, locked: false, lockedAt: 0 }]));
+    this.deployed = [];                  // { product, target }
+    this.bySlot = new Map();             // AF/IAG/XDR/NDR/MDR/ASTOR -> true
+    this.edrDesks = new Set();           // deskId
+    this.astorReady = false;             // aStor snapshots prepared BEFORE attack?
 
-    // deployment bookkeeping
-    this.deployed = [];                // { product, slot }
-    this.bySlot = new Map();           // slotId -> product id (perimeter/gateway/network/command/roster)
-    this.edrRooms = new Set();
-    this.astorRooms = new Set();
+    this.beatIndex = 0;
+    this.delay = 0;
+    this.intruder = { room: 'entrance', desk: null, contained: false, failed: false, revealed: false };
 
-    this.planIndex = 0;
-    this.attacker = { node: 'outside', contained: false, failed: false, delay: 0, revealed: false };
-
-    this.evidence = [];                // all ground-truth evidence (for replay)
-    this.clues = [];                   // visible to player
-    this.cluesTypesSeen = new Set();
-    this.incidentConfirmed = false;
-    this.firstDetectionTime = null;
+    this.evidence = [];
+    this.clues = [];
+    this.typesSeen = new Set();
+    this.confirmed = false;
+    this.firstDetection = null;
     this._mdrAssisted = false;
 
-    this.log = [];                     // replay log (attacker + player + outcomes)
-    this._sophiaFired = new Set();
-
-    this.listeners = { change: [], sophia: [], toast: [], end: [] };
+    this.lockedRooms = new Set();
+    this.log = [];
+    this._sophia = new Set();
+    this.listeners = {};
   }
 
-  // --- events ---
   on(evt, fn) { (this.listeners[evt] ||= []).push(fn); return this; }
-  _emit(evt, payload) { (this.listeners[evt] || []).forEach(fn => fn(payload, this)); }
-  _changed() { this._emit('change'); }
+  emit(evt, p) { (this.listeners[evt] || []).forEach(fn => fn(p, this)); }
+  changed() { this.emit('change'); }
+  sophia(id) { if (this._sophia.has(id)) return; this._sophia.add(id); this.emit('sophia', { id }); }
 
-  // --- helpers ---
-  has(slotId) { return this.bySlot.has(slotId); }
-  get hasAF()  { return this.bySlot.get('perimeter') === 'AF'; }
-  get hasIAG() { return this.bySlot.get('gateway') === 'IAG'; }
-  get hasNDR() { return this.bySlot.get('network') === 'NDR'; }
-  get hasXDR() { return this.bySlot.get('command') === 'XDR'; }
-  get hasMDR() { return this.bySlot.get('roster') === 'MDR'; }
+  // ---- queries ----
+  has(id) { return this.bySlot.has(id); }
+  get hasAF() { return this.has('AF'); }
+  get hasIAG() { return this.has('IAG'); }
+  get hasNDR() { return this.has('NDR'); }
+  get hasXDR() { return this.has('XDR'); }
+  get hasMDR() { return this.has('MDR'); }
 
-  // Which product can go in which slot/room (for highlighting during placement).
-  canPlace(productId, targetId) {
+  eligible(productId) {
     const p = PRODUCTS[productId];
-    if (!p) return false;
-    if (p.slotType === 'room')  return this.rooms.has(targetId) && !this.edrRooms.has(targetId);
-    if (p.slotType === 'vault') return this.rooms.has(targetId) && !this.astorRooms.has(targetId);
-    // single fixed slots
-    return targetId === this._slotFor(productId) && !this.bySlot.has(targetId);
+    if (!p) return { kind: 'none' };
+    if (productId === 'EDR') return { kind: 'desk' };          // click any workstation/endpoint
+    const slot = this.sc.LAYOUT.slots[productId];
+    return { kind: slot?.kind || 'slot', room: slot?.room };
   }
 
-  _slotFor(productId) {
-    return { AF: 'perimeter', IAG: 'gateway', NDR: 'network', XDR: 'command', MDR: 'roster' }[productId];
-  }
+  canAfford(productId) { return this.budget >= PRODUCTS[productId].cost; }
 
-  eligibleTargets(productId) {
-    const p = PRODUCTS[productId];
-    if (!p) return [];
-    if (p.slotType === 'room')  return this.level.rooms.filter(r => !this.edrRooms.has(r.id)).map(r => r.id);
-    if (p.slotType === 'vault') return this.level.rooms.filter(r => !this.astorRooms.has(r.id)).map(r => r.id);
-    const s = this._slotFor(productId);
-    return this.bySlot.has(s) ? [] : [s];
-  }
-
-  // --- actions ---
-  deploy(productId, targetId) {
+  // ---- deploy ----
+  deploy(productId, target) {
     const p = PRODUCTS[productId];
     if (!p || this.ended) return { ok: false };
-    if (this.budget < p.cost) { this._emit('toast', { kind: 'warn', key: 'panel.cantAfford' }); return { ok: false }; }
-    if (!this.canPlace(productId, targetId)) return { ok: false };
+    if (this.budget < p.cost) { this.emit('toast', { kind: 'warn', key: 'panel.cantAfford' }); return { ok: false }; }
 
+    if (productId === 'EDR') {
+      if (!target || this.edrDesks.has(target)) return { ok: false };
+      this.edrDesks.add(target);
+    } else {
+      if (this.bySlot.has(productId)) return { ok: false };
+      this.bySlot.set(productId, true);
+      if (productId === 'ASTOR' && this.phase === 'prep') this.astorReady = true; // prepared before the attack
+    }
     this.budget -= p.cost;
-    this.deployed.push({ product: productId, slot: targetId });
-    if (p.slotType === 'room') this.edrRooms.add(targetId);
-    else if (p.slotType === 'vault') this.astorRooms.add(targetId);
-    else this.bySlot.set(targetId, productId);
-
-    this.log.push({ t: this.time, kind: 'deploy', product: productId, target: targetId });
-
-    // Deploying XDR may immediately confirm if enough clue types are already visible.
-    this._checkCorrelation();
-    this._checkSophia();
-    this._changed();
+    this.deployed.push({ product: productId, target });
+    this.log.push({ t: this.time, phase: this.phase, kind: 'deploy', product: productId, target });
+    this.emit('deploy', { product: productId, target });
+    this.emit('toast', { kind: 'good', key: 'toast.deployed', product: productId });
+    this._correlate();
+    this.changed();
     return { ok: true };
   }
 
-  // Isolate a room (EDR response). Contains the attacker only if they're actually there.
-  isolate(roomId) {
-    if (this.ended || !this.edrRooms.has(roomId)) return { ok: false, reason: 'needEdr' };
-    if (this.attacker.node === roomId && !this.attacker.contained) {
-      this.attacker.contained = true;
-      this._resolveClues();
-      this.log.push({ t: this.time, kind: 'respond', action: 'isolate', room: roomId, result: 'contained' });
-      this._emit('toast', { kind: 'good', key: 'resp.contained' });
-      this._changed();
-      return { ok: true, contained: true };
-    }
-    // Isolating the wrong room disrupts that part of the business.
-    this.uptime = Math.max(0, this.uptime - 12);
-    this.log.push({ t: this.time, kind: 'respond', action: 'isolate', room: roomId, result: 'wrong' });
-    this._emit('toast', { kind: 'bad', key: 'resp.wrongRoom' });
-    this._changed();
-    return { ok: true, contained: false };
+  // ---- phases ----
+  beginDay() {
+    if (this.phase !== 'prep') return;
+    this.phase = 'incident';
+    this.log.push({ t: 0, kind: 'begin' });
+    this.emit('phase', { phase: 'incident' });
+    this.sophia('incidentStart');
+    this.changed();
   }
 
-  // Recover a locked room (aStor). Restores it and claws back uptime.
-  recover(roomId) {
-    const r = this.rooms.get(roomId);
-    if (this.ended || !r || !r.locked) return { ok: false };
-    if (!this.astorRooms.has(roomId) && this.astorRooms.size === 0) { this._emit('toast', { kind: 'warn', key: 'resp.needAstor' }); return { ok: false }; }
-    r.locked = false;
-    this.uptime = Math.min(100, this.uptime + 14);
-    this.log.push({ t: this.time, kind: 'respond', action: 'recover', room: roomId });
-    this._emit('toast', { kind: 'good', key: 'panel.deployed' });
-    this._changed();
-    return { ok: true };
-  }
-
-  // --- simulation ---
-  start() { this.running = true; this._fireSophia('intro'); this._changed(); }
-  pause() { this.running = false; this._changed(); }
-  resume() { if (!this.ended) { this.running = true; this._changed(); } }
-  setSpeed(s) { this.speed = s; this._changed(); }
-
-  tick(realDt) {
-    if (!this.running || this.ended) return;
-    const dt = realDt * this.speed;
+  tick(dt) {
+    if (this.phase !== 'incident' || this.ended) return;
     this.time += dt;
-
-    // business income
     this._incomeAcc += dt;
-    while (this._incomeAcc >= this.level.incomeEvery) { this._incomeAcc -= this.level.incomeEvery; this.budget += 1; }
+    while (this._incomeAcc >= 12) { this._incomeAcc -= 12; this.budget = Math.min(99, this.budget + 1); }
 
-    // locked rooms drain uptime over time
-    let lockedCount = 0;
-    for (const r of this.rooms.values()) if (r.locked) lockedCount++;
-    if (lockedCount) this.uptime = Math.max(0, this.uptime - this.level.uptimeLossPerLockedRoom * 0.1 * dt * lockedCount);
+    if (this.lockedRooms.size) this.uptime = Math.max(0, this.uptime - 2.2 * dt * this.lockedRooms.size);
 
-    this._advancePlan();
-    this._checkCorrelation();
+    this._advance();
+    this._correlate();
     this._mdrAssist();
-    this._checkSophia();
-    this._checkEnd();
-    this._changed();
+    this._sophiaChecks();
+    this._endChecks();
+    this.changed();
   }
 
-  _advancePlan() {
-    const plan = this.level.plan;
-    while (this.planIndex < plan.length) {
-      const step = plan[this.planIndex];
-      if (this.attacker.contained || this.attacker.failed) break;
-      if (this.time < step.t + this.attacker.delay) break;
-      this.planIndex++;
-      this._execStep(step);
+  _advance() {
+    const beats = this.inc.beats;
+    while (this.beatIndex < beats.length) {
+      if (this.intruder.contained || this.intruder.failed) break;
+      const b = beats[this.beatIndex];
+      if (this.time < b.t + this.delay) break;
+      this.beatIndex++;
+      this._beat(b);
     }
   }
 
-  _execStep(step) {
-    // Perimeter intrusion: AF blocks it (loud early warning) but buys time, not victory.
-    if (step.act === 'intrude') {
+  _beat(b) {
+    // perimeter: AF blocks the obvious entry but a determined actor finds another way in.
+    if (b.act === 'enter') {
       const blocked = this.hasAF;
-      this._evidence(step, { blocked });
-      if (blocked) { this.attacker.delay += 8; this._fireSophia('exploitBlocked'); }
+      this._evidence(b, { blocked });
+      if (blocked) { this.delay += 9; this.sophia('afBlocked'); }
+      else { this.intruder.room = b.room; this.emit('intruder-goto', { room: b.room }); }
       return;
     }
-    if (step.act === 'foothold') { this.attacker.node = step.node; this._evidence(step); return; }
-    if (step.act === 'move')     { this.attacker.node = step.node; this._evidence(step); return; }
-    if (step.act === 'recon' || step.act === 'cred' || step.act === 'collect') { this._evidence(step); return; }
+    // movement / foothold / recon / collect: intruder goes somewhere and acts
+    const prevRoom = this.intruder.room;
+    this.intruder.room = b.room;
+    this.intruder.desk = b.desk || null;
+    this.emit('intruder-goto', { room: b.room, desk: b.desk });
 
-    if (step.act === 'ransom') {
-      const prevented = this.edrRooms.has(step.node);   // EDR honeypot stops it in seconds
-      this._evidence(step, { prevented });
-      if (prevented) {
-        this._emit('toast', { kind: 'good', key: 'resp.contained' });
-      } else {
-        const r = this.rooms.get(step.locks);
-        if (r) { r.locked = true; r.lockedAt = this.time; }
-        this._fireSophia('ransomLock');
-      }
+    if (b.act === 'move') { this._evidence(b, { fromRoom: prevRoom }); return; }
+    if (b.act === 'foothold' || b.act === 'recon' || b.act === 'collect') { this._evidence(b); return; }
+
+    if (b.act === 'ransom') {
+      const prevented = b.desk ? this.edrDesks.has(b.desk) : this.edrDesks.has('server#core');
+      this._evidence(b, { prevented });
+      if (prevented) { this.emit('toast', { kind: 'good', key: 'toast.ransomStopped' }); }
+      else { this.lockedRooms.add(b.locks); this.emit('lock', { room: b.locks, locked: true }); this.sophia('ransomLock'); }
       return;
     }
 
-    if (step.act === 'exfil') {
+    if (b.act === 'exfil') {
       const blocked = this.hasIAG;
-      this._evidence(step, { blocked });
-      if (blocked) {
-        this.attacker.failed = true;                    // DLP stopped the objective
-        this._emit('toast', { kind: 'good', key: 'resp.contained' });
-      } else {
-        this.data = 8;                                  // crown jewels gone
-        this.attacker.failed = true;
-        this._end('lose-breach');
-      }
-      return;
+      this._evidence(b, { blocked });
+      if (blocked) { this.intruder.failed = true; this.emit('toast', { kind: 'good', key: 'toast.exfilBlocked' }); }
+      else { this.data = 10; this.intruder.failed = true; this._end('lose-breach'); }
     }
   }
 
-  // Record ground-truth evidence and decide if the player can SEE it right now.
-  _evidence(step, extra = {}) {
-    const ev = { id: nid(), t: this.time, type: step.ev, node: step.node, act: step.act, truth: step.truth, ...extra };
+  _evidence(b, extra = {}) {
+    const ev = { id: nid(), t: this.time, type: b.ev, room: b.room, desk: b.desk, act: b.act, truth: b.truth, ...extra };
     this.evidence.push(ev);
-
-    const visible = this._isVisible(ev);
-    this.log.push({ t: this.time, kind: 'attack', act: step.act, node: step.node, ev: step.ev, blocked: !!extra.blocked, prevented: !!extra.prevented, visible });
+    const visible = this._visible(ev);
+    this.log.push({ t: this.time, kind: 'attack', act: b.act, room: b.room, desk: b.desk, ev: b.ev, blocked: !!extra.blocked, prevented: !!extra.prevented, visible });
     if (!visible) return;
-
-    if (this.firstDetectionTime == null) this.firstDetectionTime = this.time;
-    this.cluesTypesSeen.add(ev.type);
-    this.clues.push({
-      id: ev.id, type: ev.type, node: ev.node, t: this.time,
-      confidence: this.incidentConfirmed ? 'confirmed' : 'weak',
-      blocked: !!extra.blocked, prevented: !!extra.prevented, resolved: false,
-    });
-    if (this.clues.length === 1) this._fireSophia('firstClueWeak');
-    this._emit('toast', { kind: 'info', clue: ev.type });
+    if (this.firstDetection == null) this.firstDetection = this.time;
+    this.typesSeen.add(ev.type);
+    const clue = { id: ev.id, type: ev.type, room: ev.room, desk: ev.desk, t: this.time,
+      confidence: this.confirmed ? 'confirmed' : 'weak', blocked: !!extra.blocked, prevented: !!extra.prevented, resolved: false };
+    this.clues.push(clue);
+    this.emit('clue', clue);
+    if (this.clues.length === 1) this.sophia('firstClue');
+    this.emit('toast', { kind: 'info', clue: ev.type });
   }
 
-  _isVisible(ev) {
+  _visible(ev) {
     switch (ev.type) {
-      case 'exploit':  return this.hasAF;
-      case 'endpoint': return this.edrRooms.has(ev.node);
-      case 'network':  return this.hasNDR;
-      case 'exfil':    return this.hasIAG;
-      default:         return false;
+      case 'perimeter': return this.hasAF;
+      case 'endpoint':  return ev.desk ? this.edrDesks.has(ev.desk) : false;
+      case 'network':   return this.hasNDR;
+      case 'exfil':     return this.hasIAG;
+      default:          return false;
     }
   }
 
-  _checkCorrelation() {
-    if (!this.incidentConfirmed && this.hasXDR && this.cluesTypesSeen.size >= 2) {
-      this.incidentConfirmed = true;
-      this.attacker.revealed = true;
-      for (const c of this.clues) if (!c.resolved) c.confidence = 'confirmed';
-      this._fireSophia('confirmed');
-      this._emit('toast', { kind: 'good', key: 'clue.confirmed' });
+  _correlate() {
+    if (!this.confirmed && this.hasXDR && this.typesSeen.size >= 2) {
+      this.confirmed = true;
+      this.intruder.revealed = true;
+      this.clues.forEach(c => { if (!c.resolved) c.confidence = 'confirmed'; });
+      this.emit('confirm', {});
+      this.sophia('confirmed');
+      this.emit('toast', { kind: 'good', key: 'toast.confirmed' });
     }
-    // XDR reveals the live attacker location once confirmed.
-    if (this.incidentConfirmed) this.attacker.revealed = true;
+    if (this.confirmed) this.intruder.revealed = true;
   }
 
   _mdrAssist() {
-    if (!this.hasMDR || this._mdrAssisted || this.attacker.contained || this.attacker.failed) return;
-    // If the attacker is about to hit the Vault and the player hasn't acted, MDR assists
-    // once — but only if an EDR exists in the attacker's current room to execute on.
-    if (this.attacker.node === 'r_vault' && this.edrRooms.has('r_vault')) {
-      this.attacker.contained = true;
+    if (!this.hasMDR || this._mdrAssisted || this.intruder.contained || this.intruder.failed) return;
+    if (this.intruder.room === 'vault' && this.edrDesks.has('vault#core')) {
       this._mdrAssisted = true;
-      this._resolveClues();
-      this.log.push({ t: this.time, kind: 'mdr', action: 'assist-contain', room: 'r_vault' });
-      this._emit('toast', { kind: 'good', key: 'resp.contained' });
+      this._contain('mdr', 'vault#core');
+      this.emit('toast', { kind: 'good', key: 'toast.mdrAssist' });
     }
   }
 
-  _resolveClues() { for (const c of this.clues) c.resolved = true; }
-
-  _checkEnd() {
-    if (this.ended) return;
-    if (this.uptime <= this.level.loseUptimeBelow) { this._end('lose-uptime'); return; }
-    if (this.time >= this.level.duration) { this._end('win'); return; }
+  // ---- responses ----
+  isolateDevice(deskId) {
+    if (this.ended || !this.edrDesks.has(deskId)) { this.emit('toast', { kind: 'warn', key: 'resp.needEdr' }); return { ok: false }; }
+    const here = this.intruder.desk === deskId || (this.sc.LAYOUT.rooms.find(r => r.id === this.intruder.room) &&
+                 this._deskRoom(deskId) === this.intruder.room);
+    if (here && !this.intruder.contained) { this._contain('isolate', deskId); return { ok: true, contained: true }; }
+    this.log.push({ t: this.time, kind: 'respond', action: 'isolate', desk: deskId, result: 'nothing' });
+    this.emit('toast', { kind: 'bad', key: 'resp.nothingHere' });
+    this.changed();
+    return { ok: true, contained: false };
   }
 
-  _end(result) {
-    if (this.ended) return;
-    this.ended = result;
-    this.running = false;
-    this.log.push({ t: this.time, kind: 'end', result });
-    this.score = this._score(result);
-    this._emit('end', { result, score: this.score });
+  lockdownRoom(roomId) {
+    if (this.ended) return { ok: false };
+    this.emit('cage-room', { room: roomId });
+    if (this.intruder.room === roomId && !this.intruder.contained && !this.intruder.failed) {
+      this.uptime = Math.max(0, this.uptime - 6);   // access control disrupts that area's work
+      this._contain('lockdown', null, roomId);
+      return { ok: true, contained: true };
+    }
+    this.uptime = Math.max(0, this.uptime - 10);     // blunt lockdown of the wrong area hurts more
+    this.log.push({ t: this.time, kind: 'respond', action: 'lockdown', room: roomId, result: 'wrong' });
+    this.emit('toast', { kind: 'bad', key: 'resp.wrongArea' });
+    this.changed();
+    return { ok: true, contained: false };
   }
 
-  _score(result) {
+  recover(roomId) {
+    if (this.ended || !this.lockedRooms.has(roomId)) return { ok: false };
+    if (!this.astorReady) { this.emit('toast', { kind: 'warn', key: 'resp.needPrepared' }); return { ok: false }; }
+    this.lockedRooms.delete(roomId);
+    this.emit('lock', { room: roomId, locked: false });
+    this.uptime = Math.min(100, this.uptime + 12);   // restore from protected snapshots (partial, takes effort)
+    this.log.push({ t: this.time, kind: 'respond', action: 'recover', room: roomId });
+    this.emit('toast', { kind: 'good', key: 'toast.recovered' });
+    this.changed();
+    return { ok: true };
+  }
+
+  _contain(via, deskId, roomId) {
+    this.intruder.contained = true;
+    this.clues.forEach(c => c.resolved = true);
+    this.emit('contained', { via, desk: deskId, room: roomId || this.intruder.room });
+    this.log.push({ t: this.time, kind: 'respond', action: via, desk: deskId, room: roomId || this.intruder.room, result: 'contained' });
+    this.emit('toast', { kind: 'good', key: 'resp.contained' });
+    this._end('win', true);
+  }
+
+  _deskRoom(deskId) { return deskId.split('#')[0]; }
+
+  _sophiaChecks() {
+    if (!this.hasXDR && this.typesSeen.size >= 2) this.sophia('needCorrelate');
+    if (this.intruder.room === 'vault' && !this.hasIAG && !this.intruder.contained && !this.intruder.failed) this.sophia('exfilSoon');
+  }
+
+  _endChecks() {
+    if (this.ended) return;
+    if (this.uptime <= this.inc.loseUptimeBelow) { this._end('lose-uptime'); return; }
+    if (this.time >= this.inc.duration) { this._end('win'); }
+  }
+
+  _end(result, contained = false) {
+    if (this.ended) return;
+    this.ended = result; this.result = result; this.phase = 'review';
+    this.log.push({ t: this.time, kind: 'end', result, contained });
+    this.score = this._score(result, contained);
+    this.emit('end', { result, contained, score: this.score });
+  }
+
+  _score(result, contained) {
     if (result !== 'win') return Math.max(0, Math.round(this.uptime * 2 + this.data));
-    const detectBonus = this.firstDetectionTime == null ? 0 : Math.max(0, 120 - this.firstDetectionTime * 2);
-    const contained = this.attacker.contained ? 150 : (this.attacker.failed ? 60 : 0);
-    return Math.round(this.uptime * 3 + this.data * 2 + this.budget * 5 + detectBonus + contained);
+    const detect = this.firstDetection == null ? 0 : Math.max(0, 120 - this.firstDetection * 1.5);
+    return Math.round(this.uptime * 3 + this.data * 2 + this.budget * 4 + detect + (contained ? 160 : 60));
   }
 
-  // --- Sophia hint triggers (each fires at most once) ---
-  _checkSophia() {
-    if (this.time > 10 && this.clues.length === 0 && this.deployed.filter(d => PRODUCTS[d.product].sees.length).length === 0)
-      this._fireSophia('noSensors');
-    if (!this.hasXDR && this.cluesTypesSeen.size >= 2) this._fireSophia('needCorrelate');
-    if (this.attacker.node === 'r_vault' && !this.hasIAG && !this.attacker.contained && !this.attacker.failed)
-      this._fireSophia('exfilImminent');
-  }
-
-  _fireSophia(id) { if (this._sophiaFired.has(id)) return; this._sophiaFired.add(id); this._emit('sophia', { id }); }
-
-  // --- view for the UI ---
-  getView() {
-    const roomView = {};
-    for (const r of this.rooms.values()) {
-      const recent = this.clues.filter(c => !c.resolved && c.node === r.id && (this.time - c.t) < 9);
-      roomView[r.id] = {
-        locked: r.locked,
-        hasEdr: this.edrRooms.has(r.id),
-        hasAstor: this.astorRooms.has(r.id),
-        suspected: recent.length > 0,
-        confirmedHere: this.incidentConfirmed && this.attacker.node === r.id && !this.attacker.contained && !this.attacker.failed,
-      };
-    }
-    return { roomView, attackerVisible: this.attacker.revealed ? this.attacker.node : null };
-  }
+  // view helper for rendering attacker visibility
+  knownIntruderRoom() { return this.intruder.revealed ? this.intruder.room : null; }
 }

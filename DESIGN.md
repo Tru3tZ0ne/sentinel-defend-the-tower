@@ -3,7 +3,18 @@
 > An interactive "protect the building" game for Sangfor's international business:
 > product introductions, presales conversations, and customer events.
 
-Status: **Milestone 1 (playable core)** · Last updated: 2026-10-12
+Status: **Milestone 2 (3D living-building redesign)** · Last updated: 2026-10-13
+
+> **Milestone 2 redesign note.** The experience was rebuilt from a 2D dashboard into a
+> living **3D isometric cutaway** (Three.js, vendored locally): floors, rooms, desks,
+> server racks, a Data Vault, and **people who move**. Detection/response are now visible
+> *in the world* (clue markers, movement trails, containment cages, a reveal ring).
+> Pacing is phased — a calm **SETUP** with no clock → **LIVE** incident → **REVIEW** with a
+> **spatial replay** that animates the true route on the building. Product copy was
+> corrected for accuracy; in particular **aStor** is framed as resilient storage with
+> immutable snapshots (recovery needs prior preparation), *not* automatic full backup/restore.
+> The product→metaphor research below still holds; the room/geometry specifics are
+> superseded by `src/data/scenario.js` + `src/world/`.
 
 ---
 

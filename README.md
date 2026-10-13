@@ -20,26 +20,35 @@ python3 -m http.server 8080
 Then open the printed URL. (Opening `index.html` via `file://` won't work — ES modules
 need `http`.)
 
-## Project structure
+## Project structure (Milestone 2 — 3D)
 
 ```
-index.html              entry (relative paths → GitHub Pages ready)
+index.html              entry: import map for three + canvas/overlay (relative paths → Pages ready)
 src/
-  main.js               app controller: screens, timer, event wiring
+  main.js               orchestrator: world + engine + overlay, interaction, spatial replay
   i18n.js               EN / 中文 strings (t/loc helpers)
   data/
-    products.js         product catalog (roles, cost, visibility) — edit freely
-    level1.js           building layout + ground-truth incident timeline
+    products.js         product catalog (roles, cost, visibility, world presence) — edit freely
+    scenario.js         building layout + cast + the ground-truth incident timeline
   game/
-    engine.js           simulation: fog-of-war, deploy/respond, win/lose, replay log
-    sophia.js           Sophia's layered, event-triggered hints
+    engine.js           phase-based simulation: fog-of-war, deploy/respond, win/lose, replay log
+    sophia.js           Sophia's layered, building-pointing hints
+  world/
+    world.js            Three.js scene: camera, lights, orbit, picking
+    building.js         generates the low-poly cutaway + nav graph from the layout
+    people.js           low-poly figures that walk the nav graph
+    fx.js               product props, clue markers, trails, containment visuals
   ui/
-    render.js           presentational builders (HTML strings)
+    overlay.js          DOM overlay: HUD, deploy tray, inspect card, feed, Sophia, end/replay
     icons.js            original SVG icon set
-  style/main.css        command-center theme
+  style/main.css        command-center theme over the canvas
+  vendor/three/         vendored Three.js r160 + OrbitControls (local, offline-friendly)
 assets/brand/           logo placeholder + asset sources
 tools/                  static server + headless smoke test
 ```
+
+Rendering is **Three.js (WebGL 2)**, low-poly stylized for performance on laptops/tablets.
+The library is vendored locally (no CDN), so the app loads fast and works offline.
 
 ## Test (headless)
 
