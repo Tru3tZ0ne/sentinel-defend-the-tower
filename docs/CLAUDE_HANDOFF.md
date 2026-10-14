@@ -1,5 +1,9 @@
 # Claude Code continuation handoff
 
+For the current gameplay and 3D-interface development brief, use
+`docs/CLAUDE_FULL_DEVELOPMENT_PROMPT.txt`. It includes completion criteria, performance
+constraints and the current verification caveat.
+
 Read `docs/DEVELOPMENT_LOG.md`, `ART_DIRECTION.md`, `DESIGN.md`, `TASKS.md`,
 `docs/FACILITATOR_GUIDE.md` and `assets/brand/ASSETS.md` before changing the game.
 For character work also read `assets/models/office/ASSETS.md` and the paste-ready

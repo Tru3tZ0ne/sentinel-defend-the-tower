@@ -56,10 +56,12 @@ try {
   assert.ok(characterState.drift < .001 && Math.abs(characterState.height - .05) < .001, 'walking animation must not drift above the floor');
   await click('[data-act="tab"][data-tab="cloud"]');
   await page.waitForFunction(() => [...document.querySelectorAll('.operation-head .product-mark')].filter(img => img.complete && img.naturalWidth > 0).length === 4);
+  const stableDefenseTab = await page.locator('[data-act="tab"][data-tab="defense"]').elementHandle();
   await click('[data-act="operation"][data-id="HCI"]');
   await page.waitForFunction(() => window.__sentinel.engine.budget === 18);
   await click('[data-act="undoSetup"]');
   await page.waitForFunction(() => window.__sentinel.engine.budget === 22 && !window.__sentinel.engine.operations.has('HCI'));
+  assert.ok(await stableDefenseTab.evaluate(el => el.isConnected), 'purchase/refund updates must preserve navigation controls');
   await click('[data-act="operation"][data-id="ADC"]');
   await click('[data-act="resetSetup"]');
   await page.waitForFunction(() => window.__sentinel.engine.budget === 22 && !window.__sentinel.engine.operations.size);

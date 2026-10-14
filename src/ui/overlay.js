@@ -25,7 +25,7 @@ export function createOverlay(root, h) {
       <section id="inspect" class="card inspect hidden"></section>
       <section id="sophiaCard" class="card sophia"></section>
     </div>
-    <div id="dock" class="dock hidden"></div>
+    <div id="dock" class="dock hidden"><div class="dock-tabs"><div id="dockNav" class="dock-section"></div><div id="dockPlan" class="dock-section"></div></div><div id="dockNote"></div><div id="deck" class="deck"></div></div>
     <div id="ticker" class="ticker hidden"></div>
     <div id="toasts" class="toasts"></div>
     <div id="startScreen"></div>
@@ -36,6 +36,7 @@ export function createOverlay(root, h) {
     labels: $('#labels'), hud: $('#hud'), floors: $('#floors'), rightcol: $('#rightcol'), incident: $('#incident'),
     inspect: $('#inspect'), sophia: $('#sophiaCard'), dock: $('#dock'), ticker: $('#ticker'),
     toasts: $('#toasts'), start: $('#startScreen'), end: $('#endScreen'),
+    dockNav: $('#dockNav'), dockPlan: $('#dockPlan'), dockNote: $('#dockNote'), deck: $('#deck'),
   };
   new ResizeObserver(() => document.documentElement.style.setProperty('--dock-clearance', `${els.dock.offsetHeight + 62}px`)).observe(els.dock);
   let tab = 'defense';
@@ -45,14 +46,15 @@ export function createOverlay(root, h) {
     if (rendered.get(element) === html) return;
     const focused = document.activeElement;
     const focusKey = element.contains(focused) && focused.dataset?.act ? { ...focused.dataset } : null;
-    const scroll = element.querySelector('.deck')?.scrollLeft || 0;
+    const deck = element.matches('.deck') ? element : element.querySelector('.deck');
+    const scroll = deck?.scrollLeft || 0;
     const details = [...element.querySelectorAll('details')].map(d => d.open);
     element.innerHTML = html; rendered.set(element, html);
     if (focusKey) {
       const replacement = [...element.querySelectorAll('[data-act]')].find(button => Object.entries(focusKey).every(([key, value]) => button.dataset[key] === value));
       replacement?.focus({ preventScroll: true });
     }
-    const deck = element.querySelector('.deck'); if (deck) deck.scrollLeft = scroll;
+    if (deck) deck.scrollLeft = scroll;
     element.querySelectorAll('details').forEach((detail, i) => { if (details[i] != null) detail.open = details[i]; });
   }
 
@@ -207,7 +209,9 @@ export function createOverlay(root, h) {
       ? `<div class="deck-place">${t('tray.placing')}: <b>${esc(PRODUCTS[placing].name)}</b> — ${t('tray.clickWorld')} · <button class="linklike" data-act="cancel">${t('tray.cancel')}</button></div>`
       : '';
     const planning = e.phase === 'prep' ? `<div class="planning-controls"><span>${t('setup.loadout')} <b>${e.planHistory.length}</b></span><button class="linklike" data-act="undoSetup" ${!e.planHistory.length ? 'disabled' : ''}>↶ ${t('setup.undo')}</button><button class="linklike" data-act="resetSetup" ${!e.planHistory.length ? 'disabled' : ''}>${t('setup.reset')}</button></div>` : '';
-    paint(els.dock, `<div class="dock-tabs">${tabsHtml}${planning}</div>${note}<div class="deck">${body}</div>`);
+    // Keep navigation connected when purchases or helper rules repaint only the deck.
+    paint(els.dockNav, tabsHtml); paint(els.dockPlan, planning);
+    paint(els.dockNote, note); paint(els.deck, body);
   }
   function defenseDeck(e, placing) {
     return PRODUCT_ORDER.map(id => {

@@ -574,3 +574,33 @@ The independent Linux verification run is tracked at
 Documentation-only follow-up commits do not alter the validated runtime files.
 The paste-ready continuation prompt is `docs/CHARACTER_HANDOFF.txt`; it documents the
 compact deployment architecture and remaining realistic furniture/interior work.
+
+
+## 2026-10-14 - Stable dock navigation and full development brief
+
+The first Linux verification run for c743a51 passed all engine groups and smoke
+outcomes, then failed at ui.test.mjs:75 while clicking the Defense tab. The trace
+reported that the tab detached from the DOM during a deferred deck update, followed
+by a software-WebGL click timeout. This is distinct from the successful Pages release
+and live AF interaction; it must not be reported as a green full CI run.
+
+The dock now keeps its navigation, planning controls, placement notice and deck as
+persistent sections. Only sections whose content changes are painted. Purchases,
+refunds and helper updates retain navigation elements instead of replacing the whole
+dock. Horizontal deck scrolling and focus are preserved. The layout, visible panels,
+engine rules and click validation are unchanged. The UI regression now also asserts
+that purchase/refund updates keep the original navigation control connected.
+
+The complete local software-WebGL UI suite passed after this change, including real
+canvas deployment on both floors, operations/helper behavior, recovery, pause, debrief,
+report, replay, EN/ZH and mobile. The 11-capability deployment suite also passed
+again on Windows hardware, including endpoint cycling and mobile deck scrolling.
+A fresh Linux run is required for this follow-up;
+local success does not certify that remote result.
+
+`docs/CLAUDE_FULL_DEVELOPMENT_PROMPT.txt` is the comprehensive current continuation
+brief. It requires substantive gameplay improvements, a scene-led 3D interface, a
+coherent realistic art sample, accurate product roles, compact accessible controls,
+measured performance and verified publication. It includes the prior CI failure and
+instructs the next developer to inspect current checks before continuing. The shorter
+character prompt remains an asset/lifecycle reference.

@@ -1,0 +1,241 @@
+Continue developing Sentinel: Defend the Tower as a complete, polished, browser-based
+3D security-operations game. Implement and validate substantial improvements; a plan,
+an audit, new documentation or a cosmetic reskin alone is not the requested outcome.
+
+The two priorities are equally important:
+1. Deepen the actual gameplay, decisions and replayability.
+2. Make the 3D world the primary interface for observing, deploying and responding.
+
+Keep the experience compact, readable and responsive. Greater depth must not produce
+more permanent panels, duplicated lists, gratuitous effects or a heavier workflow.
+
+BASELINE AND FIRST ACTIONS
+
+Repository: https://github.com/Tru3tZ0ne/sentinel-defend-the-tower
+Public game: https://tru3tz0ne.github.io/sentinel-defend-the-tower/
+
+Fetch origin and inspect git status, branches, worktrees and recent commits. Continue
+from the latest main. Preserve existing uncommitted work and concurrent contributions.
+Do not overwrite main with an older architectural-command-gameplay checkout.
+
+Key integration commits are 898ddb6 (animated business characters), c743a51 (visible
+deployments and compact locate/inspect interaction), and d7ec19f (publication record).
+Read subsequent commits as well; follow-up work keeps dock navigation stable across
+purchase/refund/helper updates. Use current code rather than assuming these are HEAD.
+
+Read, in this order:
+- docs/CLAUDE_HANDOFF.md and docs/DEVELOPMENT_LOG.md
+- ART_DIRECTION.md, DESIGN.md, TASKS.md and docs/FACILITATOR_GUIDE.md
+- assets/brand/ASSETS.md and assets/models/office/ASSETS.md
+- src/data/missions.js, products.js, operations.js and deployment-visuals.js
+- src/game/engine.js, src/main.js and the relevant world/UI modules
+- package.json and the existing verification tools
+
+Play the current game before editing. Inspect both floors, the close-up device view,
+EN/ZH, setup, the incident, recovery, debrief and replay. Establish a reproducible
+visual/performance baseline and identify concrete weaknesses from actual play.
+
+Verification status needs care: local engine, smoke, UI, character and deployment
+checks passed during integration, and GitHub Pages was verified with an actual paid
+AF canvas deployment. The first Linux run for c743a51 failed in ui.test.mjs while
+clicking the Defense tab after a DOM replacement under software WebGL. This was a
+control-detachment/timeout failure, not an established engine failure. A follow-up
+preserves dock navigation while updating deck/planning content separately. Inspect
+the latest CI result before deciding what remains to fix. Do not describe all CI as
+green merely because local checks passed or Pages deployed successfully.
+
+WHAT ALREADY WORKS AND MUST SURVIVE
+
+- Static, locally vendored Three.js ES modules, with GitHub Pages deployment.
+- Two-floor whole-tower cutaway; floor-aware targeting, camera controls and inspection.
+- Three assignments: The Quiet Morning, The Lockout and Under Pressure, each with
+  three difficulties. Existing winning strategies stay within real budgets.
+- Seven defense products plus HCI, ADC, SASE and AICP setup operations.
+- Mixed-purchase undo/reset, explicit spending validation and meaningful prerequisites.
+- Evidence visibility, XDR correlation, exact-endpoint isolation, room containment,
+  restriction ahead of the actor, prepared snapshots and budgeted restoration.
+- SASE can redirect the subsequent foothold; evidence follows the actual endpoint.
+- HCI, ADC and SASE affect distinct parts of the incident rather than acting as
+  universal protection. Containment does not retroactively remove existing damage.
+- Local helper rules, honest partial outcomes, event-based replay and JSON reports.
+- Official corporate, Athena, Cloud, product and Solvia panda artwork.
+- Two local Mixamo business characters, Josh and Martha, with independent idle,
+  in-place walking and seated typing. The source assets total about 4.33 MiB in GLBs.
+- Every one of the 11 purchased capabilities has a persistent scene representative.
+  Active cards locate it; the existing inspector provides status and location.
+  EDR keeps placement available and has a small locate action that cycles endpoints.
+
+Keep office#2, l2-finance#1, server#core and vault#core stable. Preserve navigation
+roots, person IDs, purchases and mission state when models load asynchronously.
+Animation offsets must not feed back into navigation. Reuse shared character render
+resources across resets; release individual mixers/skeleton textures correctly.
+Retain partial/complete model-loading fallbacks and local-only runtime behavior.
+
+VISUAL AND 3D INTERFACE DIRECTION
+
+Aim for a believable contemporary office/security facility with realistic scale,
+materials, lighting and purposeful equipment. The current block-like furniture,
+coarse plants, oversized bars and generic architectural details still limit fidelity.
+The presence of textured people and product logos does not mean the scene is finished.
+
+Treat the building as the operating interface:
+- Choose a workstation, gateway, rack, storage system or console directly in 3D.
+- Show a clear placement preview on an eligible surface/slot, explain the target and
+  cost, and visibly install the selected capability after a successful purchase.
+- Make equipment silhouettes and installation locations distinguishable at a useful
+  camera distance. Use ports, bays, screens, cabling and scale where they convey role.
+- Show important state changes on the actual affected host, rack, room or console:
+  installed agent, observed activity, isolation, service disruption, recovery progress
+  and restored service. Drive every indication from real engine state.
+- Let an XDR console link evidence to the real originating devices. Represent storage
+  recovery at the relevant storage/affected service. Preserve the sensor limitations.
+- Use restrained, temporary feedback and selection emphasis. Keep labels contextual
+  to selection/hover/zoom rather than floating banners over every object.
+- Provide smooth, purposeful focus/orbit transitions that keep targets visible and
+  preserve orientation. Validate occlusion on both floors and at close range.
+- Keep an overview and a quick return from detailed interaction. Camera movement must
+  never prevent an urgent response, continue after manual orbit, or trap mobile users.
+
+Move suitable interaction into the scene rather than simply drawing more beveled
+cards on top of it. Equipment consoles, contextual object actions and spatial evidence
+are useful 3D UI. Decorative rotating logos and permanent neon effects add little.
+
+Keep essential time, budget, pause, language and navigation controls readable. Use a
+small contextual HTML overlay for legible text and accessible controls when appropriate;
+do not turn every paragraph into a texture or make critical controls depend on tiny
+world-space text. Keyboard/touch equivalents must remain available for scene actions.
+Reuse the existing inspector/deck or replace their functions coherently; avoid parallel
+interfaces that expose the same information twice. Do not grow the permanent HUD.
+
+Product representations must remain accurate in meaning:
+- AF/IAG: relevant gateway equipment, with their actual scope and limitations.
+- STA/NDR: a network probe; detection is distinct from endpoint blocking.
+- EDR: software on the chosen host, including independent installations on both floors.
+- XDR: an evidence/correlation console, not automatic omniscient detection.
+- MDR: a managed service accessed through a console, not a fictional MDR appliance.
+- aStor: snapshot storage, with preparation and restoration represented truthfully.
+- HCI/ADC: infrastructure with visible redundancy/load-distribution roles.
+- SASE: the controlled remote-access policy/endpoint scope actually used by the engine.
+- AICP: the local automation console and supported helper rules; no fabricated online AI.
+
+Existing deployment models are illustrative representatives, not replicas of specific
+commercial appliances. Improve their art without inventing official model specifications.
+Preserve official mark artwork, colors within the source artwork and aspect ratios.
+Use the official Solvia name/panda. Do not invent replacement product logos or mascots.
+
+Build one coherent, polished room/interaction sample first, inspect it in the real
+browser, then apply that standard consistently across the playable building. Align
+chairs, seated poses, desks, monitors and feet. Improve furniture proportions, bevels,
+glass/metal/fabric/wood finishes, grounding and lighting as one visual system. Keep the
+existing textured business characters. Use authorized local assets or authored models;
+record provenance and optimize them before inclusion. The game must not require an
+asset-service login, temporary signed download URL or a paid runtime API.
+
+GAMEPLAY DEVELOPMENT REQUIREMENTS
+
+Audit the complete loop, then implement at least two coherent, meaningful gameplay
+improvements connected to the existing missions. Choose a focused combination of
+replayable scenario variation and richer response decisions; do not attempt every
+possible subsystem. A mechanic must change player choices, consequences or replay
+value rather than only add an animation, a button or another counter.
+
+Useful directions include:
+- Briefing-supported, reproducible variations in foothold, route or attack sequence,
+  so memorizing one scripted response is less effective. Keep event ordering causal.
+- Evidence that develops through observation and corroboration, with uncertainty that
+  can be resolved through available actions. Keep visible clues distinguishable and
+  explanations tied to sensors the player actually deployed.
+- More meaningful tradeoffs between protecting a particular endpoint, maintaining
+  service, preserving data and containing the actor. Make downtime/recovery costs and
+  limited response resources legible before commitment where the player could know.
+- Branching consequences from targeted isolation, advance restrictions, failed remote
+  access, prepared recovery and delayed response. Let the scene show the consequences.
+- Clearer objectives and debrief explanations that connect the player's own decisions
+  to actual incidents, missed opportunities and honest partial success.
+
+Choose what fits the existing architecture and demonstrate the effect in real play.
+Avoid grind, arbitrary timers, redundant currencies, upgrade trees or new modes that
+do not improve this security-response loop. Do not turn every product into a tower
+that attacks enemies, and do not imply capabilities unsupported by the product model.
+
+Maintain viable budget-correct strategies for all nine assignment/difficulty pairs.
+An undefended run should still lose for understandable reasons. Prevent duplicate
+spending, invalid targets, hidden prerequisite failures and purchases that silently
+do nothing. Preserve mission-derived operation relevance without revealing hidden
+attack truth. Difficulty should change decisions and pressure while remaining fair.
+
+Every new mechanic needs clear EN/ZH explanation, scene feedback, failure feedback,
+undo/reset behavior where applicable, and accurate replay/report/debrief handling.
+Keep the local helper subordinate to the same evidence, preparation and resource rules.
+
+PERFORMANCE AND IMPLEMENTATION DISCIPLINE
+
+Responsiveness is a release requirement. Do not trade away playability for appearance.
+Preserve static batching, shared resources and geometry merged by material. Avoid
+per-port/per-screw draw calls, duplicated textures, repeated full-screen effects,
+unbounded particle systems and continuous decorative animation. Keep permanent lights
+and shadow costs controlled. Freeze paused animation and skip hidden document work.
+
+Keep stable DOM controls connected during unrelated state updates; preserve focus,
+scroll position and touch interaction. Do not repaint the whole interface every frame.
+Use one simulation clock; pause, speed, deadlines and recovery must stay consistent.
+Keep new code modular and remove superseded implementations instead of keeping two.
+Retain the current static delivery model unless a concrete requirement justifies change.
+
+Measure on the same hardware, viewport, DPR, camera and scene before/after changes.
+Use a normal affordable deployed plan, not only an empty scene. Record frame-time
+distribution, draw calls, triangles and loading/memory behavior across repeated resets.
+Target stable frame pacing and no material regression; optimize a regression before
+expanding the art sample. Treat consistent 60 FPS as a target, not an unmeasured claim.
+
+Reference sample on Intel Iris Xe / Direct3D11, 1440x900, DPR 1, fixed overview,
+setup and stationary staff: the five-purchase scene measured about 52.7 FPS current
+versus 55.8 FPS prior mainline, with 282 versus 450 draw calls and p95 near 25 ms.
+These are short samples, not guarantees or evidence of improvement on every machine.
+Check actual laptop DPR and a mobile viewport as well. Use software WebGL for
+functional checks only; never present its FPS as representative hardware performance.
+Run local GPU-heavy browser tests sequentially and close unused test browsers.
+
+VALIDATION AND COMPLETION
+
+Keep npm test meaningful: engine, smoke, real UI/canvas interaction, character
+lifecycle and deployment coverage. Add targeted regression checks for new behavior;
+do not delete assertions, replace canvas tests with engine-only calls, inflate budgets
+or hide defects by disabling the implementation under test. If a software-renderer
+timeout occurs, diagnose rendering load and control lifecycle rather than asserting
+that a real gameplay check passed. Inspect current CI and its evidence explicitly.
+
+Validate at least:
+- All three assignments and three difficulties, viable paid strategies and undefended loss.
+- Actual placement/selection and response on both floors, including multiple EDR agents.
+- Sensor visibility, correlation, actual-endpoint isolation and the SASE alternate path.
+- Prerequisites, invalid actions, undo/reset, room restriction/containment and recovery.
+- Pause/speed, restart, asynchronous/failed assets and absence of resource leaks.
+- EN/ZH, keyboard, desktop, mobile, debrief, report, replay and local-only runtime assets.
+- Scene readability, clipping/occlusion, device recognition and input responsiveness.
+
+Capture and inspect real browser screenshots of overview, close-up deployment,
+an incident/response, recovery, EN/ZH and mobile. Include a short actual-play capture
+if available. A screenshot alone is not evidence that the game loop works.
+
+All code comments, development documents, commit messages and handoff prompts should
+be in English. Maintain complete English and Chinese game localization. Never commit
+credentials, account details, browser profiles, auth state or temporary download URLs.
+
+Keep the development log and continuation handoff current. Record what changed, why,
+actual gameplay effects, asset provenance, performance comparisons, checks run and
+remaining limitations. Distinguish implemented, tested, pushed and publicly deployed.
+
+Finish the implementation and normal repository release workflow: commit reviewable
+changes, push, merge validated work through the existing process and publish to
+GitHub Pages when repository permissions/protections allow it. Do not force-push or
+overwrite unrelated work. Verify public runtime files and perform a real live-site
+interaction after deployment. A local preview or unmerged feature branch is not a
+public release. If a specific protection or permission blocks publication, finish all
+independent work and report the exact blocked step and reviewable commit/PR.
+
+Your final report should identify the playable improvements, how the interface became
+more spatial/3D, measured performance, validation evidence, commit/release links and
+any material unfinished work. Do not call the art photorealistic or the project complete
+unless the delivered game and evidence justify it. Begin by inspecting and playing
+the current main, then carry the improvements through implementation and validation.
