@@ -8,12 +8,26 @@ on:
 permissions:
   contents: read
 
+# The browser suites run under software WebGL (no GPU on CI), which is slow by design. Running
+# them as parallel matrix jobs (separate runners, no contention) keeps each well under the
+# timeout, instead of one ~20-minute sequential job. `npm test` still runs everything locally.
 jobs:
-  game:
+  verify:
     runs-on: ubuntu-latest
-    # The full suite now runs engine + smoke + UI + character-lifecycle + deployment-entity
-    # browser tests sequentially under software WebGL (slow by design), ~10 min; 20 gives headroom.
-    timeout-minutes: 20
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: engine-smoke
+            cmd: node --test tools/engine.test.mjs && node tools/smoke.mjs
+          - name: ui
+            cmd: node tools/ui.test.mjs
+          - name: characters
+            cmd: node tools/characters.test.mjs
+          - name: deployments
+            cmd: node tools/deployments.test.mjs
+    name: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,10 +36,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm test
+      - run: ${{ matrix.cmd }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: browser-screenshots
+          name: browser-screenshots-${{ matrix.name }}
           path: tools/shots/
           retention-days: 7
