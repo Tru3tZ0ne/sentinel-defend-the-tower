@@ -21,7 +21,14 @@ English prompt in `docs/CHARACTER_HANDOFF.txt`.
 - Reference-led dark command UI, bilingual game text, keyboard room targeting and mobile UI.
 - Official product marks for all 11 cards and inspector badges, plus the corporate,
   Athena, Cloud and Solvia panda artwork. Preserve original artwork and proportions.
-- Per-floor static scene batching, whole-tower context and visible deployed-product beacons.
+- Per-floor static scene batching and whole-tower context. All 11 purchases now create
+  persistent scene representatives: cabinets/storage/cluster, software-agent badges and
+  service consoles. These are illustrative, not official hardware model replicas.
+- Existing active product/operation cards locate their devices; the existing inspector
+  shows status and location. EDR's small locate action cycles installed endpoints while
+  its card still places additional agents. No extra inventory strip or floating labels.
+- Deployment geometry is merged by material; undo/reset removes picking targets and
+  devices. Preserve this compact UI and avoid adding parallel lists or new panels.
 - Two reviewed Mixamo business characters with independent idle, in-place walk and seated
   typing clips. Materials, geometry and textures are shared; skeletons/mixers are individual.
   Async loading preserves navigation groups, purchases, mission state and FX references.
@@ -36,6 +43,7 @@ English prompt in `docs/CHARACTER_HANDOFF.txt`.
 | Engine | `src/game/engine.js` | Validation, spending/refunds, branching, restriction and recovery |
 | UI | `src/ui/overlay.js`, `src/data/session-copy.js`, `src/i18n.js` | EN/ZH, delegated actions, cached paint |
 | Navigation | `src/world/people.js`, `src/world/building.js` | Stable entity roots, graph coordinates and floor-aware picking |
+| Deployment art | `src/world/deployment-assets.js`, `src/data/deployment-visuals.js` | Paid scene entities, compact locate/inspect and disposal |
 | Character art | `src/world/character-visuals.js` | Local asset loading, normalization, shared resources, clips and disposal |
 | Brand | `src/ui/product-marks.js`, `assets/brand/ASSETS.md` | Official product image mapping and provenance |
 | Asset build | `tools/convert-mixamo.py` | Authorized local FBX inputs to optimized self-contained GLBs |

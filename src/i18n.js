@@ -189,6 +189,18 @@ const DICT = {
   'end.backToGame':{ en: 'Back to building', zh: '返回大厦' },
 };
 
+Object.assign(DICT, {
+  'deployment.locate': { en: 'Locate deployment', zh: '定位部署实体' },
+  'deployment.location': { en: 'Location', zh: '部署位置' },
+  'deployment.prepared': { en: 'Prepared for the incident', zh: '已为事件做好准备' },
+  'deployment.monitoring': { en: 'Monitoring in this simulation', zh: '正在监测本次模拟' },
+  'deployment.agent': { en: 'Agent installed on this endpoint', zh: '代理已安装在此终端' },
+  'deployment.waiting': { en: 'Waiting for sensor evidence', zh: '等待传感器证据' },
+  'deployment.correlated': { en: 'Evidence correlated', zh: '证据已完成关联' },
+  'deployment.snapshots': { en: 'Protected snapshots prepared', zh: '已准备受保护快照' },
+  'deployment.endpoint': { en: 'Inspect workstation', zh: '检查工作站' },
+});
+
 Object.assign(DICT, SESSION_COPY);
 let current = 'en';
 export function setLang(l) {

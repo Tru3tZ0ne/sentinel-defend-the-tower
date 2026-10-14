@@ -1,4 +1,9 @@
 Continue Sentinel: Defend the Tower from the office-character integration changes.
+Fetch origin and inspect git status/log before editing. Base new work on the latest
+main containing these changes, or feat/mixamo-office-characters if main has not yet
+received them. Do not restore an older architectural branch over the current game.
+Preserve uncommitted work in other checkouts.
+
 Read docs/DEVELOPMENT_LOG.md, docs/CLAUDE_HANDOFF.md, ART_DIRECTION.md and
 assets/models/office/ASSETS.md before editing.
 
@@ -25,6 +30,22 @@ Character architecture:
   entity identity, real animation poses, feet grounding, navigation drift,
   cross-floor movement, zero-delta pause, restart resource sharing, EN/ZH and
   partial/complete asset failure. It is also included in npm test.
+
+Product deployment architecture:
+- src/world/deployment-assets.js replaces abstract arches/domes/neon beacons with
+  compact cabinets, storage bays, a cluster, software-agent badges and service
+  consoles. src/data/deployment-visuals.js maps all 11 products/operations.
+- Each real engine purchase creates its scene entity. No artificial budget changes.
+  Models are illustrative representatives, not replicas of official appliance models.
+  EDR remains software attached to an existing host; MDR remains a service console.
+- Reuse existing cards to locate deployed devices and the right inspector for details.
+  EDR retains placement and a small locate button cycles existing endpoints. Keep
+  EN/ZH, actual-device picking, both-floor targeting and undo/reset cleanup.
+- Keep the interface compact: no separate deployment inventory, extra panel, large
+  world labels or permanent light shafts. Reuse existing interactions before adding
+  controls. Merge geometry by material rather than drawing each port separately.
+- npm run test:deployments verifies all 11 paid scene representatives, existing-card
+  locate, actual body picking, endpoint cycling, both floors, undo/reset and EN/ZH.
 
 Next art milestone:
 Build one coherent realistic office sample around these characters: ergonomic

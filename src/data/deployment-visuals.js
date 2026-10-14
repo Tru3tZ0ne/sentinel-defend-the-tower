@@ -1,0 +1,26 @@
+// Scene representations explain the simulated deployment; they are not hardware
+// model specifications. Software agents and services are labeled explicitly.
+export const DEPLOYMENT_VISUALS = {
+  AF: { room: 'reception', kind: 'gateway', color: 0x53b76c,
+    role: { en: 'Perimeter gateway', zh: '边界安全网关' } },
+  EDR: { kind: 'agent', color: 0x53c990,
+    role: { en: 'Endpoint agent', zh: '终端防护代理' } },
+  NDR: { room: 'server', kind: 'probe', color: 0x50bed7,
+    role: { en: 'Network probe · both floors', zh: '网络探针 · 覆盖双层' } },
+  IAG: { room: 'egress', kind: 'gateway', color: 0xe6b867,
+    role: { en: 'Web access gateway', zh: '上网行为管理网关' } },
+  XDR: { room: 'soc', kind: 'console', color: 0x7caaf1,
+    role: { en: 'Correlation console', zh: '安全关联分析控制台' } },
+  MDR: { room: 'soc', kind: 'service', color: 0x6ad0c4,
+    role: { en: 'Managed SOC service', zh: '托管安全运营服务' } },
+  ASTOR: { room: 'server', kind: 'storage', color: 0x5fc3df,
+    role: { en: 'Snapshot storage', zh: '快照存储设备' } },
+  HCI: { room: 'server', kind: 'cluster', color: 0x69c2b1,
+    role: { en: 'Failover cluster', zh: '故障切换集群' } },
+  ADC: { room: 'server', kind: 'balancer', color: 0x99b8eb,
+    role: { en: 'Application load balancer', zh: '应用负载均衡' } },
+  SASE: { room: 'l2-finance', kind: 'access', color: 0xa6b5ed,
+    role: { en: 'Scoped remote access', zh: '受控远程访问策略' } },
+  AICP: { room: 'soc', kind: 'automation', color: 0x77c8c1,
+    role: { en: 'Local automation console', zh: '本地自动化控制台' } },
+};

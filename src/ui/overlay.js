@@ -220,18 +220,19 @@ export function createOverlay(root, h) {
       const status = active
         ? (isEDR ? `<span class="pst on">● ${count} ${t('deck.devices')}</span>` : `<span class="pst on">● ${t('deck.active')}</span>`)
         : afford ? `<span class="pst av">${t('deck.available')}</span>` : `<span class="pst no">${t('deck.locked')}</span>`;
-      return `<button class="pcard ${placing === id ? 'placing' : ''} ${active ? 'is-on' : ''} ${(!afford && !active) ? 'dim' : ''}" data-act="pick" data-id="${id}" ${done || !afford ? 'disabled' : ''}>
+      const card = `<button class="pcard ${placing === id ? 'placing' : ''} ${active ? 'is-on' : ''} ${(!afford && !active) ? 'dim' : ''}" data-act="${done ? 'locateDeployment' : 'pick'}" data-id="${id}" ${!done && !afford ? 'disabled' : ''} ${done ? `title="${t('deployment.locate')}"` : ''}>
         <span class="pcard-top"><span class="pcard-ico">${productMark(id)}</span><span class="pcard-cost">${active ? '✓' : p.cost + ' ' + t('hud.credits')}</span></span>
         <span class="pcard-name">${esc(p.shortName || id)}</span>
         <span class="pcard-tag">${id === 'ASTOR' && active && !e.astorReady ? t('ops.tooLate') : esc(loc(p.label || p.tagline))}</span>
         ${status}</button>`;
+      return isEDR && active ? `<div class="pcard-slot">${card}<button class="pcard-locate" data-act="locateDeployment" data-id="EDR" title="${t('deployment.locate')}" aria-label="${t('deployment.locate')}: EDR">&nearr;</button></div>` : card;
     }).join('');
   }
   function operationDeck(e) {
     return Object.entries(OPERATIONS).map(([id, p]) => {
       const active = e.operations.has(id), locked = e.phase !== 'prep' || e.budget < p.cost;
       const exercised = opExercised(e, id);
-      return `<article class="operation-card ${active ? 'is-on' : ''} ${exercised ? '' : 'inert'}"><div class="operation-head">${productMark(id)}<b>${esc(p.name)}</b><span>${p.cost} ${t('hud.credits')}</span></div><p>${esc(loc(p.text))}</p>${exercised ? '' : `<p class="op-note">${icon('ndr')} ${t('ops.notExercised')}</p>`}<button class="btn tiny" data-act="operation" data-id="${id}" ${active || locked ? 'disabled' : ''}>${active ? t('deck.active') : e.phase !== 'prep' ? t('ops.prepOnly') : t('ops.deploy')}</button><button class="linklike" data-act="location" data-room="${p.room}">${t('ops.open')} →</button></article>`;
+      return `<article class="operation-card ${active ? 'is-on' : ''} ${exercised ? '' : 'inert'}"><div class="operation-head">${productMark(id)}<b>${esc(p.name)}</b><span>${p.cost} ${t('hud.credits')}</span></div><p>${esc(loc(p.text))}</p>${exercised ? '' : `<p class="op-note">${icon('ndr')} ${t('ops.notExercised')}</p>`}<button class="btn tiny" data-act="${active ? 'locateDeployment' : 'operation'}" data-id="${id}" ${!active && locked ? 'disabled' : ''}>${active ? t('deployment.locate') : e.phase !== 'prep' ? t('ops.prepOnly') : t('ops.deploy')}</button><button class="linklike" data-act="location" data-room="${p.room}">${t('ops.open')} →</button></article>`;
     }).join('');
   }
   // Whether the current assignment's scripted events will actually exercise an operation.
@@ -362,6 +363,8 @@ export function createOverlay(root, h) {
     if (a === 'operation') return h.onOperation(el.dataset.id);
     if (a === 'helperRule') return h.onHelperRule(el.dataset.rule);
     if (a === 'location') return h.onLocation(el.dataset.room);
+    if (a === 'locateDeployment') return h.onLocateDeployment(el.dataset.id, el.dataset.target || undefined);
+    if (a === 'deploymentEndpoint') return h.onDeploymentEndpoint(el.dataset.target);
     if (a === 'pick') return h.onPickProduct(el.dataset.id);
     if (a === 'focusClue') return h.onFocusClue(el.dataset.clue);
     if (a === 'speed') return h.onSpeed(+el.dataset.s);

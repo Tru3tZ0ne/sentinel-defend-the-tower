@@ -102,7 +102,12 @@ try {
   await page.keyboard.press('Space');
   assert.equal(await page.evaluate(() => window.__sentinel.engine._paused), true);
   await click('[data-act="tab"][data-tab="cloud"]');
-  assert.equal(await page.locator('[data-act="operation"][data-id="HCI"]').isDisabled(), true);
+  // An installed capability remains inspectable during an incident, without another purchase.
+  const incidentBudget = await page.evaluate(() => window.__sentinel.engine.budget);
+  await click('[data-act="locateDeployment"][data-id="HCI"]');
+  assert.equal(await page.locator('#inspect [data-product-mark]').getAttribute('data-product-mark'), 'HCI');
+  assert.equal(await page.evaluate(() => window.__sentinel.engine.budget), incidentBudget);
+  assert.equal(await page.evaluate(() => window.__sentinel.engine.deployOperation('HCI').ok), false);
   await page.evaluate(() => {
     const g = window.__sentinel.engine;
     const afterRansom = g.inc.beats.find(b => b.act === 'ransom').t + 12 + 4 + .5;

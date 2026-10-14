@@ -4,6 +4,8 @@
 import * as THREE from 'three';
 import { setLang, getLang, loc, t } from './i18n.js';
 import { LAYOUT, EMPLOYEES } from './data/scenario.js';
+import { DEPLOYMENT_VISUALS } from './data/deployment-visuals.js';
+import { OPERATIONS } from './data/operations.js';
 import { PRODUCTS } from './data/products.js';
 import { productMark } from './ui/product-marks.js';
 import { missionFor } from './data/missions.js';
@@ -50,7 +52,11 @@ const _wp = new THREE.Vector3();
 function levelOfY(y) { return LAYOUT.levels.reduce((a, b) => Math.abs(a.y - y) < Math.abs(b.y - y) ? a : b).id; }
 function activePickables() {
   if (!building) return [];
-  return building.pickables.filter(m => { m.getWorldPosition(_wp); return levelOfY(_wp.y) === activeLevel; });
+  const deployedPickables = placing ? [] : fx.deployments.pickables.filter(mesh => {
+    let root = mesh; while (root && root.userData.kind !== 'deployment') root = root.parent;
+    return roomLevel.get(root?.userData.roomId) === activeLevel;
+  });
+  return [...building.pickables, ...deployedPickables].filter(m => { m.getWorldPosition(_wp); return levelOfY(_wp.y) === activeLevel; });
 }
 // The whole tower is always visible (a cutaway dollhouse). The "active" level is just which
 // floor the camera is focused on and which floor keyboard room-cycling / the floor buttons target.
@@ -160,6 +166,7 @@ function worldClick(ev) {
 // Floor-level point for selection rings / camera focus, derived from an inspectable entity.
 function entityFloorPoint(e) {
   if (!e) return null;
+  if (e.kind === 'deployment') return fx.deployments.get(e.productId, e.target)?.position.clone() || null;
   if (e.kind === 'room') { const r = building.rooms.get(e.roomId); return r ? r.center.clone() : null; }
   if (e.kind === 'desk') { const d = building.desks.get(e.deskId); const r = building.rooms.get(e.roomId); if (!d) return null; const p = d.pos.clone(); if (r) p.y = r.center.y; return p; }
   if (e.kind === 'person') { const p = people.get(e.personId); return p ? p.group.position.clone() : null; }
@@ -184,7 +191,7 @@ function tryDeploy(entity) {
   else { if (entity) ok = true; }  // network / offsite — any click inside the building confirms
   if (!ok) { overlay.toast({ kind: 'warn', key: 'tray.clickWorld' }); return; }
   const res = engine.deploy(prod, target);
-  if (res.ok) { placing = null; clearHighlight(); overlay.renderTray(engine, placing); }
+  if (res.ok) { placing = null; clearHighlight(); overlay.renderTray(engine, placing); locateDeployment(prod, target); }
 }
 
 function onPointerMove(ev) {
@@ -201,11 +208,40 @@ function renderInspect() {
   if (!inspectTarget) return overlay.clearInspect();
   const e = inspectTarget;
   let html = '';
-  if (e.kind === 'room') html = inspectRoom(e.roomId);
+  if (e.kind === 'deployment') html = inspectDeployment(e.productId, e.target);
+  else if (e.kind === 'room') html = inspectRoom(e.roomId);
   else if (e.kind === 'desk') html = inspectDesk(e.deskId, e.roomId);
   else if (e.kind === 'person') html = inspectPerson(e.personId);
   else if (e.kind === 'clue') html = inspectClue(e.clueId);
   overlay.showInspect({ html });
+}
+function locateDeployment(productId, target) {
+  if (productId === 'EDR' && !target) {
+    const endpoints = [...engine.edrDesks];
+    const current = inspectTarget?.kind === 'deployment' && inspectTarget.productId === 'EDR' ? endpoints.indexOf(inspectTarget.target) : -1;
+    target = endpoints[(current + 1) % endpoints.length];
+  }
+  const entry = fx.deployments.get(productId, target);
+  if (!entry) return;
+  ensureLevelFor(entry.room);
+  inspectTarget = { kind: 'deployment', productId, target, roomId: entry.room };
+  renderInspect();
+  fx.setSelection(entry.position);
+  world.focusOn(entry.position.clone().add(new THREE.Vector3(0, .8, 0)), 8);
+}
+function inspectDeployment(id, target) {
+  const entry = fx.deployments.get(id, target); if (!entry) return '';
+  const p = PRODUCTS[id] || OPERATIONS[id];
+  let status = t(engine.phase === 'prep' ? 'deployment.prepared' : 'deployment.monitoring');
+  if (id === 'EDR') status = t('deployment.agent');
+  if (id === 'XDR') status = t(engine.confirmed ? 'deployment.correlated' : 'deployment.waiting');
+  if (id === 'ASTOR') status = t(engine.astorReady ? 'deployment.snapshots' : 'ops.tooLate');
+  if (id === 'AICP') status = t(engine.helperRule === 'notify' ? 'helper.requiresNotify' : 'helper.requiresRecover');
+  return `<div class="ins-head deployment-ins-head">${productMark(id)}<div><h3>${esc(p.shortName || p.name)}</h3><span class="ins-sub">${esc(loc(DEPLOYMENT_VISUALS[id].role))}</span></div></div>
+    <div class="deployment-state"><i></i>${esc(status)}</div>
+    <dl class="deployment-facts"><dt>${t('deployment.location')}</dt><dd>${esc(roomName(entry.room))}${target ? ' / #' + esc(target.split('#')[1]) : ''}</dd></dl>
+    <p class="deployment-explanation">${esc(loc(p.limitation || p.text || p.capability))}</p>
+    ${target ? `<button class="btn tiny" data-act="deploymentEndpoint" data-target="${esc(target)}">${t('deployment.endpoint')} &rarr;</button>` : ''}`;
 }
 function roomName(id) { const r = LAYOUT.rooms.find(x => x.id === id); return r ? loc(r.name) : id; }
 
@@ -369,16 +405,16 @@ function newGame(missionId = selectedMission, difficulty = selectedDifficulty) {
   engine
     .on('change', () => { dirty = true; })
     .on('deploy', ({ product, target }) => { fx.addProp(product, target); applyCoverage(coveredRooms(product, target)); dirty = true; firstDeploy(); })
-    .on('undo', ({ product, target }) => { if (product) fx.removeProp(product, target); applyCoverage(); dirty = true; })
+    .on('undo', ({ product, target, operation }) => { fx.removeProp(product || operation, target); if (inspectTarget?.kind === 'deployment' && !fx.deployments.get(inspectTarget.productId, inspectTarget.target)) { inspectTarget = null; overlay.clearInspect(); fx.clearSelection(); } applyCoverage(); dirty = true; })
     .on('operation', ({ product, room }) => {
-      fx.scanWave(room); overlay.toast({ kind: 'good', key: 'toast.deployed', product }); dirty = true;
+      fx.addProp(product); fx.scanWave(room); overlay.toast({ kind: 'good', key: 'toast.deployed', product }); dirty = true;
     })
     .on('clue', c => { fx.addClue(c); if (c.type === 'network' && c.fromRoom) fx.addTrail(c.fromRoom, c.room); setTicker(`${t('clue.' + c.type)} · ${roomName(c.room)}`); dirty = true; })
     .on('confirm', () => {
       engine.clues.forEach(c => fx.setClueConfirmed(c.id));
       const it = people.get('intruder'); if (it) fx.setReveal(it.group);
       // visualise correlation: lines from the XDR console to each active clue
-      const console3 = building.anchors.XDR.clone(); console3.y += 1.2;
+      const console3 = fx.deployments.get('XDR')?.position.clone() || building.anchors.XDR.clone(); console3.y += 1.2;
       const pts = engine.clues.filter(c => !c.resolved).map(c => {
         const d = c.desk && building.desks.get(c.desk); const r = building.rooms.get(c.room);
         const p = (d ? d.pos.clone() : r?.center.clone()); if (p) p.y += 1.2; return p;
@@ -484,7 +520,9 @@ overlay = createOverlay(overlayRoot, {
   onFocusClue: id => focusClue(id),
   onInvestigate: () => { const c = engine.clues[engine.clues.length - 1]; if (c) focusClue(c.id); },
   onTab: () => { overlay.renderTray(engine, placing); },
-  onOperation: id => engine.deployOperation(id),
+  onOperation: id => { const result = engine.deployOperation(id); if (result.ok) locateDeployment(id); return result; },
+  onLocateDeployment: locateDeployment,
+  onDeploymentEndpoint: target => { inspectTarget = { kind: 'desk', deskId: target, roomId: target.split('#')[0] }; renderInspect(); },
   onHelperRule: rule => engine.setHelperRule(rule),
   onLocation: room => {
     ensureLevelFor(room); inspectTarget = { kind: 'room', roomId: room }; renderInspect();
@@ -534,7 +572,7 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   // The opaque assignment screen needs no continuous 3D work behind it.
-  if (!engine) { requestAnimationFrame(frame); return; }
+  if (!engine || document.hidden) { requestAnimationFrame(frame); return; }
   const incidentRunning = engine && engine.phase === 'incident' && !engine._paused;
   if (people) people.update(engine?.phase === 'incident' && engine._paused ? 0 : incidentRunning ? dt * engine.speed : dt);
   if (incidentRunning) engine.tick(dt * engine.speed);
@@ -596,6 +634,6 @@ const charactersReady = loadOfficeCharacters().then(templates => {
 });
 
 // expose for headless testing
-window.__sentinel = { get engine() { return engine; }, get building() { return building; }, get people() { return people; }, newGame, beginDay, world, charactersReady,
+window.__sentinel = { get engine() { return engine; }, get building() { return building; }, get people() { return people; }, newGame, beginDay, world, charactersReady, get deployments() { return fx.deployments; },
   inspect(e) { inspectTarget = e; renderInspect(); const p = entityFloorPoint(e); if (p) fx.setSelection(p); },
   focusClue };

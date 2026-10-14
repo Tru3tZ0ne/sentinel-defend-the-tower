@@ -399,7 +399,7 @@ reported. A human acceptance play-test on event hardware remains recommended.
 
 
 
-## 2026-10-14 ? Textured business characters and local animation pipeline
+## 2026-10-14 - Textured business characters and local animation pipeline
 
 ### Problem and result
 
@@ -457,7 +457,7 @@ stages (engine, smoke, UI and characters). `git diff --check` also passed. Relea
 is recorded separately below.
 
 A controlled hardware-WebGL comparison used the same Intel Iris Xe Direct3D11 browser,
-1440?900 viewport, DPR 1, camera `(2,5.5,40)`, target `(-0.5,-1.3,-2.2)`, setup phase,
+1440x900 viewport, DPR 1, camera `(2,5.5,40)`, target `(-0.5,-1.3,-2.2)`, setup phase,
 stationary staff and a 180-frame foreground sample after warmup:
 
 | Version | Mean FPS | Median frame interval | p95 interval | Draw calls | Triangles |
@@ -477,3 +477,85 @@ README and art direction now describe the active asset pipeline. Furniture/inter
 more character variety and authored chair-entry transitions remain open. The current
 procedural desks/chairs/plants still limit close-up scene fidelity. Existing stable
 endpoint IDs, official marks and local helper behavior are preserved.
+
+
+## 2026-10-14 - Visible deployments with a compact interface
+
+### Problem and final behavior
+
+Purchases changed card state but appeared as abstract arches, domes or neon beacons;
+HCI, ADC, SASE and AICP had no persistent scene representative. All 11 capabilities
+now create a selectable scene entity on the relevant floor after a successful engine
+purchase. Gateways/probes have cabinet faces and ports, aStor has storage bays, HCI
+has three nodes, and software/services use host-agent badges or consoles. These are
+illustrative scene representatives, not exact commercial hardware model replicas.
+Official product marks remain unchanged decals with their original aspect ratios.
+
+Active product cards now locate the purchased entity. Active cloud-operation buttons
+reuse their existing space for the same action. EDR keeps the original placement card
+and adds a small in-card locate action that cycles installed endpoints; its inspector
+links to the existing workstation controls. Successful interactive deployment focuses
+the actual entity. The existing inspector shows status, location and one relevant
+explanation, including prerequisites and limitations instead of fabricated protection.
+
+No persistent inventory strip, new panel or large floating product labels are added.
+The old per-product arches/domes/beacons and their permanent animation loops were
+removed. Detailed device geometry is merged into at most four material buckets plus
+an official-mark decal; no per-port draw calls and no new runtime dependencies or
+external asset requests. Undo removes the device, picking targets and stale inspector;
+reset rebuilds the stage while preserving shared character assets. Existing coverage,
+evidence, isolation, recovery, planning budgets and stable endpoint IDs remain intact.
+
+### Responsiveness investigation
+
+Two browser regression processes plus preview tabs were running together when local
+responsiveness degraded. They were stopped, preview rendering was suspended during
+measurement, and subsequent verification ran sequentially. The new deployment suite
+also exposed prolonged software-renderer load on Windows, so its local run now uses
+the native desktop GPU; Linux CI remains headless. Hidden game documents now
+skip animation/simulation/render work and resume without accumulating hidden elapsed
+time. This avoids wasting render work on background game tabs.
+
+Controlled 180-frame foreground samples used Intel Iris Xe Direct3D11, 1440x900,
+DPR 1, fixed overview camera `(2,5.5,40)`, target `(-0.5,-1.3,-2.2)`, setup and
+stationary staff. The baseline is mainline f87b4a5; current includes textured staff.
+
+| Scene | Version | Mean FPS | Median | p95 | Draw calls | Triangles |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| No purchases | Baseline | 51.4 | 20.7 ms | 29.1 ms | 379 | 125,960 |
+| No purchases | Current | 51.7 | 20.7 ms | 25.1 ms | 243 | 136,221 |
+| Five purchases | Baseline | 55.8 | 16.8 ms | 25.0 ms | 450 | 136,500 |
+| Five purchases | Current | 52.7 | 20.7 ms | 25.0 ms | 282 | 138,551 |
+
+The paid plan was AF + NDR + aStor + HCI + ADC under Under Pressure / Guided:
+19 of 22 credits, no budget overrides. These short samples show reduced draw calls,
+not a universal FPS improvement: the deployed scene's current mean FPS is lower.
+They do not establish 60 FPS, high-DPR/mobile performance or prove that every observed
+stutter was caused by test contention. Software-WebGL test timings are not FPS evidence.
+
+### Verification and delivery
+
+All five verification stages passed: 18 engine groups, smoke outcomes, the full UI
+suite, office-character lifecycle and the new deployment suite. The existing UI suite
+now checks that installed HCI can be located during an incident without another
+purchase or budget change, while the engine still rejects a duplicate deployment.
+The deployment suite covers all 11 real purchases, device geometry, actual cabinet
+body picking, card focus/floor targeting, independent EDR instances and endpoint
+cycling, retained placement, undo/reset cleanup, EN/ZH and mobile deck scrolling.
+
+The deployment suite uses native headed Windows rendering to avoid prolonged local
+software-WebGL load; Linux CI stays headless. Controls wait for deferred deck updates
+before the next action. Software-CI click handling follows the existing UI suite;
+Windows retains normal actionability checks. No gameplay assertion was removed.
+
+A controlled visibility-guard check held the render-frame counter and incident time
+constant for 350 ms while document.hidden was simulated true, then confirmed both
+resumed after restoring the native getter. Real tab visibility in the automation
+browser did not reliably report hidden, so native visibility delivery was not claimed
+as verified there. Hardware visual review confirmed the compact card/inspector flow;
+`docs/screenshots/product-deployment-en.png` records a paid five-capability plan.
+No browser page errors were observed. `git diff --check` passed.
+
+Publication status is recorded separately from local verification.
+The paste-ready continuation prompt is `docs/CHARACTER_HANDOFF.txt`; it documents the
+compact deployment architecture and remaining realistic furniture/interior work.

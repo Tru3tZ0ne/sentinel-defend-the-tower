@@ -149,3 +149,16 @@ button, summary { -webkit-tap-highlight-color: transparent; }
 @media(max-width:640px) { .pcard { padding-left: 59px; min-width: 155px; }.pcard-ico { width: 40px; height: 43px; }.pcard-ico .product-mark { width: 32px; height: 35px; } }
 
 .cover-pill .product-mark { width: 21px; height: 21px; flex-basis: 21px; padding: 1px; background: #eff3f7; border-radius: 3px; }
+
+.pcard-slot { position:relative; display:flex; flex-shrink:0; }
+.pcard-locate { position:absolute; right:7px; bottom:7px; width:28px; height:28px; border:1px solid #38785f; border-radius:4px; background:#102d2a; color:#a1e6bf; font-size:18px; cursor:pointer; }
+.pcard-locate:focus-visible { outline:2px solid #a1e6bf; outline-offset:2px; }
+.pcard-slot .pst { padding-right:27px; }.pcard-slot .pcard-cost { display:none; }
+.deployment-ins-head { display:flex; flex-direction:row; text-align:left; justify-content:flex-start; align-items:center; gap:10px; padding-right:15px; }
+.deployment-ins-head .product-mark { width:38px; height:38px; flex-basis:38px; padding:3px; border-radius:4px; background:#edf3f6; }
+.deployment-ins-head h3 { display:block; margin:0 0 4px; }.deployment-ins-head .ins-sub {display:block}.deployment-state { display:flex; align-items:center; gap:7px; padding:9px 0; color:#9cd8bf; font-size:11px; }
+.deployment-state i { width:6px; height:6px; background:#70cba6; border-radius:50%; flex-shrink:0; }
+.deployment-facts { display:grid; grid-template-columns:auto 1fr; gap:7px; padding:10px 0; margin:0; border-top:1px solid #244352; border-bottom:1px solid #244352; font-size:11px; }
+.deployment-facts dt { color:#7f9eaf; }.deployment-facts dd { margin:0; color:#d2e4ec; }.deployment-explanation { font-size:11px; line-height:1.55; margin-top:10px; }
+.inspect:has(.deployment-state) { max-height:340px; overflow:auto; scrollbar-width:thin; }
+@media(max-width:640px) { .inspect:has(.deployment-state){max-height:45vh} }
