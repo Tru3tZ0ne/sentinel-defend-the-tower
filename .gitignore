@@ -30,4 +30,7 @@ tools/_perfcount.mjs
 tools/_perffixed.mjs
 tools/_visualcheck.mjs
 tools/_playcheck.mjs
+tools/_propshot.mjs
+tools/_towershot.mjs
+tools/_pickcheck.mjs
 tools/_livecheck.mjs

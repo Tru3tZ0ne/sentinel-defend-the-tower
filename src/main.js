@@ -49,20 +49,40 @@ function setTicker(text, kind) { lastEvent = text; if (engine && engine.phase ==
 function personLevel(p) {
   return LAYOUT.levels.reduce((a, b) => Math.abs(a.y - p.pos.y) < Math.abs(b.y - p.pos.y) ? a : b).id;
 }
+// All floors render at once, so clicks/hover are scoped to the focused floor by world height
+// (prevents a ray to a lower-floor room from catching an upper floor's pickable).
+const _wp = new THREE.Vector3();
+function levelOfY(y) { return LAYOUT.levels.reduce((a, b) => Math.abs(a.y - y) < Math.abs(b.y - y) ? a : b).id; }
+function activePickables() {
+  if (!building) return [];
+  return building.pickables.filter(m => { m.getWorldPosition(_wp); return levelOfY(_wp.y) === activeLevel; });
+}
+// The whole tower is always visible (a cutaway dollhouse). The "active" level is just which
+// floor the camera is focused on and which floor keyboard room-cycling / the floor buttons target.
 function setActiveLevel(id, moveCamera = true) {
   if (!building || !building.floors.some(f => f.id === id)) return;
   activeLevel = id;
-  for (const f of building.floors) f.group.visible = (f.id === id);
+  for (const f of building.floors) f.group.visible = true;   // keep every floor on screen
   const lvl = LAYOUT.levels.find(l => l.id === id);
-  if (moveCamera && world.focusOn) world.focusOn(new THREE.Vector3(-0.5, (lvl?.y || 0) + 0.4, -1), 42);
+  if (moveCamera && world.focusOn) world.focusOn(new THREE.Vector3(-0.5, (lvl?.y || 0) + 0.7, -2.2), 26);
+  if (overlay) overlay.renderFloors(building.floors, activeLevel);
+}
+// Frame the entire stacked tower at once (default view) from a front-3/4 angle.
+function overviewAll() {
+  if (!building) return;
+  for (const f of building.floors) f.group.visible = true;
+  const ys = LAYOUT.levels.map(l => l.y);
+  const midY = (Math.max(...ys) + Math.min(...ys)) / 2 + 0.2;
+  world.camera.position.set(2, 5.5, 40);   // low, front-on angle so both floors' open fronts are seen
+  world.controls.target.set(-0.5, midY, -2.2);
+  world.controls.update();
   if (overlay) overlay.renderFloors(building.floors, activeLevel);
 }
 function updatePeopleFloorVis() {
   if (!people) return;
   for (const p of people.list) {
-    const onLevel = personLevel(p) === activeLevel;
-    if (p.role === 'intruder') p.group.visible = onLevel && !!p._entered && !replayHidden();
-    else p.group.visible = onLevel;
+    if (p.role === 'intruder') p.group.visible = !!p._entered && !replayHidden();
+    else p.group.visible = true;   // staff on every floor stay visible
   }
 }
 function replayHidden() { return false; }
@@ -85,7 +105,7 @@ function initStage() {
   }
   stage = new THREE.Group(); world.scene.add(stage);
   building = buildBuilding(THREE, LAYOUT); stage.add(building.group);
-  for (const floor of building.floors) floor.group.visible = floor.id === LAYOUT.defaultLevel;
+  for (const floor of building.floors) floor.group.visible = true;   // whole-tower cutaway: all floors on screen
   fx = createFx(stage, building);
   people = createPeople(stage, building, publicByLevel[LAYOUT.defaultLevel], charGltf);
   // Visitor lanyards are worn by a couple of staff too, so the badge never gives the intruder away.
@@ -114,25 +134,25 @@ function roomOccupants(roomId) { return people.list.filter(p => p.id !== 'intrud
 function clearHighlight() { for (const h of highlighted) { h.mesh.material.emissive.setHex(h.e); h.mesh.material.emissiveIntensity = h.i; h.mesh.material.opacity = h.opacity; } highlighted.length = 0; }
 function hl(mesh, color = 0x39e08a, inten = 0.5) {
   if (!mesh?.material?.emissive) return;
-  highlighted.push({ mesh, e: mesh.material.emissive.getHex(), i: mesh.material.emissiveIntensity, opacity: mesh.material.opacity });
-  if (mesh.material.opacity === 0) mesh.material.opacity = .2;
+  highlighted.push({ mesh, e: mesh.material.emissive.getHex(), i: mesh.material.emissiveIntensity, opacity: mesh.material.opacity, setInten: inten });
+  if (mesh.material.opacity === 0) mesh.material.opacity = .4;
   mesh.material.emissive.setHex(color); mesh.material.emissiveIntensity = inten;
 }
 function highlightPlacement(prod) {
   clearHighlight();
   if (prod === 'EDR') {
-    for (const d of building.desks.values()) { const m = d.deskMesh || d.coreMesh; if (m && !engine.edrDesks.has(d.id)) hl(m, 0x39e08a, 0.55); }
+    for (const d of building.desks.values()) { if (roomLevel.get(d.roomId) !== activeLevel) continue; const m = d.deskMesh || d.coreMesh; if (m && !engine.edrDesks.has(d.id)) hl(m, 0x39e08a, 1.0); }
   } else {
     const elig = engine.eligible(prod);
     // Valid deploy targets glow brand-green ("place here") — red is reserved for threats.
-    if (elig.room) { const r = building.rooms.get(elig.room); if (r) hl(r.pad, 0x39e08a, 0.55); }
-    else { for (const r of building.rooms.values()) hl(r.pad, 0x39c0ff, 0.28); } // network / offsite: anywhere
+    if (elig.room) { const r = building.rooms.get(elig.room); if (r) hl(r.pad, 0x39e08a, 1.1); }
+    else { for (const r of building.rooms.values()) { if (roomLevel.get(r.id) !== activeLevel) continue; hl(r.pad, 0x39c0ff, 0.55); } } // network / offsite: any room on this floor
   }
 }
 
 // ---------- interaction ----------
 function worldClick(ev) {
-  const hit = world.pick(ev.clientX, ev.clientY, building.pickables);
+  const hit = world.pick(ev.clientX, ev.clientY, activePickables());
   const entity = hit?.entity || null;
   if (placing) return tryDeploy(entity);
   inspectTarget = entity; renderInspect();
@@ -171,7 +191,7 @@ function tryDeploy(entity) {
 }
 
 function onPointerMove(ev) {
-  const hit = world.pick(ev.clientX, ev.clientY, building.pickables);
+  const hit = world.pick(ev.clientX, ev.clientY, activePickables());
   canvas.style.cursor = hit ? 'pointer' : (placing ? 'crosshair' : 'grab');
   if (fx) {
     const pt = hit ? entityFloorPoint(hit.entity) : null;
@@ -387,7 +407,7 @@ function newGame(missionId = selectedMission, difficulty = selectedDifficulty) {
   overlay.hideStart(); overlay.hideEnd();
   overlay.clearInspect();
   overlay.setPhase('prep');
-  setActiveLevel(LAYOUT.defaultLevel, true);
+  activeLevel = LAYOUT.defaultLevel; overviewAll();
   overlay.renderHud(engine); overlay.renderTray(engine, placing); overlay.renderFeed(engine);
   overlay.setEvent(null, true);
   showSophia('welcome');
@@ -442,7 +462,16 @@ overlay = createOverlay(overlayRoot, {
   onAudioToggle: async () => { await ambience.toggle(); if (engine) overlay.renderHud(engine); },
   onStart: newGame,
   onBeginDay: beginDay,
-  onPickProduct: id => { placing = (placing === id) ? null : id; if (placing) highlightPlacement(id); else clearHighlight(); overlay.renderTray(engine, placing); },
+  onPickProduct: id => {
+    placing = (placing === id) ? null : id;
+    if (placing) {
+      // Jump to the floor where this capability belongs so its target is on screen and clickable.
+      const elig = engine.eligible(placing);
+      if (elig.room) { const lv = roomLevel.get(elig.room); if (lv && lv !== activeLevel) setActiveLevel(lv, true); }
+      highlightPlacement(id);
+    } else clearHighlight();
+    overlay.renderTray(engine, placing);
+  },
   onCancelPlacing: () => { placing = null; clearHighlight(); overlay.renderTray(engine, placing); },
   onPauseToggle: () => { engine._paused = !engine._paused; overlay.renderHud(engine); },
   onSpeed: s => { engine.speed = s; overlay.renderHud(engine); },
@@ -464,7 +493,7 @@ overlay = createOverlay(overlayRoot, {
     ensureLevelFor(room); inspectTarget = { kind: 'room', roomId: room }; renderInspect();
     const point = entityFloorPoint(inspectTarget); if (point) { world.focusOn(point.clone().setY(point.y + 1), 11); fx.setSelection(point); }
   },
-  onOverview: () => setActiveLevel(activeLevel),
+  onOverview: () => overviewAll(),
   onCloseView: () => {
     const point = entityFloorPoint(inspectTarget) || building.rooms.get(activeLevel === 'L2' ? 'l2-work' : 'office').center;
     world.focusOn(point.clone().setY(point.y + 1), 9);
@@ -514,6 +543,8 @@ function frame(now) {
   if (incidentRunning) engine.tick(dt * engine.speed);
   if (replay) stepReplay(dt);
   if (fx) fx.update(dt);
+  // Pulse the "place here" highlight so valid deploy targets are obvious.
+  if (placing && highlighted.length) { const p = 0.55 + (Math.sin(now * 0.006) + 1) * 0.4; for (const h of highlighted) h.mesh.material.emissiveIntensity = h.setInten * p; }
   if (people && building) updatePeopleFloorVis();
   world.render();
   updateLabels();
@@ -548,7 +579,7 @@ window.addEventListener('keydown', ev => {
   if (engine && ['prep', 'incident'].includes(engine.phase)) {
     if (ev.code === 'Digit1') setActiveLevel('L3');
     if (ev.code === 'Digit2') setActiveLevel('L2');
-    if (ev.code === 'KeyH') setActiveLevel(activeLevel);
+    if (ev.code === 'KeyH') overviewAll();
     if (ev.code === 'BracketLeft') { ev.preventDefault(); kbCycleRoom(-1); }
     if (ev.code === 'BracketRight') { ev.preventDefault(); kbCycleRoom(1); }
   }

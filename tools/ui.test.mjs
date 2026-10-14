@@ -11,9 +11,12 @@ const errors = [], externalRequests = [];
 page.on('pageerror', e => errors.push(e.message));
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('request', request => { if (/^https?:/.test(request.url()) && !request.url().startsWith(url)) externalRequests.push(request.url()); });
-// These controls never navigate (single-page app); skip Playwright's post-click navigation
-// wait, which otherwise stalls against the continuous render loop under software-WebGL.
-const click = selector => page.locator(selector).filter({ visible: true }).click({ timeout: 30000, noWaitAfter: true });
+// These controls never navigate (single-page app) and live in panels that re-paint on each
+// state change. Skip Playwright's post-click navigation wait and the stability wait, which
+// otherwise stall against the continuous render loop under software-WebGL (both floors now
+// render at once, ~doubling SwiftShader frame cost). Real hardware is unaffected; the test
+// still asserts the resulting engine/DOM state after every click.
+const click = selector => page.locator(selector).filter({ visible: true }).click({ timeout: 30000, noWaitAfter: true, force: true });
 const settleCamera = () => page.waitForTimeout(1000);
 async function canvasPoint(id, kind = 'room') {
   return page.evaluate(({ id, kind }) => {
@@ -83,11 +86,14 @@ try {
     const s = window.__sentinel;
     const hiddenPick = s.world.pick(innerWidth / 2, innerHeight / 2, s.building.pickables);
     return { l2: s.building.floors.find(f => f.id === 'L2').group.visible,
+      l3: s.building.floors.find(f => f.id === 'L3').group.visible,
       l3Effects: s.world.scene.getObjectByName('effects:L3').visible,
       l2Effects: s.world.scene.getObjectByName('effects:L2').visible,
       pickedRoom: hiddenPick?.entity.roomId };
   });
-  assert.equal(levelState.l2, true); assert.equal(levelState.l2Effects, true); assert.equal(levelState.l3Effects, false);
+  // Whole-tower cutaway: every floor (and its effects) stays visible; the active floor is a camera focus.
+  assert.equal(levelState.l2, true); assert.equal(levelState.l3, true);
+  assert.equal(levelState.l2Effects, true); assert.equal(levelState.l3Effects, true);
   await page.screenshot({ path: 'tools/shots/session-floor2-en.png' });
   await click('[data-act="begin"]');
   await page.evaluate(() => { window.__sentinel.engine._paused = true; document.activeElement.blur(); });

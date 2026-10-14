@@ -7,7 +7,7 @@
 export const LAYOUT = {
   levels: [
     { id: 'L3', y: 0,    name: { en: 'Level 3', zh: '三层' } },
-    { id: 'L2', y: -6.2, name: { en: 'Level 2', zh: '二层' } },
+    { id: 'L2', y: -3.0, name: { en: 'Level 2', zh: '二层' } },   // stacked snugly so the whole tower reads as one cutaway building
   ],
   defaultLevel: 'L3',
   bounds: { x0: -14, x1: 14, z0: -8.5, z1: 8.5 },

@@ -11,6 +11,7 @@ export function createFx(scene, building) {
   const props = new Map();  // productId/instanceKey -> mesh
   const locks = new Map();   // roomId -> overlay
   const cages = new Map();   // deskId -> cage
+  const beacons = new Map(); // productKey -> persistent "deployed here" marker
   let revealRing = null;
   let selRing = null, hoverRing = null;
   const scanFields = new Map();   // roomId -> cyan coverage grid
@@ -102,11 +103,11 @@ export function createFx(scene, building) {
       mesh.add(post, p2, beam);
     } else if (productId === 'XDR') {        // command console glow
       const a = building.anchors.XDR.clone();
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.12), emissive(0x538693, 0.15));
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.12), emissive(0x6fd6ff, 0.8));
       mesh.position.set(a.x, a.y + 0.9, a.z + 1.2);
     } else if (productId === 'ASTOR') {      // storage shield in server room
       const a = building.anchors.ASTOR.clone();
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.1, 0.85), emissive(0x536873, 0.1));
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.1, 0.85), emissive(0x39c0ff, 0.55));
       mesh.position.set(a.x, a.y + 0.55, a.z + 1.4);
     } else if (productId === 'MDR') {        // off-site SOC beacon
       const a = building.anchors.MDR.clone();
@@ -134,7 +135,7 @@ export function createFx(scene, building) {
       const d = building.desks.get(target); const dp = deskPos(target); if (!dp) return null;
       mesh = new THREE.Group();
       const dome = new THREE.Mesh(new THREE.SphereGeometry(0.66, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2),
-        new THREE.MeshStandardMaterial({ color: 0x39e08a, emissive: 0x39e08a, emissiveIntensity: 0.3, transparent: true, opacity: 0.14, depthWrite: false }));
+        new THREE.MeshStandardMaterial({ color: 0x39e08a, emissive: 0x39e08a, emissiveIntensity: 0.5, transparent: true, opacity: 0.24, depthWrite: false }));
       dome.position.set(dp.x, dp.y - 0.15, dp.z); mesh.add(dome);
       const ring = new THREE.Mesh(new THREE.TorusGeometry(0.64, 0.035, 8, 28), emissive(0x39e08a, 0.9));
       ring.rotation.x = Math.PI / 2; ring.position.set(dp.x, dp.y - 0.62, dp.z); mesh.add(ring);
@@ -144,7 +145,17 @@ export function createFx(scene, building) {
       const room = productId === 'EDR' ? building.desks.get(target)?.roomId : { AF: 'reception', IAG: 'egress', XDR: 'soc', ASTOR: 'server', MDR: 'soc' }[productId];
       if (room) onFloor(mesh, room); else scene.add(mesh);
       props.set(key, mesh);
-      const a = propAnchor(productId, target); if (a) spawnPulse(a.x, a.y, a.z, PROD_COLOR[productId] || 0x5fd0ff);
+      const color = PROD_COLOR[productId] || 0x5fd0ff;
+      const a = propAnchor(productId, target);
+      if (a) {
+        spawnPulse(a.x, a.y, a.z, color);
+        if (productId !== 'MDR') {   // MDR is an off-site floating beacon — no floor under it
+          const fl = building.floors.reduce((p, q) => Math.abs(p.y - a.y) < Math.abs(q.y - a.y) ? p : q);
+          const beacon = makeBeacon(a.x, fl.y + 0.08, a.z, color);
+          onFloor(beacon, fl.id);
+          beacons.set(key, beacon);
+        }
+      }
     }
     return mesh;
   }
@@ -153,6 +164,7 @@ export function createFx(scene, building) {
   function removeProp(product, target) {
     const key = product + ':' + (target || '');
     const prop = props.get(key); if (prop) { removeEffect(prop); props.delete(key); }
+    const beacon = beacons.get(key); if (beacon) { removeEffect(beacon); beacons.delete(key); }
     if (product === 'EDR') {
       const screen = building.desks.get(target)?.screen;
       if (screen) { screen.material.color.setHex(0x6fd6ff); screen.material.emissive.setHex(0x6fd6ff); }
@@ -163,6 +175,18 @@ export function createFx(scene, building) {
     const a = building.anchors[productId];
     if (Array.isArray(a)) return a[0]?.clone();
     return a ? a.clone() : null;
+  }
+
+  // A persistent "deployed here" marker so every placed capability is unmistakable from the
+  // command view: a bright floor ring, a soft vertical light shaft, and a floating orb.
+  function makeBeacon(x, y, z, color) {
+    const g = new THREE.Group(); g.position.set(x, y, z); g.userData.beacon = true;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.055, 8, 30), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false }));
+    ring.rotation.x = Math.PI / 2; ring.position.y = 0.05; g.add(ring); g.userData.ring = ring;
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.15, 2.8, 12, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+    shaft.position.y = 1.45; g.add(shaft);
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12), new THREE.MeshBasicMaterial({ color })); orb.position.y = 2.75; g.add(orb); g.userData.orb = orb;
+    return g;
   }
 
   // Expanding "what just changed" pulse ring at a deployment point.
@@ -322,6 +346,12 @@ export function createFx(scene, building) {
       pulses[i].ring.scale.setScalar(1 + age * 5);
       pulses[i].ring.material.opacity = Math.max(0, 0.9 - age * 1.1);
       if (age > 0.9) { removeEffect(pulses[i].ring); pulses.splice(i, 1); }
+    }
+    // persistent product beacons: pulse the floor ring and bob the orb so deployments read
+    for (const g of beacons.values()) {
+      if (!g.visible) continue;
+      if (g.userData.ring) g.userData.ring.scale.setScalar(1 + Math.sin(now * 0.004) * 0.12);
+      if (g.userData.orb) g.userData.orb.position.y = 2.65 + Math.sin(now * 0.003) * 0.12;
     }
     // NDR scan rings: gentle pulse so coverage reads as "watching"
     const ndr = props.get('NDR:');

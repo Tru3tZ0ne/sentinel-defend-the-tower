@@ -349,7 +349,7 @@ export function buildBuilding(THREE, LAYOUT) {
   anchors.IAG = V(LAYOUT.rooms.find(r => r.id === 'egress').door.x, 0.15, C.z0 - 0.6);
   anchors.XDR = rooms.get('soc').center.clone();
   anchors.ASTOR = rooms.get('server').center.clone();
-  anchors.MDR = V(B.x1 + 4.5, 2.6, B.z1 - 2);
+  anchors.MDR = V(B.x1 + 1.8, 2.4, B.z1 - 3);   // just off the building edge, so the off-site SOC beacon stays on-screen
 
   function refreshSigns() { for (const s of signs) drawSign(s.canvas, loc(s.r.name), s.r.type === 'server' ? '#39c0ff' : s.r.type === 'vault' ? '#ffcf6e' : '#' + P.brand.toString(16).padStart(6, '0')), s.tex.needsUpdate = true; }
 
