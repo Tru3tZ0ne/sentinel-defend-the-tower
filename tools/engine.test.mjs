@@ -145,3 +145,57 @@ test('cancelled helper recovery waits for a manual restart', () => {
   g.cancelRecovery('server'); g.tick(1); assert.equal(g.recoveryJobs.size,0);
   assert.ok(g.lockedRooms.has('server')); assert.ok(g.recover('server').ok);
 });
+
+// Every assignment/difficulty must be winnable within its budget by an INFORMED player:
+// deploy a plan, read visible endpoint clues, then isolate the exact foothold device
+// (and mitigate scripted infrastructure events). Containing early prevents later damage.
+test('every mission/difficulty has a demonstrated viable winning strategy', () => {
+  const PLANS = {
+    quiet: {
+      guided:   { products: ['NDR', 'XDR'], edr: ['office#2', 'vault#core'] },
+      standard: { products: ['NDR', 'XDR'], edr: ['office#2'] },
+      expert:   { products: ['AF'], edr: ['office#2'] },
+    },
+    robber: {
+      guided:   { products: ['XDR', 'ASTOR'], edr: ['l2-finance#1', 'server#core'] },
+      standard: { products: ['XDR'], edr: ['l2-finance#1'] },
+      expert:   { products: [], edr: ['l2-finance#1'] },
+    },
+    storm: {
+      guided:   { products: ['NDR', 'XDR'], edr: ['l2-finance#1'], operations: ['ADC', 'HCI'] },
+      standard: { edr: ['l2-finance#1'], operations: ['ADC', 'HCI'] },
+      expert:   { edr: ['l2-finance#1'], operations: ['ADC', 'HCI'] },
+    },
+  };
+  for (const [mission, byDiff] of Object.entries(PLANS)) {
+    for (const [difficulty, plan] of Object.entries(byDiff)) {
+      const g = game(mission, difficulty);
+      for (const op of plan.operations || []) assert.ok(g.deployOperation(op).ok, `${mission}/${difficulty} op ${op}`);
+      for (const p of plan.products || []) assert.ok(g.deploy(p).ok, `${mission}/${difficulty} ${p}`);
+      for (const d of plan.edr || []) assert.ok(g.deploy('EDR', d).ok, `${mission}/${difficulty} EDR ${d}`);
+      assert.ok(g.budget >= 0, `${mission}/${difficulty} overspent`);
+      g.beginDay();
+      let guard = 0;
+      while (!g.ended && guard++ < 4000) {
+        g.tick(.1);
+        const a = g.intruder;
+        // Act only on a visible endpoint clue at the actor's current device (no omniscience).
+        if (a.desk && g.edrDesks.has(a.desk) && !a.contained && g.clues.some(c => c.desk === a.desk)) g.isolateDevice(a.desk);
+      }
+      assert.ok(g.ended, `${mission}/${difficulty} never ended`);
+      assert.equal(g.outcome.verdict, 'win', `${mission}/${difficulty} -> ${g.outcome.verdict}/${g.outcome.kind}`);
+    }
+  }
+});
+
+// Infrastructure operations must only be exercised by assignments whose (player-visible)
+// briefing shape includes the matching event — never by hidden attack truth.
+test('infrastructure operations match the exercising events of each assignment', () => {
+  const exercises = (mission, act) => missionFor(mission).beats.some(b => b.act === act);
+  assert.ok(exercises('storm', 'ddos') && exercises('storm', 'failure') && exercises('storm', 'remote'));
+  assert.ok(exercises('robber', 'remote'));
+  assert.ok(!exercises('quiet', 'ddos') && !exercises('quiet', 'failure') && !exercises('quiet', 'remote'));
+  assert.ok(!exercises('robber', 'ddos') && !exercises('robber', 'failure'));
+  // HCI stays useful wherever a room can lock (ransomware downtime + faster restore).
+  for (const m of ['quiet', 'robber', 'storm']) assert.ok(missionFor(m).beats.some(b => b.locks), `${m} has a lockable room`);
+});

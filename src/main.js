@@ -112,7 +112,7 @@ function personRoom(p) {
 function roomOccupants(roomId) { return people.list.filter(p => p.id !== 'intruder' && personRoom(p) === roomId); }
 
 function clearHighlight() { for (const h of highlighted) { h.mesh.material.emissive.setHex(h.e); h.mesh.material.emissiveIntensity = h.i; h.mesh.material.opacity = h.opacity; } highlighted.length = 0; }
-function hl(mesh, color = 0xE60027, inten = 0.5) {
+function hl(mesh, color = 0x39e08a, inten = 0.5) {
   if (!mesh?.material?.emissive) return;
   highlighted.push({ mesh, e: mesh.material.emissive.getHex(), i: mesh.material.emissiveIntensity, opacity: mesh.material.opacity });
   if (mesh.material.opacity === 0) mesh.material.opacity = .2;
@@ -124,7 +124,8 @@ function highlightPlacement(prod) {
     for (const d of building.desks.values()) { const m = d.deskMesh || d.coreMesh; if (m && !engine.edrDesks.has(d.id)) hl(m, 0x39e08a, 0.55); }
   } else {
     const elig = engine.eligible(prod);
-    if (elig.room) { const r = building.rooms.get(elig.room); if (r) hl(r.pad, 0xE60027, 0.6); }
+    // Valid deploy targets glow brand-green ("place here") — red is reserved for threats.
+    if (elig.room) { const r = building.rooms.get(elig.room); if (r) hl(r.pad, 0x39e08a, 0.55); }
     else { for (const r of building.rooms.values()) hl(r.pad, 0x39c0ff, 0.28); } // network / offsite: anywhere
   }
 }

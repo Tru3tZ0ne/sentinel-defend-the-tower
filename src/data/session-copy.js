@@ -43,6 +43,7 @@ export const SESSION_COPY = {
   'ops.tooLate': { en: 'Installed late · no prepared snapshots', zh: '安装较晚 · 未预备快照' },
   'ops.deploy': { en: 'Prepare', zh: '准备' },
   'ops.open': { en: 'Inspect location', zh: '查看部署位置' },
+  'ops.notExercised': { en: 'Defense-in-depth — this assignment’s briefing does not call on it.', zh: '纵深防御——本任务简报未涉及此项。' },
   'helper.title': { en: 'Helper rule', zh: '助手规则' },
   'helper.notify': { en: 'When XDR confirms → notify me', zh: 'XDR 确认事件后 → 提醒我' },
   'helper.recover': { en: 'When encryption locks a room → restore prepared snapshots', zh: '加密导致房间停机后 → 恢复预备快照' },

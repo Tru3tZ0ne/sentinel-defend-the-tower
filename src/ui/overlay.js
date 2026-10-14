@@ -230,8 +230,19 @@ export function createOverlay(root, h) {
   function operationDeck(e) {
     return Object.entries(OPERATIONS).map(([id, p]) => {
       const active = e.operations.has(id), locked = e.phase !== 'prep' || e.budget < p.cost;
-      return `<article class="operation-card ${active ? 'is-on' : ''}"><div class="operation-head">${productMark(id)}<b>${esc(p.name)}</b><span>${p.cost} ${t('hud.credits')}</span></div><p>${esc(loc(p.text))}</p><button class="btn tiny" data-act="operation" data-id="${id}" ${active || locked ? 'disabled' : ''}>${active ? t('deck.active') : e.phase !== 'prep' ? t('ops.prepOnly') : t('ops.deploy')}</button><button class="linklike" data-act="location" data-room="${p.room}">${t('ops.open')} →</button></article>`;
+      const exercised = opExercised(e, id);
+      return `<article class="operation-card ${active ? 'is-on' : ''} ${exercised ? '' : 'inert'}"><div class="operation-head">${productMark(id)}<b>${esc(p.name)}</b><span>${p.cost} ${t('hud.credits')}</span></div><p>${esc(loc(p.text))}</p>${exercised ? '' : `<p class="op-note">${icon('ndr')} ${t('ops.notExercised')}</p>`}<button class="btn tiny" data-act="operation" data-id="${id}" ${active || locked ? 'disabled' : ''}>${active ? t('deck.active') : e.phase !== 'prep' ? t('ops.prepOnly') : t('ops.deploy')}</button><button class="linklike" data-act="location" data-room="${p.room}">${t('ops.open')} →</button></article>`;
     }).join('');
+  }
+  // Whether the current assignment's scripted events will actually exercise an operation.
+  // Derived only from the mission the player can already read in its briefing — never from
+  // hidden attack truth. (HCI also shortens any recovery, so it is useful whenever a room can lock.)
+  function opExercised(e, id) {
+    const beats = e.inc?.beats || [];
+    if (id === 'ADC') return beats.some(b => b.act === 'ddos');
+    if (id === 'SASE') return beats.some(b => b.act === 'remote');
+    if (id === 'HCI') return beats.some(b => b.act === 'failure' || b.locks);
+    return true; // AICP: helper rules apply to every assignment
   }
   function helperDeck(e) {
     return `<div class="helper-panel"><h3>${t('helper.title')}</h3>${['notify', 'recover'].map(rule => `<button class="helper-rule ${e.helperRule === rule ? 'selected' : ''}" data-act="helperRule" data-rule="${rule}" aria-pressed="${e.helperRule === rule}" ${e.phase !== 'prep' ? 'disabled' : ''}>${t('helper.' + rule)}</button>`).join('')}<p>${t(e.helperRule === 'notify' ? 'helper.requiresNotify' : 'helper.requiresRecover')}</p><div class="helper-dependencies"><span class="${e.operations.has('AICP') ? 'complete' : ''}">AICP</span><span class="${(e.helperRule === 'notify' ? e.hasXDR : e.astorReady) ? 'complete' : ''}">${e.helperRule === 'notify' ? 'XDR' : 'aStor'}</span></div></div><div class="helper-context"><h3>AICP + Agent Builder</h3><p>${esc(loc(OPERATIONS.AICP.text))}</p><button class="btn tiny" data-act="operation" data-id="AICP" ${e.operations.has('AICP') || e.phase !== 'prep' || e.budget < OPERATIONS.AICP.cost ? 'disabled' : ''}>${e.operations.has('AICP') ? t('deck.active') : t('ops.deploy') + ' · 3 ' + t('hud.credits')}</button><p>${t('plan.recovery')}</p></div>`;

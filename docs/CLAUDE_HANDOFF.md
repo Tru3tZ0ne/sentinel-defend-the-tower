@@ -55,11 +55,14 @@ picking targets and material/animation QA. Do not just flip `USE_GLB_CHARACTERS`
 
 ## Validation and deployment status
 
-Latest `npm test` passed all 13 engine groups, three smoke outcomes and the full
-browser UI suite, including all 11 official product images. Current English captures
-are in `docs/screenshots/command-live-en.png`, `product-marks-en.png` and
-`product-cloud-en.png`. PR #1 is the review location. GitHub Pages serves `main`,
-so the feature branch is not yet the public live version.
+Latest `npm test` passed all 15 engine groups, three smoke outcomes and the full
+browser UI suite, including all 11 official product images. (The 2026-10-13 gameplay-polish
+pass added two engine groups — demonstrated viable winning strategies for every
+mission/difficulty, and infrastructure-operation relevance — and made the Playwright click
+helper robust to software-WebGL.) Current English captures are in
+`docs/screenshots/command-live-en.png`, `product-marks-en.png` and `product-cloud-en.png`.
+PR #1 is the review location. GitHub Pages serves `main`, so the feature branch is not yet
+the public live version.
 
 ## Next priorities
 
@@ -70,8 +73,11 @@ so the feature branch is not yet the public live version.
 3. Accessibility: keyboard inspection/deployment, focus routing and touch-device testing.
 4. Realistic office characters/furniture with coherent materials and proper animation once
    the separate asset-production brief resumes. Current assets are not photorealistic.
-5. Profile actual draw calls, triangle counts and frame times on target hardware. Earlier
-   performance figures in historical docs are obsolete. Keep browser suites sequential.
+5. Performance: scene cost is measured (backend-independent) in `docs/DEVELOPMENT_LOG.md`
+   (≈1,100 draw calls / ~130k triangles at the live mission camera). The next lever is merging
+   static per-room detail into shared geometry/materials and trimming active lights to cut draw
+   calls without changing the visual direction — validate before/after on hardware GL (not
+   SwiftShader), and re-verify picking/coverage/floor-visibility. Keep browser suites sequential.
 
 Paid asset generation is deferred; do not reconnect or spend service credits without a
 new asset brief. Never commit credentials, signed URLs or account history. No live Solvia

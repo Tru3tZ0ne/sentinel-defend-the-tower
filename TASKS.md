@@ -2,6 +2,24 @@
 
 Legend: [x] done · [~] in progress · [ ] todo
 
+## Gameplay-polish pass — 2026-10-13
+
+Audited the complete loop against the current command UI; preserved it and fixed real gaps.
+- [x] Full-loop audit: all 9 assignment/difficulty combinations are winnable within budget with
+      meaningful tradeoffs (EDR endpoint-containment backbone + optional XDR/NDR correlation + infra
+      mitigation); undefended play loses; exact-endpoint isolation and the SASE branch verified.
+- [x] Brand correctness: valid deploy-target highlight now glows brand-green (legacy threat-red removed);
+      red stays reserved for threats. Corrected the stale brand-red note in `main.css`.
+- [x] Truthful planning feedback: infrastructure operations the current assignment's (player-visible)
+      briefing will not exercise are flagged "defense-in-depth — not called on", not a silent no-op buy.
+      Derived from mission beats only, never hidden attack truth.
+- [x] Regression tests: every mission/difficulty has a demonstrated viable winning strategy;
+      infrastructure-operation relevance matches each assignment's exercising events (engine suite → 15 groups).
+- [x] Browser suite made robust to software-WebGL (clicks skip the spurious post-click navigation wait).
+- [x] Verified: engine + smoke + UI suite; visual review of command UI, both floors, Cloud-deck
+      relevance notes (EN/ZH), placement highlight and review/replay.
+- [ ] Human play-test & tuning review with client; realistic office models/animation (separate brief).
+
 ## Current iteration — 2026-10-14
 
 - [x] Three playable assignments and Guided/Standard/Expert difficulty

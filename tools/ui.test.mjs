@@ -11,7 +11,9 @@ const errors = [], externalRequests = [];
 page.on('pageerror', e => errors.push(e.message));
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('request', request => { if (/^https?:/.test(request.url()) && !request.url().startsWith(url)) externalRequests.push(request.url()); });
-const click = selector => page.locator(selector).filter({ visible: true }).click({ timeout: 20000 });
+// These controls never navigate (single-page app); skip Playwright's post-click navigation
+// wait, which otherwise stalls against the continuous render loop under software-WebGL.
+const click = selector => page.locator(selector).filter({ visible: true }).click({ timeout: 30000, noWaitAfter: true });
 const settleCamera = () => page.waitForTimeout(1000);
 async function canvasPoint(id, kind = 'room') {
   return page.evaluate(({ id, kind }) => {

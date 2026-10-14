@@ -217,3 +217,95 @@ No external runtime requests or browser errors were reported. `git diff --check`
 Development remains on `feat/architectural-command-gameplay`, PR #1. The public
 GitHub Pages site serves `main`; this feature version will not appear there until
 the PR is merged and Pages finishes deployment. Local preview: `npm run serve`.
+
+
+## Gameplay-polish pass — 2026-10-13
+
+Continued from `c871244`. The command interface, missions, operations, recovery loop and
+honest outcomes were already implemented and tested; this pass audited the whole loop against
+that UI, preserved it, and fixed the real gaps it surfaced rather than rebuilding anything.
+
+### Audit (played, not just read)
+
+Drove the engine directly through every assignment × difficulty with budget-correct strategies
+and an informed-player response policy (deploy, read the visible endpoint clue, isolate the exact
+foothold device; mitigate scripted infrastructure events). Findings:
+
+- **All nine combinations are winnable within budget**, with meaningful tradeoffs. The backbone is
+  cheap: EDR on the foothold device + isolate on the endpoint clue contains early and prevents the
+  later ransomware/exfil beats. Richer sensors (NDR building-wide visibility + XDR correlation,
+  MDR assist) are the premium detection path, not a requirement to win.
+- Expert (12 credits) is tight but viable — e.g. Quiet Morning with AF + one EDR; Under Pressure
+  with ADC + HCI + one EDR; The Lockout by containing the Finance foothold before it pivots.
+- **Undefended play loses** (collapse/breach) in every mission — poor preparation has clear,
+  understandable consequences.
+- Exact-endpoint isolation (wrong device in the same room does not contain), the SASE
+  alternate-endpoint branch (remote denied → foothold `office#2`, evidence follows the real
+  device, branch logged), the recovery loop and honest partial outcomes all behave correctly.
+
+No engine defects were found; the mechanics are sound. Two gaps were real and are fixed below.
+
+### Fixes
+
+- **Brand correctness.** The in-world placement highlight for slot products (AF/IAG/XDR/aStor)
+  still glowed legacy threat-red (`0xE60027`) on the room you were about to *protect*. Valid
+  deploy targets now glow brand-green (`0x39e08a`, matching EDR); red stays reserved for threats.
+  Corrected the stale "brand red is a placeholder" note at the top of `main.css`
+  (the brand is green/blue, per `assets/brand/ASSETS.md`).
+- **Truthful planning feedback.** Infrastructure operations that the current assignment's
+  *player-visible briefing* will not exercise (e.g. ADC and SASE in The Quiet Morning, which has
+  no traffic-surge or remote-session beat) were silently buyable no-ops. They now carry a
+  "Defense-in-depth — this assignment's briefing does not call on it" note in the Cloud & AI deck,
+  so credits are spent knowingly. Relevance is derived from the mission beats only
+  (`ddos`→ADC, `remote`→SASE, `failure`/`locks`→HCI, AICP always) — never from hidden attack
+  truth, and the briefings already telegraph the threat shape. Display-only; templates unchanged.
+
+![The Quiet Morning Cloud & AI deck — ADC and SASE flagged as not called on by this briefing](screenshots/polish-cloud-quiet-en.png)
+
+### Tests
+
+- Added two engine regression groups (suite now 15): *every mission/difficulty has a demonstrated
+  viable winning strategy* (plays each combo to a `win` verdict within budget) and *infrastructure
+  operations match the exercising events of each assignment*.
+- Made the Playwright click helper robust to software-WebGL by skipping the spurious post-click
+  navigation wait (these controls never navigate). This removes a software-rendering stall without
+  weakening any assertion; hardware-GL behaviour is unchanged.
+
+### Validation
+
+`npm test` — engine (15 groups), smoke (strong→delayed, none→collapse, isolate→contained) and the
+full Playwright UI suite. Visual review (1440×900) of the command UI, both floors, the Cloud-deck
+relevance notes in EN and ZH, the brand-green placement highlight and the review/replay screens;
+no console errors or external runtime requests.
+
+Backend-independent scene cost was measured (draw calls / triangles / lights / shadow maps) to
+track the detail-pass regression noted earlier; see the measurement note below. Frame-time/FPS was
+**not** measured here because this environment only has software WebGL (SwiftShader), which the
+handoff correctly says is not representative of GPU hardware.
+
+### Scene-cost measurement (backend-independent)
+
+Measured with `renderer.info` after one render, 1440×900, setup phase, The Quiet Morning,
+software WebGL (SwiftShader). These counts (draw calls, triangles, geometries, lights, shadow
+maps) are GPU-backend-independent; frame time is not, so FPS is deliberately not reported here.
+
+| Scene state | Draw calls | Triangles | Geometries | Lights (scene) | Shadow maps |
+| --- | --- | --- | --- | --- | --- |
+| Level 3 active (setup) | 1,112 | 132,618 | 651 | 19 | 1 |
+| Level 2 active (setup) | 1,105 | 114,126 | 1,274 | 19 | 1 |
+
+The counts are higher than the handoff's fixed-camera sample (≈663 calls / 67.6k tris): this
+sample uses the live mission camera (which frames more of the floor) and includes animated staff
+and the effects layer. They confirm the detail-pass cost the handoff flagged (separate rack
+panels/LEDs/handles, desk accessories, glass mullions). The clear next lever is **merging static
+per-room detail into shared geometry/materials** (`BufferGeometryUtils` is already vendored) and
+reducing the active light count, which cuts draw calls without changing the visual direction.
+
+That refactor is intentionally **not** done in this pass: it touches `src/world/building.js` and
+would need re-verification of the picking, coverage and floor-visibility invariants the handoff
+calls out, and — more importantly — a draw-call/frame-time improvement can only be validated on
+**hardware-accelerated GL**, which this environment does not provide. It is queued as a dedicated,
+separately-measured performance pass (before/after on an Iris-Xe-class browser), per the handoff.
+
+Development remains on `feat/architectural-command-gameplay`, PR #1; GitHub Pages still serves
+`main`, so this feature version is not the public live site until the PR is merged.
