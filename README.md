@@ -13,8 +13,9 @@ Current development: three assignments, three difficulty levels, playable infras
 preparation, a local helper-rule workflow, a reference-led dark command interface, bilingual
 session review and JSON report export. Response choices have consequences — isolate the exact
 device, lock down the room the actor is in, or restrict an area ahead of them to slow their
-advance. Static scene detail is batched per floor for performance. Realistic close-up characters
-and interiors remain an asset-production milestone; current figures are procedural placeholders.
+advance. Static scene detail is batched per floor for performance. Textured, rigged Mixamo business characters now replace the temporary figures, with idle,
+walking and seated work animation. Realistic furniture and interiors remain an art milestone.
+Character provenance and usage notes: [office assets](assets/models/office/ASSETS.md).
 
 Developer records: [development log](docs/DEVELOPMENT_LOG.md),
 [Claude Code continuation prompt](docs/CLAUDE_HANDOFF.md),
@@ -52,7 +53,8 @@ src/
   world/
     world.js            Three.js scene: camera, lights, orbit, picking
     building.js         generates both floors, signage, temporary furniture and the shared nav graph
-    people.js           low-poly figures that walk the nav graph
+    people.js           navigation and behavior with async character replacement
+    character-visuals.js licensed business models, shared resources and animation
     fx.js               product props, clue markers, trails, containment visuals
   ui/
     overlay.js          DOM overlay: HUD, deploy tray, inspect card, feed, Sophia, end/replay
@@ -65,7 +67,8 @@ assets/brand/           official logo images and recorded sources
 tools/                  static server, engine tests and browser tests
 ```
 
-Rendering uses **Three.js r160** with temporary procedural geometry for performance on laptops/tablets.
+Rendering uses **Three.js r160**, batched procedural office geometry and locally bundled
+animated GLB business characters.
 The library is vendored locally (no CDN), so the app loads fast and works offline.
 
 ## Test (headless)

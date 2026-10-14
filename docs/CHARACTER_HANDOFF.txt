@@ -1,0 +1,47 @@
+Continue Sentinel: Defend the Tower from the office-character integration changes.
+Read docs/DEVELOPMENT_LOG.md, docs/CLAUDE_HANDOFF.md, ART_DIRECTION.md and
+assets/models/office/ASSETS.md before editing.
+
+The game now uses two locally bundled Adobe Mixamo business characters, Josh and
+Martha, with independent idle, in-place walking and seated typing animation.
+Keep the current command UI, official product marks, Solvia panda, bilingual game
+localization, whole-tower cutaway and existing mission/response/recovery behavior.
+
+Character architecture:
+- src/world/character-visuals.js loads and validates local GLBs, normalizes standing
+  height and floor offset, clones skeletons, shares render resources and crossfades
+  idle/walk/work actions. There is no Adobe dependency at runtime.
+- src/world/people.js continues to own navigation and behavior. Async replacement
+  preserves each existing navigation group, personId, position, route and FX
+  references. Animation offsets must never modify navigation coordinates.
+- src/main.js starts without waiting for assets and applies them to the current
+  people instance without rebuilding the mission. Partial downloads use the
+  available character; complete failure leaves procedural fallback figures.
+- Shared character meshes are excluded from stage resource disposal on restart.
+  Per-instance mixers and skeleton bone textures are disposed separately.
+- tools/convert-mixamo.py rebuilds game-ready GLBs from authorized local FBX
+  downloads using bpy 4.2.23 and Pillow. Raw source downloads stay outside Git.
+- npm run test:characters covers delayed assets, preserved setup purchases and
+  entity identity, real animation poses, feet grounding, navigation drift,
+  cross-floor movement, zero-delta pause, restart resource sharing, EN/ZH and
+  partial/complete asset failure. It is also included in npm test.
+
+Next art milestone:
+Build one coherent realistic office sample around these characters: ergonomic
+chairs, correctly scaled desks/monitors, plausible carpet/wood/glass materials and
+contact lighting. Judge it in the actual browser close-up before propagating it.
+Do not replace textured business staff with generated spheres or block figures.
+Do not claim that new characters make the current procedural office photorealistic.
+Keep trademark images unchanged and use them as decals rather than invented marks.
+
+Performance:
+Use hardware WebGL when reporting FPS, and identify the renderer, viewport, DPR,
+camera and scene. Software WebGL is acceptable for functional browser tests only.
+Preserve material/geometry sharing and the existing static scene batching. Do not
+dispose library textures during mission restart or animate hidden NPCs needlessly.
+Keep office characters near the current per-character 12k-triangle/two-mesh budget.
+
+Run npm ci and npm test. Check actual canvas interactions on both floors, EN/ZH,
+mission completion, recovery, report, replay and mobile. Record precise evidence,
+asset provenance, remaining limitations and deployment status in English. Never
+commit credentials, account identifiers, auth state or temporary download URLs.

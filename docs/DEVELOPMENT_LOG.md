@@ -397,3 +397,83 @@ environment (software WebGL is not representative), so only backend-independent 
 reported. A human acceptance play-test on event hardware remains recommended.
 
 
+
+
+## 2026-10-14 ? Textured business characters and local animation pipeline
+
+### Problem and result
+
+The office still used figures assembled from spheres/capsules, which did not support
+close-up business scenes. Replaced their default visuals with two reviewed Adobe Mixamo
+business characters, Josh and Martha, while keeping the mainline whole-tower cutaway,
+command UI, official artwork, EN/ZH and all existing gameplay. The baseline is `f87b4a5`;
+this work does not revert the merged performance/gameplay release.
+
+![Textured business characters in the actual game](screenshots/office-characters-en.png)
+
+![Seated typing at the existing office desks](screenshots/office-work-en.png)
+
+### Asset production
+
+- Acquired two matching business rigs and per-character Breathing Idle, in-place Walking
+  and Typing motion. Source names, settings and usage references are recorded in
+  `assets/models/office/ASSETS.md`; original FBX downloads stay outside the repository.
+- Added a reproducible Blender Python/Pillow converter. It merges compatible pieces,
+  validates skeleton compatibility, creates named NLA clips and reduces each character
+  to approximately 12k triangles, two material meshes and 52 bones.
+- Embedded optimized color/normal/cutout textures and adjusted legacy shiny materials to
+  neutral cloth-like roughness. Runtime GLBs total 4,542,108 bytes (4.33 MiB); the two
+  original skinned downloads alone were over 100 MiB.
+- This is licensed stock art with realistic proportions and textures. It is not custom
+  modeling, photogrammetry, a complete office kit or a claim of finished photorealism.
+
+### Integration and lifecycle
+
+- Local GLBs load asynchronously without blocking start controls. Replacing a temporary
+  visual preserves the existing navigation group, entity identity, route, purchases,
+  engine state and FX references. No mission rebuild occurs when a download completes.
+- Separate mixers crossfade idle/walk/work, scale walking cadence with navigation speed
+  and freeze at zero simulation delta. Sitting retains the source motion's floor contact.
+- Normalize standing height and sole offset from reviewed model bounds instead of the
+  removed CesiumMan-specific scale/rotation assumptions. Animation does not modify nav
+  coordinates, including during cross-floor travel.
+- Share geometry/material/texture resources between NPCs and game resets. Release old
+  per-instance skeleton textures and mixer bindings; stage cleanup skips library meshes.
+- A partially available library uses the loaded rig; total asset failure retains the
+  procedural fallback. The game never calls Adobe or another asset service at runtime.
+
+### Validation
+
+The dedicated character browser suite passed delayed downloads without lost setup state,
+real idle/walk/work poses, seated feet grounding, stationary navigation coordinates,
+cross-floor arrival, zero-delta pause, repeated restart without disposing shared resources,
+EN/ZH and partial/complete asset failure. It is included in `npm test` as well as exposed
+through `npm run test:characters`.
+
+The existing 18 engine groups, smoke outcomes and full UI suite passed, including actual
+canvas placement on both floors, recovery, pause, debrief, report, replay, mobile and
+local-only requests. The full `npm test` command completed successfully with all four
+stages (engine, smoke, UI and characters). `git diff --check` also passed. Release status
+is recorded separately below.
+
+A controlled hardware-WebGL comparison used the same Intel Iris Xe Direct3D11 browser,
+1440?900 viewport, DPR 1, camera `(2,5.5,40)`, target `(-0.5,-1.3,-2.2)`, setup phase,
+stationary staff and a 180-frame foreground sample after warmup:
+
+| Version | Mean FPS | Median frame interval | p95 interval | Draw calls | Triangles |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Mainline `f87b4a5`, procedural staff | 47.2 | 20.9 ms | 25.1 ms | 377 | 125,936 |
+| Textured business staff | 45.5 | 20.9 ms | 33.3 ms | 244 | 136,925 |
+
+This short sample shows lower draw-call count and a small mean frame-rate cost, with a
+worse p95; it does not establish a universal performance improvement or a 60 FPS guarantee.
+Software-WebGL functional test runs are not used to report FPS. Screenshots were inspected
+on the hardware renderer after the cloth-material correction.
+
+### Handoff and remaining art
+
+`docs/CHARACTER_HANDOFF.txt` is the current English continuation prompt. The main handoff,
+README and art direction now describe the active asset pipeline. Furniture/interiors,
+more character variety and authored chair-entry transitions remain open. The current
+procedural desks/chairs/plants still limit close-up scene fidelity. Existing stable
+endpoint IDs, official marks and local helper behavior are preserved.

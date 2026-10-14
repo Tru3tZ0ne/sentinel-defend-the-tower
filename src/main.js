@@ -12,18 +12,13 @@ import { createAmbience } from './world/audio.js';
 import { buildBuilding } from './world/building.js';
 import { createFx } from './world/fx.js';
 import { createPeople } from './world/people.js';
-import { GLTFLoader } from './vendor/three/GLTFLoader.js';
-
-// Procedural characters remain a temporary fallback until realistic office assets pass QA.
-// Keep the GLB pipeline available for reviewed, licensed and animated characters.
-const USE_GLB_CHARACTERS = false;
-const CHAR_MODEL = 'assets/models/CesiumMan.glb';
-let charGltf = null;
-if (USE_GLB_CHARACTERS) new GLTFLoader().load(CHAR_MODEL, g => { charGltf = g; }, undefined, () => { charGltf = null; });
+import { loadOfficeCharacters } from './world/character-visuals.js';
 import { Engine } from './game/engine.js';
 import { getHint } from './game/sophia.js';
 import { icon } from './ui/icons.js';
 import { createOverlay } from './ui/overlay.js';
+
+let characterTemplates = [];
 
 const canvas = document.getElementById('scene');
 const overlayRoot = document.getElementById('overlay');
@@ -91,8 +86,10 @@ function replayHidden() { return false; }
 function initStage() {
   if (stage) {
     clearHighlight();
+    people?.dispose();
     const geometries = new Set(), materials = new Set(), textures = new Set();
     stage.traverse(o => {
+      if (o.userData.sharedCharacterAsset) return;
       if (o.geometry) geometries.add(o.geometry);
       for (const m of (Array.isArray(o.material) ? o.material : o.material ? [o.material] : [])) {
         materials.add(m);
@@ -107,7 +104,7 @@ function initStage() {
   building = buildBuilding(THREE, LAYOUT); stage.add(building.group);
   for (const floor of building.floors) floor.group.visible = true;   // whole-tower cutaway: all floors on screen
   fx = createFx(stage, building);
-  people = createPeople(stage, building, publicByLevel[LAYOUT.defaultLevel], charGltf);
+  people = createPeople(stage, building, publicByLevel[LAYOUT.defaultLevel], characterTemplates);
   // Visitor lanyards are worn by a couple of staff too, so the badge never gives the intruder away.
   const lanyard = new Set(['e1', 'e4']);
   for (const e of EMPLOYEES) people.add({ id: e.id, startNode: 'room:' + e.home, role: 'employee', home: e.home, visitor: lanyard.has(e.id), allowed: publicByLevel[roomLevel.get(e.home)] });
@@ -591,7 +588,14 @@ overlay.showStart();
 overlay.setPhase('start');
 requestAnimationFrame(frame);
 
+// Loading assets never resets the mission or blocks the start controls.
+const charactersReady = loadOfficeCharacters().then(templates => {
+  characterTemplates = templates;
+  people.setTemplates(templates);
+  return templates.map(template => template.id);
+});
+
 // expose for headless testing
-window.__sentinel = { get engine() { return engine; }, get building() { return building; }, get people() { return people; }, newGame, beginDay, world,
+window.__sentinel = { get engine() { return engine; }, get building() { return building; }, get people() { return people; }, newGame, beginDay, world, charactersReady,
   inspect(e) { inspectTarget = e; renderInspect(); const p = entityFloorPoint(e); if (p) fx.setSelection(p); },
   focusClue };

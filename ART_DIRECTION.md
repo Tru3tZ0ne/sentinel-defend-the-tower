@@ -14,8 +14,8 @@ Solvia replaces the former Sophia concept and reference-derived human portrait.
 
 The scene has cool exterior fill, warm interior strips, glass mullions, tile/carpet/wood
 surface maps, detailed rack fronts, desk accessories and instanced plant foliage.
-Screen-facing room placards disappear in close views. Procedural people and furniture
-remain placeholders; the reference image's realism is not achieved by this iteration.
+Screen-facing room placards disappear in close views. Textured Mixamo business characters now replace procedural people; furniture
+remains a placeholder; the reference image's realism is not achieved by this iteration.
 
 - Use natural office finishes: oak, painted steel, mesh upholstery, glass and neutral carpet.
 - Keep security evidence distinct through small, contextual color accents.
@@ -26,7 +26,9 @@ remain placeholders; the reference image's realism is not achieved by this itera
 - Do not enable the bundled soldier or generic mannequin as final office staff.
 - Do not introduce live vendor dependencies or account credentials into the static runtime.
 
-Asset production is deferred. See [the handoff](docs/CLAUDE_HANDOFF.md) for integration requirements.
+Business character production has resumed with two reviewed Mixamo rigs and three motions each.
+See [character provenance](assets/models/office/ASSETS.md) and
+[the character handoff](docs/CHARACTER_HANDOFF.txt). Furniture/interior production remains open.
 
 ## Historical direction (2026-10-13, superseded): premium stylized
 After evaluating realistic 3D (GTA-style): free, license-clean, business-attired realistic

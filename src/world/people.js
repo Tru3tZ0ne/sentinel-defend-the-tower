@@ -1,51 +1,26 @@
-// People. Prefers a realistic rigged+animated GLB model (set via `charGltf`); falls back to
-// a clean procedural figure if the model isn't available. Movement/nav/behaviour are identical
-// either way — only the visual + animation differ. The GLB model path is configurable in
-// main.js so a licensed business-character pack can be dropped in later.
+// Navigation and behavior are independent of character visuals. Reviewed office
+// characters load asynchronously; procedural figures keep the game usable on failure.
 import * as THREE from 'three';
-import { clone as skeletonClone } from '../vendor/three/SkeletonUtils.js';
+import { createCharacterVisual, updateCharacterVisual, disposeCharacterVisual } from './character-visuals.js';
 import { findPath } from './building.js';
 
-// per-person tint (subtle variety over a single base model)
-const TINTS = [0xffffff, 0xe9e2d6, 0xd9e0ea, 0xe7dede, 0xdfe7de, 0xeae2ee, 0xe0e6ea];
 // fallback procedural palettes
 const SKIN = [0xf1c9a5, 0xe6b48c, 0xc68642, 0x9c6b3f, 0xffd9b3, 0x7a4a26];
 const HAIR = [0x23201e, 0x4a2f1b, 0x6b4a2a, 0x121212, 0x9a9a9a, 0x3a2b24, 0xb5884f];
 const SHIRTS = [0x485569, 0x65716f, 0x6f777c, 0x535c68, 0x466571, 0x77776d, 0x586a78, 0x666c76, 0x4b5663];
 const PANTS = [0x2f3a56, 0x3a3f4a, 0x4a3b2f, 0x2b3b3b, 0x394150];
 
-export function createPeople(scene, building, publicNodes, charGltf) {
+export function createPeople(scene, building, publicNodes, templates = []) {
   const nav = building.nav;
   const list = [];
 
-  // ---- precompute GLB template transform ----
-  let glb = null;
-  if (charGltf && charGltf.scene) {
-    // CesiumMan renders ~1.2u native; normalise to ~1.5u. (Skinned auto-bbox is unreliable.)
-    glb = { scale: 1.25, yOffset: 0, faceY: Math.PI, animations: charGltf.animations || [] };
-  }
+  let characterTemplates = templates;
 
   const mat = (c, rough = 0.62) => new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: 0.02 });
   const box = (w, hh, d, m) => { const x = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), m); x.castShadow = true; return x; };
   const ball = (r, m, seg = 16) => { const x = new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg), m); x.castShadow = true; return x; };
   // smooth capsule limb (premium-stylized, not blocky)
   const cap = (r, len, m) => { const x = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 6, 14), m); x.castShadow = true; return x; };
-
-  // ---------- GLB figure ----------
-  function makeGLB(seed) {
-    const root = new THREE.Group();
-    const model = skeletonClone(charGltf.scene);
-    model.scale.setScalar(glb.scale);
-    model.position.y = glb.yOffset;
-    model.rotation.y = glb.faceY;
-    const tint = new THREE.Color(TINTS[seed % TINTS.length]);
-    model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; o.material = o.material.clone(); if (o.material.color) o.material.color.multiply(tint); } });
-    root.add(model);
-    const mixer = new THREE.AnimationMixer(model);
-    const clip = glb.animations.find(a => /walk/i.test(a.name)) || glb.animations[0];
-    const action = clip ? mixer.clipAction(clip) : null; if (action) { action.play(); action.paused = true; }
-    return { root, mixer, action, isGLB: true };
-  }
 
   // ---------- premium stylized figure (original art: smooth rounded forms) ----------
   function makeFigure(seed, visitor) {
@@ -93,7 +68,7 @@ export function createPeople(scene, building, publicNodes, charGltf) {
 
   function add({ id, startNode, role, visitor, home, allowed }) {
     const seed = list.length + (role === 'intruder' ? 4 : 0);
-    const fig = glb ? makeGLB(seed) : makeFigure(seed, visitor);
+    const fig = characterTemplates.length ? createCharacterVisual(characterTemplates[seed % characterTemplates.length], seed) : makeFigure(seed, visitor);
     const start = nav.nodes.get(startNode) || nav.nodes.get('room:' + home) || [...nav.nodes.values()][0];
     fig.root.position.copy(start.pos);
     fig.root.userData = { kind: 'person', personId: id };
@@ -154,18 +129,9 @@ export function createPeople(scene, building, publicNodes, charGltf) {
 
       // Animation offsets must never feed back into simulation/navigation coordinates.
       p.group.position.copy(p.pos);
-      if (p.fig.isGLB) animateGLB(p, dt, moving);
+      if (p.fig.isGLB) updateCharacterVisual(p.fig, dt, p.pose, p.speed, p.group.visible);
       else animateProc(p, dt, tnow, moving, working);
     }
-  }
-
-  function animateGLB(p, dt, moving) {
-    const f = p.fig;
-    if (f.action) {
-      if (moving) { f.action.paused = false; f.mixer.update(dt * (0.6 + p.speed)); }
-      else { f.action.paused = true; f.action.time = 0.0; f.mixer.update(0); }  // settle to a standing frame
-    }
-    f.root.position.y = p.pos.y;
   }
 
   function animateProc(p, dt, tnow, moving, working) {
@@ -191,5 +157,29 @@ export function createPeople(scene, building, publicNodes, charGltf) {
     }
   }
 
-  return { list, add, setRoute, update, get: id => list.find(p => p.id === id) };
+  function setTemplates(templates) {
+    if (!templates.length) return;
+    characterTemplates = templates;
+    for (const p of list) {
+      const previous = p.fig;
+      const next = createCharacterVisual(templates[p.seed % templates.length], p.seed);
+      // Keep the navigation group and any FX references stable during async loading.
+      if (previous.isGLB) disposeCharacterVisual(previous);
+      else {
+        const geometries = new Set(), materials = new Set();
+        previous.root.traverse(o => {
+          if (o.geometry) geometries.add(o.geometry);
+          if (o.material) materials.add(o.material);
+        });
+        geometries.forEach(g => g.dispose());
+        materials.forEach(m => m.dispose());
+      }
+      p.group.clear();
+      for (const child of [...next.root.children]) p.group.add(child);
+      next.root = p.group;
+      p.fig = next;
+    }
+  }
+  function dispose() { list.forEach(p => disposeCharacterVisual(p.fig)); }
+  return { list, add, setRoute, update, setTemplates, dispose, get: id => list.find(p => p.id === id) };
 }

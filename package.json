@@ -6,10 +6,11 @@
   "type": "module",
   "scripts": {
     "serve": "node tools/serve.mjs",
-    "test": "node --test tools/engine.test.mjs && node tools/smoke.mjs && node tools/ui.test.mjs",
+    "test": "node --test tools/engine.test.mjs && node tools/smoke.mjs && node tools/ui.test.mjs && node tools/characters.test.mjs",
     "test:engine": "node --test tools/engine.test.mjs",
     "test:smoke": "node tools/smoke.mjs",
-    "test:ui": "node tools/ui.test.mjs"
+    "test:ui": "node tools/ui.test.mjs",
+    "test:characters": "node tools/characters.test.mjs"
   },
   "devDependencies": {
     "playwright": "^1.47.0"
