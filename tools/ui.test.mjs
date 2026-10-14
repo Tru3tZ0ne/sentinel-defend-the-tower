@@ -36,6 +36,11 @@ try {
   assert.equal(await page.evaluate(() => window.__sentinel.engine.budget), 22);
   assert.equal(await page.evaluate(() => window.__sentinel.engine.inc.id), 'storm');
   await settleCamera();
+  assert.equal(await page.locator('.sophia-id b').textContent(), 'Solvia');
+  assert.ok(await page.locator('.sophia-portrait').evaluate(img => img.complete && img.naturalWidth === 200));
+  assert.ok(await page.locator('.family-logo').first().evaluate(img => img.complete && img.naturalWidth > 0));
+  assert.equal(await page.locator('.pcard .product-mark').count(), 7);
+  assert.ok(await page.locator('.pcard .product-mark').evaluateAll(images => images.every(img => img.complete && img.naturalWidth > 0)), 'every defense product must load its official artwork');
   const characterState = await page.evaluate(() => {
     const s = window.__sentinel, p = s.people.get('e1'); p.wander = false; p.halted = false;
     s.people.setRoute(p, p.currentNode.startsWith('desk:') ? 'room:office' : 'desk:office#2');
@@ -45,6 +50,14 @@ try {
   });
   assert.ok(characterState.drift < .001 && Math.abs(characterState.height - .05) < .001, 'walking animation must not drift above the floor');
   await click('[data-act="tab"][data-tab="cloud"]');
+  await page.waitForFunction(() => [...document.querySelectorAll('.operation-head .product-mark')].filter(img => img.complete && img.naturalWidth > 0).length === 4);
+  await click('[data-act="operation"][data-id="HCI"]');
+  await page.waitForFunction(() => window.__sentinel.engine.budget === 18);
+  await click('[data-act="undoSetup"]');
+  await page.waitForFunction(() => window.__sentinel.engine.budget === 22 && !window.__sentinel.engine.operations.has('HCI'));
+  await click('[data-act="operation"][data-id="ADC"]');
+  await click('[data-act="resetSetup"]');
+  await page.waitForFunction(() => window.__sentinel.engine.budget === 22 && !window.__sentinel.engine.operations.size);
   for (const id of ['HCI', 'ADC', 'SASE', 'AICP']) {
     await click(`[data-act="operation"][data-id="${id}"]`);
     await page.waitForFunction(id => window.__sentinel.engine.operations.has(id), id);
@@ -84,7 +97,7 @@ try {
   assert.equal(await page.locator('[data-act="operation"][data-id="HCI"]').isDisabled(), true);
   await page.evaluate(() => {
     const g = window.__sentinel.engine;
-    const afterRansom = g.inc.beats.find(b => b.act === 'ransom').t + 12 + .5;
+    const afterRansom = g.inc.beats.find(b => b.act === 'ransom').t + 12 + 4 + .5;
     while (g.time < afterRansom && !g.ended) g.tick(.1);
   });
   assert.equal(await page.evaluate(() => window.__sentinel.engine.lockedRooms.size), 0);

@@ -60,7 +60,9 @@ test('SASE rejects remote access, leaves evidence and forces a slower route', ()
   const event = g.log.find(e => e.act === 'remote');
   assert.ok(event.blocked && event.visible); assert.equal(g.delay, 12);
   assert.equal(g.intruder.room, 'reception');
-  advanceTo(g, 33); assert.equal(g.intruder.room, 'l2-finance');
+  advanceTo(g, 33); assert.equal(g.intruder.room, 'office'); assert.equal(g.intruder.desk, 'office#2');
+  assert.ok(g.log.some(e => e.kind === 'branch' && e.route === 'local-office'));
+  assert.equal(MISSIONS.robber.beats.find(b => b.act === 'foothold').room, 'l2-finance');
   const unprotected = game('robber'); unprotected.deploy('NDR'); unprotected.beginDay(); advanceTo(unprotected, 10);
   assert.ok(unprotected.log.find(e => e.act === 'remote' && e.visible));
 });
@@ -75,7 +77,7 @@ test('snapshot recovery needs advance preparation and works for both ransomware 
 
 test('helper recovers prepared snapshots and never fabricates external AI results', () => {
   const g = game('robber'); g.budget = 99; g.deployOperation('AICP'); g.deploy('ASTOR'); g.setHelperRule('recover');
-  g.beginDay(); advanceTo(g, 60);
+  g.beginDay(); advanceTo(g, 66);
   assert.equal(g.lockedRooms.size, 0);
   assert.equal(g.log.filter(e => e.action === 'recover').length, 2);
   const notify = game(); notify.budget = 99; notify.deployOperation('AICP'); notify.deploy('AF'); notify.deploy('EDR', 'office#2'); notify.deploy('XDR');
@@ -88,6 +90,8 @@ test('containment does not erase existing ransomware; recovery remains playable'
   assert.ok(g.lockdownRoom('server').contained);
   assert.equal(g.phase, 'incident'); assert.ok(g.lockedRooms.has('server'));
   assert.ok(g.recover('server').ok); g.tick(.1);
+  assert.equal(g.phase, 'incident'); assert.ok(g.lockedRooms.has('server'));
+  advanceTo(g, 50);
   assert.equal(g.outcome.kind, 'contained'); assert.equal(g.lockedRooms.size, 0);
   const incomplete = game('robber'); incomplete.inc.duration = 45;
   incomplete.beginDay(); advanceTo(incomplete, 44); incomplete.lockdownRoom('server'); advanceTo(incomplete, 46);
@@ -95,9 +99,49 @@ test('containment does not erase existing ransomware; recovery remains playable'
   assert.equal(incomplete.outcome.verdict, 'partial');
 });
 
+test('setup undo refunds mixed purchases and cannot change a live incident', () => {
+  const g = game(); const budget = g.budget;
+  g.deploy('EDR','office#2'); g.deployOperation('SASE'); g.deploy('ASTOR');
+  assert.ok(g.astorReady); assert.ok(g.undoSetup().ok); assert.equal(g.astorReady,false);
+  g.undoSetup(); assert.equal(g.operations.has('SASE'),false);
+  g.undoSetup(); assert.equal(g.edrDesks.size,0); assert.equal(g.deployed.length,0);
+  assert.equal(g.budget,budget); assert.equal(g.undoSetup().ok,false);
+  g.deploy('AF'); g.beginDay(); assert.equal(g.undoSetup().ok,false); assert.ok(g.hasAF);
+});
+
+test('restores have a cost, exclusive capacity, cancellation and actual completion', () => {
+  const g = game('robber'); g.budget=99; g.deploy('ASTOR'); g.beginDay(); advanceTo(g,44);
+  const budget=g.budget; assert.ok(g.recover('server').ok); assert.equal(g.budget,budget-2);
+  assert.equal(g.recover('server').ok,false); assert.equal(g.budget,budget-2);
+  g.tick(2); assert.ok(g.lockedRooms.has('server'));
+  assert.ok(g.cancelRecovery('server').ok); assert.equal(g.budget,budget-1);
+  assert.equal(g.cancelRecovery('server').ok,false);
+  assert.ok(g.recover('server').ok); g.tick(6); assert.equal(g.lockedRooms.has('server'),false);
+  assert.equal(g.log.filter(e=>e.action==='recover').length,1);
+  g.lockedRooms.add('server'); g.budget=1; assert.equal(g.recover('server').ok,false);
+  g.budget=3; g.operations.add('HCI'); assert.ok(g.recover('server').ok); g.tick(4);
+  assert.equal(g.lockedRooms.has('server'),false);
+});
+
+test('mission objectives distinguish containment, data, uptime and restoration', () => {
+  const storm=game('storm'); storm.uptime=79; assert.equal(storm.objectives()[2].met,false);
+  const quiet=game(); quiet.uptime=79; assert.equal(quiet.objectives()[2].met,true);
+  const robber=game('robber'); robber.lockedRooms.add('server'); assert.equal(robber.objectives()[2].met,false);
+  assert.equal(robber.objectives()[0].met,false); robber.intruder.contained=true;
+  assert.equal(robber.objectives()[0].met,true); robber.data=10; assert.equal(robber.objectives()[1].met,false);
+});
+
 test('large simulation steps preserve causal ordering and reject nonfinite input', () => {
   const a = game('storm'), b = game('storm'); a.beginDay(); b.beginDay();
   a.tick(NaN); a.tick(Infinity); a.tick(-1); assert.equal(a.time, 0);
   a.tick(30); for (let i = 0; i < 120; i++) b.tick(.25);
   assert.equal(a.uptime, b.uptime); assert.equal(a.beatIndex, b.beatIndex); assert.equal(a.budget, b.budget);
+});
+
+// Cancellation is an operator override: the local helper must not spend the refund again.
+test('cancelled helper recovery waits for a manual restart', () => {
+  const g=game('robber'); g.budget=99; g.deploy('ASTOR'); g.deployOperation('AICP'); g.setHelperRule('recover');
+  g.beginDay(); advanceTo(g,44); assert.ok(g.recoveryJobs.has('server'));
+  g.cancelRecovery('server'); g.tick(1); assert.equal(g.recoveryJobs.size,0);
+  assert.ok(g.lockedRooms.has('server')); assert.ok(g.recover('server').ok);
 });

@@ -100,3 +100,15 @@ product blurbs and level text carry `{ en, zh }` fields in `src/data/`.
 Official Sangfor logo images are recorded in `assets/brand/ASSETS.md` and used unchanged.
 The green UI accents are approximate; confirm exact numeric palette values against
 official brand guidelines before final brand approval.
+
+
+### Current command interface
+
+The reference-led dark interface uses official Sangfor/Athena/Cloud assets and the Solvia
+panda guide. Setup supports full-refund undo/reset. SASE changes the next foothold route;
+snapshot restoration costs 2 credits and takes 6 seconds (4 with HCI), with progress and
+cancellation. Mission objectives and English reports expose actual outcomes.
+
+See [the development record](docs/DEVELOPMENT_LOG.md) and
+[Claude continuation prompt](docs/CLAUDE_HANDOFF.md). Procedural scene assets remain
+intermediate placeholders; realistic character and furniture production is deferred.

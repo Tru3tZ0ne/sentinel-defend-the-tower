@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { setLang, getLang, loc, t } from './i18n.js';
 import { LAYOUT, EMPLOYEES } from './data/scenario.js';
 import { PRODUCTS } from './data/products.js';
+import { productMark } from './ui/product-marks.js';
 import { missionFor } from './data/missions.js';
 import { createWorld } from './world/world.js';
 import { createAmbience } from './world/audio.js';
@@ -53,7 +54,7 @@ function setActiveLevel(id, moveCamera = true) {
   activeLevel = id;
   for (const f of building.floors) f.group.visible = (f.id === id);
   const lvl = LAYOUT.levels.find(l => l.id === id);
-  if (moveCamera && world.focusOn) world.focusOn(new THREE.Vector3(-0.5, (lvl?.y || 0) + 0.4, -1), 50);
+  if (moveCamera && world.focusOn) world.focusOn(new THREE.Vector3(-0.5, (lvl?.y || 0) + 0.4, -1), 42);
   if (overlay) overlay.renderFloors(building.floors, activeLevel);
 }
 function updatePeopleFloorVis() {
@@ -92,8 +93,13 @@ function initStage() {
   for (const e of EMPLOYEES) people.add({ id: e.id, startNode: 'room:' + e.home, role: 'employee', home: e.home, visitor: lanyard.has(e.id), allowed: publicByLevel[roomLevel.get(e.home)] });
   const intr = people.add({ id: 'intruder', startNode: 'entrance', role: 'intruder', visitor: true });
   intr.group.visible = false; intr.wander = false; intr._entered = false;
-  // Room identity now comes from in-world signage + furniture (no floating DOM labels).
+  // Screen-facing architectural placards stay readable at the command-view distance.
   labelEls.clear(); if (overlay?.els?.labels) overlay.els.labels.innerHTML = '';
+  for (const r of LAYOUT.rooms) {
+    const el = document.createElement('div'); el.className = 'room-placard';
+    el.innerHTML = `${icon(roomIcon(r.type))}<span><b>${esc(loc(r.name))}</b><small>${t('placard.' + r.type)}</small></span>`;
+    overlay.els.labels.appendChild(el); labelEls.set(r.id, el);
+  }
 }
 
 // ---------- helpers ----------
@@ -229,7 +235,7 @@ function applyCoverage(sweep) {
 
 function coverageHtml(cover) {
   if (!cover.length) return `<div class="cover none">${icon('attacker')} ${t('inspect.noCoverage')}</div>`;
-  return `<div class="cover-list">${cover.map(c => `<span class="cover-pill ${c}">${icon(c === 'af' ? 'af' : c === 'ndr' ? 'ndr' : c === 'edr' ? 'edr' : c === 'iag' ? 'iag' : c === 'xdr' ? 'xdr' : 'astor')} ${t('cover.' + c)}</span>`).join('')}</div>`;
+  return `<div class="cover-list">${cover.map(c => `<span class="cover-pill ${c}">${productMark(c.toUpperCase())} ${t('cover.' + c)}</span>`).join('')}</div>`;
 }
 function inspectRoom(roomId) {
   const r = LAYOUT.rooms.find(x => x.id === roomId); if (!r) return '';
@@ -239,7 +245,9 @@ function inspectRoom(roomId) {
   const inc = engine.phase === 'incident';
   const deskCount = [...building.desks.values()].filter(d => d.roomId === roomId && d.deskMesh).length;
   const actions = [];
-  if (inc && locked) actions.push(`<button class="actbtn good" data-act="recover" data-room="${roomId}">${icon('astor')}<span>${t('act.restore')}</span></button>`);
+  const recovery = engine.recoveryJobs.get(roomId);
+  if (inc && locked && !recovery) actions.push(`<button class="actbtn good" data-act="recover" data-room="${roomId}" ${!engine.astorReady || engine.budget < 2 || engine.recoveryJobs.size ? 'disabled' : ''}>${icon('astor')}<span>${t('recovery.offer', { seconds: engine.operations.has('HCI') ? 4 : 6 })}</span></button>`);
+  if (recovery) actions.push(`<div class="recovery-status"><span>${t('recovery.progress', { seconds: Math.ceil(recovery.duration - recovery.elapsed) })}</span><progress max="${recovery.duration}" value="${recovery.elapsed}"></progress><button class="linklike" data-act="cancelRecovery" data-room="${roomId}">${t('recovery.cancel')}</button></div>`);
   if (inc && !locked) actions.push(`<button class="actbtn" data-act="lockdown" data-room="${roomId}">${icon('lock')}<span>${t('act.restrict')}</span></button>`);
   return `
     <div class="ins-head"><h3>${icon(roomIcon(r.type))} ${loc(r.name)}</h3><span class="ins-sub">${loc(level?.name)}</span></div>
@@ -320,9 +328,9 @@ function updateLabels() {
   for (const [id, el] of labelEls) {
     const r = building.rooms.get(id); if (!r) continue;
     _v.copy(r.center); _v.y += 1.7; _v.project(world.camera);
-    const vis = _v.z < 1 && _v.x > -1 && _v.x < 1 && _v.y > -1 && _v.y < 1;
+    const vis = r.level === activeLevel && engine && !engine.ended && _v.z < 1 && _v.x > -1 && _v.x < 1 && _v.y > -1 && _v.y < 1 && world.camera.position.distanceTo(world.controls.target) > 20;
     if (!vis) { el.style.display = 'none'; continue; }
-    el.style.display = 'block';
+    el.style.display = 'flex';
     el.style.left = ((_v.x * 0.5 + 0.5) * canvas.clientWidth) + 'px';
     el.style.top = ((-_v.y * 0.5 + 0.5) * canvas.clientHeight) + 'px';
     const locked = engine && engine.lockedRooms.has(id);
@@ -341,6 +349,7 @@ function newGame(missionId = selectedMission, difficulty = selectedDifficulty) {
   engine
     .on('change', () => { dirty = true; })
     .on('deploy', ({ product, target }) => { fx.addProp(product, target); applyCoverage(coveredRooms(product, target)); dirty = true; firstDeploy(); })
+    .on('undo', ({ product, target }) => { if (product) fx.removeProp(product, target); applyCoverage(); dirty = true; })
     .on('operation', ({ product, room }) => {
       fx.scanWave(room); overlay.toast({ kind: 'good', key: 'toast.deployed', product }); dirty = true;
     })
@@ -438,6 +447,9 @@ overlay = createOverlay(overlayRoot, {
   onIsolate: desk => { engine.isolateDevice(desk); renderInspect(); },
   onLockdown: room => { engine.lockdownRoom(room); renderInspect(); },
   onRecover: room => { engine.recover(room); renderInspect(); },
+  onCancelRecovery: room => { engine.cancelRecovery(room); renderInspect(); },
+  onUndoSetup: () => { engine.undoSetup(); placing = null; clearHighlight(); },
+  onResetSetup: () => { while (engine.phase === 'prep' && engine.planHistory.length) engine.undoSetup(); placing = null; clearHighlight(); },
   onSophiaMore: () => { sophiaState.expanded = true; reflowSophia(); },
   onSophiaShow: () => { const f = sophiaFocusPoint(sophiaState.id); if (f) { world.focusOn(f.clone().setY(f.y + 1), 14); fx.setSelection(f); } sophiaState.expanded = true; reflowSophia(); },
   onFocusClue: id => focusClue(id),
@@ -462,7 +474,7 @@ overlay = createOverlay(overlayRoot, {
     const report = { schemaVersion: 1, mission: engine.inc.name.en, difficulty: engine.inc.difficulty,
       outcome: engine.outcome.kind, score: engine.score, uptime: Math.round(engine.uptime), dataIntegrity: engine.data,
       remainingCredits: engine.budget, operations: [...engine.operations], helperRule: engine.helperRule,
-      lockedRooms: [...engine.lockedRooms], deployed: engine.deployed,
+      lockedRooms: [...engine.lockedRooms], deployed: engine.deployed, objectives: engine.objectives(),
       events: engine.log.map(event => ({ ...event, ...(event.truth ? { truth: event.truth.en } : {}) })) };
     const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }));
     const link = document.createElement('a'); link.href = url; link.download = 'sentinel-session.json'; link.click();
@@ -477,8 +489,12 @@ overlay = createOverlay(overlayRoot, {
 
 function refreshAll() {
   if (building?.refreshSigns) building.refreshSigns();   // re-draw in-world signage in the new language
+  for (const r of LAYOUT.rooms) {
+    const el = labelEls.get(r.id); if (el) el.innerHTML = `${icon(roomIcon(r.type))}<span><b>${esc(loc(r.name))}</b><small>${t('placard.' + r.type)}</small></span>`;
+  }
   if (!engine) { overlay.showStart(); return; }
   if (engine.phase === 'review') { overlay.showEnd(engine); return; }
+  overlay.setPhase(engine.phase);
   overlay.renderFloors(building.floors, activeLevel);
   overlay.renderHud(engine); overlay.renderTray(engine, placing); overlay.renderFeed(engine); reflowSophia(); renderInspect();
   if (engine.phase === 'prep') overlay.setEvent(null, true); else overlay.setEvent(lastEvent, false);
@@ -497,6 +513,7 @@ function frame(now) {
   if (fx) fx.update(dt);
   if (people && building) updatePeopleFloorVis();
   world.render();
+  updateLabels();
   requestAnimationFrame(frame);
 }
 

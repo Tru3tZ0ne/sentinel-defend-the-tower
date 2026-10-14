@@ -150,6 +150,14 @@ export function createFx(scene, building) {
   }
 
   const PROD_COLOR = { AF: 0xff3b5c, IAG: 0xffc24b, XDR: 0x9a7bff, ASTOR: 0x39c0ff, MDR: 0x3fc5ff, NDR: 0x39c0ff, EDR: 0x39e08a };
+  function removeProp(product, target) {
+    const key = product + ':' + (target || '');
+    const prop = props.get(key); if (prop) { removeEffect(prop); props.delete(key); }
+    if (product === 'EDR') {
+      const screen = building.desks.get(target)?.screen;
+      if (screen) { screen.material.color.setHex(0x6fd6ff); screen.material.emissive.setHex(0x6fd6ff); }
+    }
+  }
   function propAnchor(productId, target) {
     if (productId === 'EDR') { const dp = deskPos(target); return dp ? dp.clone().setY(dp.y - 0.6) : null; }
     const a = building.anchors[productId];
@@ -296,7 +304,7 @@ export function createFx(scene, building) {
     // per-room light dimming toward target (blind spots fall dark, covered rooms stay lit)
     for (const r of building.rooms.values()) { const l = r.light; if (l && l.userData.target != null) l.intensity += (l.userData.target - l.intensity) * Math.min(1, dt * 3); }
     // coverage grids: scroll + pulse
-    for (const m of scanFields.values()) { if (!m.visible) continue; m.material.map.offset.y = (m.material.map.offset.y + dt * 0.25) % 1; m.material.opacity = 0.1 + Math.sin(now * 0.004) * 0.05; }
+    for (const m of scanFields.values()) { if (!m.visible) continue; m.material.map.offset.y = (m.material.map.offset.y + dt * 0.08) % 1; m.material.opacity = 0.025 + Math.sin(now * 0.004) * 0.01; }
     // fog-of-war veils: fade toward target, hide when clear
     for (const m of blinds.values()) {
       const tgt = m.userData.target || 0; m.material.opacity += (tgt - m.material.opacity) * Math.min(1, dt * 3);
@@ -330,5 +338,5 @@ export function createFx(scene, building) {
     // animate storage/vault/mdr props gently
   }
 
-  return { addProp, addClue, setClueConfirmed, resolveClue, resolveAllClues, addTrail, lockRoom, restrictRoom, cageDesk, setReveal, clearReveal, setSelection, clearSelection, setHover, drawCorrelation, clearCorrelation, setScan, setBlind, scanWave, clearScans, update, clues };
+  return { addProp, removeProp, addClue, setClueConfirmed, resolveClue, resolveAllClues, addTrail, lockRoom, restrictRoom, cageDesk, setReveal, clearReveal, setSelection, clearSelection, setHover, drawCorrelation, clearCorrelation, setScan, setBlind, scanWave, clearScans, update, clues };
 }

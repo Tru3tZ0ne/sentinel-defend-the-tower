@@ -10,7 +10,13 @@ Legend: [x] done · [~] in progress · [ ] todo
 - [x] Exact-endpoint isolation, valid endpoint checks and recovery after containment
 - [x] EN/ZH mission selection, operation controls, helper rules and debrief
 - [x] Actual-event replay, unfinished-recovery outcome and English JSON report export
-- [x] Daylight scene, restrained workspace UI, close-view/overview controls
+- [x] Reference-led dark command UI, full-width product deck and room placards
+- [x] Official corporate/Athena/Cloud lockups and Solvia panda assistant
+- [x] Setup undo/reset with full refunds and visible coverage removal
+- [x] SASE decision branch changes the next foothold and its endpoint sensor coverage
+- [x] Timed, budgeted snapshot restoration, cancellation and helper override
+- [x] Mission-specific objectives and branch/recovery debrief guidance
+- [x] Close-view/overview controls and textured architectural finishes
 - [x] Floor-aware effects, visible-floor picking and transient-effect disposal
 - [x] Keyboard controls, opt-in synthesized ambience and facilitator notes
 - [x] English development record and Claude Code continuation prompt

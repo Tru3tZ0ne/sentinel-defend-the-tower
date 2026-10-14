@@ -108,11 +108,11 @@ const DICT = {
   'toast.recovered':    { en: 'Room restored from snapshots', zh: '房间已从快照恢复' },
 
   // sophia
-  'sophia.name':  { en: 'Sophia', zh: 'Sophia' },
-  'sophia.role':  { en: 'Your security analyst', zh: '你的安全分析师' },
+  'sophia.name':  { en: 'Solvia', zh: 'Solvia' },
+  'sophia.role':  { en: 'Your tower guide', zh: '你的大厦引导助手' },
   'sophia.more':  { en: 'Tell me more', zh: '再详细些' },
-  'sophia.ask':   { en: 'Ask Sophia', zh: '问 Sophia' },
-  'sophia.greet': { en: "Hi, I'm Sophia. I'll ride along. Tap me whenever a clue, action, or product isn't clear — I'll point you toward something in the building first, then explain if you want.", zh: '你好，我是 Sophia，会一路陪着你。遇到看不懂的线索、操作或产品，点我一下——我会先把你引向楼里的某处，需要时再细说。' },
+  'sophia.ask':   { en: 'Ask Solvia', zh: '问 Solvia' },
+  'sophia.greet': { en: "Hi, I'm Solvia. I'll ride along. Tap me whenever a clue, action, or product isn't clear — I'll point you toward something in the building first, then explain if you want.", zh: '你好，我是 Solvia，会一路陪着你。遇到看不懂的线索、操作或产品，点我一下——我会先把你引向楼里的某处，需要时再细说。' },
 
   // incident panel / deck / tabs / ticker (ops UI)
   'inc.label':      { en: 'ACTIVE INCIDENT', zh: '当前事件' },
@@ -135,10 +135,10 @@ const DICT = {
   'info.astor2':    { en: 'Resilient distributed storage with WORM snapshots.', zh: '带 WORM 快照的坚固分布式存储。' },
   'info.adc':       { en: 'Application delivery & load balancing.', zh: '应用交付与负载均衡。' },
   'info.sase':      { en: 'Secure access for remote branches & users.', zh: '面向远程分支与用户的安全接入。' },
-  'info.aicp':      { en: 'AI infrastructure powering Sophia & Security GPT.', zh: '支撑 Sophia 与 Security GPT 的 AI 基础设施。' },
+  'info.aicp':      { en: 'Infrastructure for AI workloads and local helper rules.', zh: '承载 AI 工作负载与本地助手规则的基础设施。' },
   'info.xdrops':    { en: 'Correlates your sensors into one incident.', zh: '将各传感器关联为同一事件。' },
   'info.mdrops':    { en: '24/7 managed analysts, powered by XDR.', zh: '由 XDR 支撑的 7×24 托管专家。' },
-  'info.gpt':       { en: 'The AI engine behind XDR / MDR & Sophia.', zh: 'XDR / MDR 与 Sophia 背后的 AI 引擎。' },
+  'info.gpt':       { en: 'The AI engine behind Sangfor XDR / MDR.', zh: 'Sangfor XDR / MDR 背后的 AI 引擎。' },
   'ticker.event':   { en: 'EVENT', zh: '事件' },
   'ticker.none':    { en: 'All quiet. Normal business activity.', zh: '一切正常，业务照常运转。' },
   'ticker.ransom':  { en: 'Ransomware locked a room — business uptime is dropping.', zh: '勒索软件锁定了一个房间——业务在线率正在下降。' },

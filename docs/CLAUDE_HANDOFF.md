@@ -1,89 +1,117 @@
 # Claude Code continuation handoff
 
-Start from `feat/architectural-command-gameplay`. Read
-[DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md), [ART_DIRECTION.md](../ART_DIRECTION.md),
-[DESIGN.md](../DESIGN.md) and [TASKS.md](../TASKS.md). Current sections supersede
-historical descriptions of the stylized/night-operations direction.
+Start from `feat/architectural-command-gameplay` and read `docs/DEVELOPMENT_LOG.md`,
+`ART_DIRECTION.md`, `DESIGN.md`, `TASKS.md` and `docs/FACILITATOR_GUIDE.md`.
+The current reference-led command interface supersedes historical light-workspace and
+stylized art notes. Keep both English and Chinese game localization. Public development
+records, comments and continuation prompts use English.
 
-## What is already implemented
+## Current implementation
 
-- Two selectable floors with an existing navigation graph and moving staff.
-- Three assignments and Guided/Standard/Expert difficulty selection.
-- Playable setup-only HCI, ADC, SASE and AICP operations.
-- Explicit local helper rules: notification after XDR confirmation or recovery of prepared snapshots.
-- Exact-endpoint isolation and separate containment/recovery outcomes.
-- English and Chinese game localization, daylight workspace UI and close-view controls.
-- Actual-event replay, contextual debrief, JSON reports, keyboard controls and opt-in ambience.
-- Deterministic engine regressions, original smoke coverage and actual DOM/canvas browser tests.
+- Static Three.js r160 ES modules, vendored locally; no bundler or runtime external calls.
+- Two selectable floors, stable navigation/picking and animated procedural staff.
+- Quiet Morning, The Lockout and Under Pressure, each with three difficulty settings.
+- Setup-only HCI/ADC/SASE/AICP operations; authored local helper rules, not external AI.
+- Full-refund setup undo/reset for mixed products and operations, including visible props.
+- A bounded decision branch: SASE rejection delays the schedule by 12 simulation seconds
+  and changes the next foothold from `l2-finance#1` to `office#2`. Evidence uses the actual
+  endpoint's sensor coverage. Per-session beat copies prevent source-template mutation.
+- Exact-endpoint isolation and separate containment, blocked exit and partial outcomes.
+- aStor snapshots must be prepared during setup. A restore costs 2 credits and takes 6s,
+  or 4s with HCI. Only one job runs; encryption continues to damage uptime while restoring.
+  Cancel refunds 1 credit and suppresses automatic restart until a manual restart.
+- Mission objectives: containment, data safety and restoration (Lockout), 80% uptime
+  (Under Pressure) or 70% uptime (Quiet Morning). Objectives are distinct from verdicts.
+- Actual-event replay, actionable debrief and English JSON session reports.
+- Dark command UI, camera-facing room placards, desktop/mobile controls and opt-in sound.
+- Official marks for all 11 product cards (including AF/EDR/STA-NDR), corporate/Athena/Cloud
+  logos and Solvia panda. `src/ui/product-marks.js` is the single product image mapping.
+  Source URLs and MDR extraction details are in `assets/brand/ASSETS.md`. Internal `sophia` identifiers
+  are legacy names; the visible guide is Solvia. Preserve original image proportions.
+- Procedural tile/carpet/wood maps, glass mullions, rack details and instanced foliage.
 
 ## Architecture and invariants
 
 | Area | Files | Contract |
 | --- | --- | --- |
-| Missions | `src/data/missions.js` | Shared layout; immutable source schedules; per-session timing/damage |
-| Planning | `src/data/operations.js` | Setup-only purchases; explicit costs and limitations |
-| Simulation | `src/game/engine.js` | No renderer dependency; emits events; all spending validated here |
-| UI | `src/ui/overlay.js`, `src/data/session-copy.js`, `src/i18n.js` | Bilingual presentation and delegated actions |
-| Rendering | `src/world/`, `src/main.js` | Preserve endpoint IDs, selection, navigation and floor visibility |
-| Styling | `src/style/main.css`, `src/style/workspace.css` | Core layout plus the current daylight presentation layer |
-| Verification | `tools/engine.test.mjs`, `tools/smoke.mjs`, `tools/ui.test.mjs` | Rules plus actual controls/canvas interaction |
+| Missions | `src/data/missions.js` | Shared layout, immutable source templates, session copies |
+| Planning | `src/data/operations.js` | Setup-only operations and explicit limited effects |
+| Engine | `src/game/engine.js` | Owns validation, spending, refund history, branch and restore jobs |
+| UI | `src/ui/overlay.js`, `src/data/session-copy.js`, `src/i18n.js` | Bilingual, delegated actions and cached paint |
+| World | `src/world/`, `src/main.js` | Preserve floor navigation, picking, coverage and prop removal |
+| Style | `src/style/main.css`, `src/style/workspace.css` | Base geometry plus current command skin |
+| Brand | `src/ui/product-marks.js`, `assets/brand/ASSETS.md` | Official product image mapping and source inventory; semantic pictograms stay separate |
+| Verification | `tools/engine.test.mjs`, `tools/smoke.mjs`, `tools/ui.test.mjs` | Rules and real DOM/canvas interactions |
 
-Keep `office#2`, `l2-finance#1`, `server#core` and `vault#core` stable when replacing meshes.
-GLB adoption must not break inspection, coverage highlights, floor selection or navigation.
-The current character loader is disabled and still contains CesiumMan-specific assumptions.
-Do not simply flip `USE_GLB_CHARACTERS`; implement normalization and proper clip selection first.
+Keep `office#2`, `l2-finance#1`, `server#core` and `vault#core` stable. Do not expose
+hidden attack truth through current objective/incident panels. Retain engine checks even
+when buttons are disabled. Match pause/speed/deadline semantics to simulation time.
+The UI paint cache preserves focused controls and horizontal scrolling; do not replace
+live controls every frame. Navigation position must remain separate from animation offsets.
+
+The GLB path is disabled and contains old CesiumMan-specific assumptions. Reviewed office
+assets need normalization, independent navigation roots, clip selection, floor visibility,
+picking targets and material/animation QA. Do not just flip `USE_GLB_CHARACTERS`.
+
+## Validation and deployment status
+
+Latest `npm test` passed all 13 engine groups, three smoke outcomes and the full
+browser UI suite, including all 11 official product images. Current English captures
+are in `docs/screenshots/command-live-en.png`, `product-marks-en.png` and
+`product-cloud-en.png`. PR #1 is the review location. GitHub Pages serves `main`,
+so the feature branch is not yet the public live version.
 
 ## Next priorities
 
-1. Human play-test all missions, especially post-containment recovery and budget tradeoffs.
-2. Improve close-view composition and tune the responsive scene/inspector/deck balance.
-3. When reviewed assets are available, add a data-driven GLB asset manifest with dimensions,
-   forward axis, origin, material and animation metadata. Load failure must retain the fallback.
-4. Validate standing/walking/working office characters with idle, walk, sit and typing clips.
-   Support varied staff appearances without identifying the intruder through a unique model.
-5. Replace reception, workstations, chairs, racks, conference furniture and plants with
-   coherent realistic materials. Apply official logo textures locally, unchanged.
-6. Add asset provenance and actual file-size/triangle/draw-call measurements. Test on target
-   hardware before setting a production performance budget or claiming visual completion.
+1. Human play-tests of all mission/difficulty combinations: response budget, restore timing,
+   discoverability, partial outcomes and the actual alternate endpoint route.
+2. More response-driven mission branches, explicit objective consequences and useful debrief
+   recommendations. There is currently one SASE branch, not a branching campaign.
+3. Accessibility: keyboard inspection/deployment, focus routing and touch-device testing.
+4. Realistic office characters/furniture with coherent materials and proper animation once
+   the separate asset-production brief resumes. Current assets are not photorealistic.
+5. Profile actual draw calls, triangle counts and frame times on target hardware. Earlier
+   performance figures in historical docs are obsolete. Keep browser suites sequential.
 
-Asset production is deferred. Do not reconnect to paid model tools or consume external
-credits as part of this gameplay handoff without a new asset-production brief.
+Paid asset generation is deferred; do not reconnect or spend service credits without a
+new asset brief. Never commit credentials, signed URLs or account history. No live Solvia
+service is integrated: the panda identifies the game guide with a local-simulation footer.
 
 ## Paste-ready English prompt
 
 ```text
-Continue development of Sentinel: Defend the Tower from branch
-feat/architectural-command-gameplay in Tru3tZ0ne/sentinel-defend-the-tower.
+Continue Sentinel: Defend the Tower from feat/architectural-command-gameplay in
+Tru3tZ0ne/sentinel-defend-the-tower. Read docs/DEVELOPMENT_LOG.md,
+docs/CLAUDE_HANDOFF.md, ART_DIRECTION.md, DESIGN.md, TASKS.md and
+assets/brand/ASSETS.md before changing the game.
 
-Read docs/DEVELOPMENT_LOG.md, docs/CLAUDE_HANDOFF.md, ART_DIRECTION.md,
-DESIGN.md, TASKS.md and docs/FACILITATOR_GUIDE.md first. Treat the current
-2026-10-14 direction as authoritative over older stylized/night-ops notes.
+Preserve the current reference-led dark command layout: top business/data/budget
+HUD, right incident/inspection/Solvia column, full-width bottom capability deck
+and readable room placards. Use the unmodified official Sangfor, Athena, Cloud
+and Solvia panda artwork. Preserve the official marks on all 11 product cards and
+coverage badges through src/ui/product-marks.js. These include legacy official
+community symbols; do not invent newer marks. Do not substitute a generic robot
+or human portrait.
+Do not describe the local hint/helper logic as a live Solvia or LLM integration.
 
-The target is realistic corporate interiors and close-up business-attired
-characters. The current daylight workspace is an intermediate improvement;
-procedural people and furniture remain placeholders. Do not call the current
-art photorealistic or finished. Asset production is deferred for now, so
-prioritize gameplay clarity, camera composition, responsive interaction and
-human play-test tuning while preserving a clean path to reviewed GLB assets.
+Prioritize deeper gameplay and human play-testing while asset production is
+paused. Keep three missions/difficulties, mixed setup undo/refunds, exact-device
+isolation, the SASE alternate-endpoint branch, prepared snapshots, timed and
+budgeted single-slot recovery, cancellation override, mission objectives and
+honest partial outcomes. Replay and reports must reflect executed events only.
+Keep mission templates immutable and all spending validation inside the engine.
+Maintain English and Chinese game versions and English development records.
 
-Preserve the three missions, three difficulties, setup-only operational
-purchases, exact-endpoint isolation, snapshot preparation requirements,
-post-containment recovery, floor-aware effects, actual-event replay and
-downloadable session reports. Maintain both English and Chinese game versions.
-Keep public development documentation, comments and handoff records in English.
-Use official Sangfor logo images unchanged and apply them locally to assets.
+The target scene remains realistic corporate interiors and close-up business
+characters. Procedural people/furniture are temporary and do not achieve the
+reference image's fidelity. Do not resume paid modeling without a new brief.
+Preserve stable endpoint IDs, floor-aware effects, navigation/picking, coverage,
+focused controls, pause semantics and offline/local runtime behavior.
 
-HCI reduces service impact; ADC mitigates the scripted load surge; SASE
-rejects a remote session and forces a slower route. AICP is an authored local
-helper with explicit XDR/aStor dependencies. Preserve these bounded metaphors.
-Do not imply live AI calls, unlimited DDoS protection, guaranteed zero-day
-prevention or automatic full backup/restore. Never add account credentials,
-access tokens, signed download URLs or vendor authentication to the repository.
-
-Run npm ci, npx playwright install chromium and npm test. Inspect actual
-browser screenshots at desktop and mobile sizes, exercise canvas selection
-on both floors, and test at least one complete mission through review/replay.
-Record what changed, why, verification results and remaining limitations in
-docs/DEVELOPMENT_LOG.md. Work on a feature branch and provide a concrete PR
-description with validation and screenshots. Do not merge until reviewed.
+Run npm ci, npx playwright install chromium and npm test. Run browser suites
+sequentially. Inspect desktop and mobile captures, exercise actual canvas
+selection on both floors, complete a mission through review/report/replay, and
+record changes, evidence and remaining limitations in docs/DEVELOPMENT_LOG.md.
+Work on the feature branch and update the PR with accurate validation and
+screenshots; leave merging for review. Never put credentials in source or docs.
 ```

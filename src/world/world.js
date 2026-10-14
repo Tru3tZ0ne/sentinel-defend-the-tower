@@ -8,7 +8,7 @@ export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  renderer.toneMappingExposure = 0.98;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -21,14 +21,14 @@ export function createWorld(canvas) {
   // Neutral daylight backdrop keeps floor materials and close views legible.
   const bg = document.createElement('canvas'); bg.width = 16; bg.height = 256;
   const bgx = bg.getContext('2d'); const grd = bgx.createLinearGradient(0, 0, 0, 256);
-  grd.addColorStop(0, '#c4cbd0'); grd.addColorStop(0.5, '#e1e4e3'); grd.addColorStop(1, '#abb6b7');
+  grd.addColorStop(0, '#07121f'); grd.addColorStop(0.5, '#142a3a'); grd.addColorStop(1, '#091623');
   bgx.fillStyle = grd; bgx.fillRect(0, 0, 16, 256);
   const bgTex = new THREE.CanvasTexture(bg); bgTex.colorSpace = THREE.SRGBColorSpace; scene.background = bgTex;
-  scene.fog = new THREE.Fog(0xcbd2d2, 60, 160);
+  scene.fog = new THREE.Fog(0x0c1b28, 50, 150);
 
   // A muted city context far below the occupied floors.
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600).rotateX(-Math.PI / 2),
-    new THREE.MeshStandardMaterial({ color: 0xa4aeaf, roughness: 0.95, metalness: 0.0 }));
+    new THREE.MeshStandardMaterial({ color: 0x142331, roughness: 0.8, metalness: 0.15 }));
   ground.position.y = -16; ground.receiveShadow = true; scene.add(ground);
   const city = new THREE.Group();
   const random = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
@@ -36,13 +36,13 @@ export function createWorld(canvas) {
     const a = random(i + 1) * Math.PI * 2, r = 75 + random(i + 100) * 100;
     const w = 5 + random(i + 200) * 9, h = 10 + random(i + 300) * 42;
     const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w),
-      new THREE.MeshStandardMaterial({ color: 0x9ba8ad, roughness: 0.9 }));
+      new THREE.MeshStandardMaterial({ color: 0x16293a, roughness: 0.9 }));
     b.position.set(Math.cos(a) * r, -16 + h / 2, Math.sin(a) * r); city.add(b);
   }
   scene.add(city);
 
   const camera = new THREE.PerspectiveCamera(33, 1, 0.1, 300);
-  camera.position.set(1.5, 33, 29);
+  camera.position.set(1.5, 32, 28);
 
   const controls = new OrbitControls(camera, canvas);
   controls.target.set(-0.5, 0.0, -2.2);
@@ -58,9 +58,9 @@ export function createWorld(canvas) {
   controls.update();
 
   // Warm daylight key, soft shadows and neutral fill; room lights remain subtle.
-  scene.add(new THREE.HemisphereLight(0xdceaf1, 0x9f927d, 1.35));
-  scene.add(new THREE.AmbientLight(0xffffff, 0.35));
-  const key = new THREE.DirectionalLight(0xffeed7, 2.6);
+  scene.add(new THREE.HemisphereLight(0xb7d5ed, 0x595249, 0.95));
+  scene.add(new THREE.AmbientLight(0xbdcddd, 0.25));
+  const key = new THREE.DirectionalLight(0xffe8c6, 2.2);
   key.position.set(16, 30, 16); key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   key.shadow.camera.near = 1; key.shadow.camera.far = 90;
@@ -68,8 +68,8 @@ export function createWorld(canvas) {
   key.shadow.camera.top = 22; key.shadow.camera.bottom = -22;
   key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
   scene.add(key); scene.add(key.target); key.target.position.set(0, 0, 0);
-  const fill = new THREE.DirectionalLight(0xdce7ef, 0.8); fill.position.set(-14, 14, 18); scene.add(fill);
-  const rim = new THREE.DirectionalLight(0xffffff, 0.5); rim.position.set(-12, 8, -18); scene.add(rim);
+  const fill = new THREE.DirectionalLight(0x7db0d5, 0.75); fill.position.set(-14, 14, 18); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0x74bbdd, 0.6); rim.position.set(-12, 8, -18); scene.add(rim);
 
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
@@ -104,7 +104,7 @@ export function createWorld(canvas) {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     // Keep the floor centered in the area beside the inspector and above the deck.
-    if (w > 1040) camera.setViewOffset(w, h, 140, 100, w, h);
+    if (w > 1040) camera.setViewOffset(w, h, Math.min(w * .11, 190), 45, w, h);
     else camera.clearViewOffset();
     camera.updateProjectionMatrix();
   }

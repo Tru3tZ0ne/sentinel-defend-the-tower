@@ -14,7 +14,7 @@ let uid = 0; const nid = () => ++uid;
 export class Engine {
   constructor(scenario) {
     this.sc = scenario;                  // { LAYOUT, EMPLOYEES, INCIDENT }
-    this.inc = scenario.INCIDENT;
+    this.inc = { ...scenario.INCIDENT, beats: scenario.INCIDENT.beats.map(b => ({ ...b })) };
     this.phase = 'prep';
     this.time = 0;
     this.ended = null;                   // 'win' | 'lose-breach' | 'lose-uptime'
@@ -45,6 +45,9 @@ export class Engine {
     this._mdrAssisted = false;
 
     this.lockedRooms = new Set();
+    this.recoveryJobs = new Map();
+    this.helperSuppressed = new Set();
+    this.planHistory = [];
     this.log = [];
     this._sophia = new Set();
     this.listeners = {};
@@ -93,6 +96,7 @@ export class Engine {
     }
     this.budget -= p.cost;
     this.deployed.push({ product: productId, target });
+    if (this.phase === 'prep') this.planHistory.push({ product: productId, target });
     this.log.push({ t: this.time, phase: this.phase, kind: 'deploy', product: productId, target });
     this.emit('deploy', { product: productId, target });
     this.emit('toast', { kind: 'good', key: 'toast.deployed', product: productId });
@@ -106,6 +110,7 @@ export class Engine {
     const op = OPERATIONS[id];
     if (!op || this.phase !== 'prep' || this.operations.has(id) || this.budget < op.cost) return { ok: false };
     this.operations.add(id); this.budget -= op.cost;
+    this.planHistory.push({ operation: id });
     this.log.push({ t: this.time, kind: 'operation', product: id });
     this.emit('operation', { product: id, room: op.room });
     this.changed(); return { ok: true };
@@ -116,6 +121,31 @@ export class Engine {
     this.helperRule = rule; this.changed(); return true;
   }
 
+  undoSetup() {
+    if (this.phase !== 'prep' || !this.planHistory.length) return { ok: false };
+    const item = this.planHistory.pop();
+    if (item.operation) {
+      this.operations.delete(item.operation); this.budget += OPERATIONS[item.operation].cost;
+    } else {
+      this.deployed.pop(); this.budget += PRODUCTS[item.product].cost;
+      if (item.product === 'EDR') this.edrDesks.delete(item.target);
+      else this.bySlot.delete(item.product);
+      if (item.product === 'ASTOR') this.astorReady = false;
+    }
+    this.log.push({ t: this.time, kind: 'undo', ...item });
+    this.emit('undo', item); this.changed(); return { ok: true };
+  }
+
+  objectives() {
+    const uptimeTarget = this.inc.id === 'storm' ? 80 : 70;
+    return [
+      { key: 'objective.contain', met: this.intruder.contained },
+      { key: 'objective.data', met: this.data === 100 },
+      { key: this.inc.id === 'robber' ? 'objective.restore' : this.inc.id === 'storm' ? 'objective.uptime80' : 'objective.uptime70',
+        met: this.inc.id === 'robber' ? this.lockedRooms.size === 0 : this.uptime >= uptimeTarget },
+    ];
+  }
+
   _helper() {
     if (!this.operations.has('AICP')) return;
     if (this.helperRule === 'notify' && this.confirmed && !this.helperNotified) {
@@ -123,8 +153,9 @@ export class Engine {
       this.log.push({ t: this.time, kind: 'helper', action: 'notify' });
       this.emit('toast', { kind: 'good', key: 'helper.notified' });
     }
-    if (this.helperRule === 'recover' && this.astorReady) {
-      for (const room of [...this.lockedRooms]) this.recover(room);
+    if (this.helperRule === 'recover' && this.astorReady && !this.recoveryJobs.size && this.budget >= 2) {
+      const room = [...this.lockedRooms].find(id => !this.helperSuppressed.has(id));
+      if (room) this.recover(room);
     }
   }
 
@@ -154,6 +185,7 @@ export class Engine {
     this._correlate();
     this._mdrAssist();
     this._helper();
+    this._recoveries(dt);
     this._sophiaChecks();
     this._endChecks();
     this.changed();
@@ -180,6 +212,13 @@ export class Engine {
     }
     if (b.act === 'remote' && this.operations.has('SASE')) {
       this._evidence(b, { blocked: true }); this.delay += 12;
+      // A denied remote identity changes the next foothold, including its sensor coverage.
+      const next = this.inc.beats.slice(this.beatIndex).find(beat => beat.act === 'foothold');
+      if (next) {
+        next.room = 'office'; next.desk = 'office#2';
+        next.truth = { en: 'After remote access is denied, the actor switches to a local Open Office endpoint.', zh: '远程访问遭拒后，攻击者改用开放办公区的本地终端。' };
+        this.log.push({ t: this.time, kind: 'branch', route: 'local-office', trigger: 'SASE' });
+      }
       this.emit('toast', { kind: 'good', key: 'service.remoteBlocked' });
       return;
     }
@@ -295,14 +334,34 @@ export class Engine {
   recover(roomId) {
     if (this.phase !== 'incident' || this.ended || !this.lockedRooms.has(roomId)) return { ok: false };
     if (!this.astorReady) { this.emit('toast', { kind: 'warn', key: 'resp.needPrepared' }); return { ok: false }; }
-    this.lockedRooms.delete(roomId);
-    this.emit('lock', { room: roomId, locked: false });
-    this.uptime = Math.min(100, this.uptime + 12);   // restore from protected snapshots (partial, takes effort)
-    this.log.push({ t: this.time, kind: 'respond', action: 'recover', room: roomId });
-    this.emit('toast', { kind: 'good', key: 'toast.recovered' });
+    if (this.recoveryJobs.size || this.budget < 2) {
+      this.emit('toast', { kind: 'warn', key: this.recoveryJobs.size ? 'recovery.busy' : 'recovery.funds' }); return { ok: false };
+    }
+    const duration = this.operations.has('HCI') ? 4 : 6;
+    this.helperSuppressed.delete(roomId);
+    this.budget -= 2; this.recoveryJobs.set(roomId, { elapsed: 0, duration });
+    this.log.push({ t: this.time, kind: 'respond', action: 'recover-start', room: roomId, cost: 2, duration });
     this.changed();
-    if (this.intruder.contained && !this.lockedRooms.size) this._end('win', true);
     return { ok: true };
+  }
+
+  cancelRecovery(roomId) {
+    if (this.phase !== 'incident' || !this.recoveryJobs.has(roomId)) return { ok: false };
+    this.recoveryJobs.delete(roomId); this.helperSuppressed.add(roomId); this.budget += 1;
+    this.log.push({ t: this.time, kind: 'respond', action: 'recover-cancel', room: roomId, refund: 1 });
+    this.changed(); return { ok: true };
+  }
+
+  _recoveries(dt) {
+    for (const [room, job] of this.recoveryJobs) {
+      job.elapsed += dt;
+      if (job.elapsed + 1e-8 < job.duration) continue;
+      this.recoveryJobs.delete(room); this.lockedRooms.delete(room);
+      this.uptime = Math.min(100, this.uptime + 12);
+      this.emit('lock', { room, locked: false });
+      this.log.push({ t: this.time, kind: 'respond', action: 'recover', room });
+      this.emit('toast', { kind: 'good', key: 'toast.recovered' });
+    }
   }
 
   _contain(via, deskId, roomId) {

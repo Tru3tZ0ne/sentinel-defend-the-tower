@@ -6,10 +6,16 @@ The target is recognizable, realistic close-up office environments and business-
 people, with physically plausible materials, lighting, proportions and animation.
 The previous stylized direction below is historical and is superseded by this section.
 
-This iteration establishes neutral daylight, restrained light workspace panels, clearer
-camera framing and close-view controls. It replaces the rotating gold data object with
-storage cabinets. Existing procedural people and furniture remain temporary; these
-changes do not complete the realistic-art milestone.
+The current command interface follows the supplied cutaway-office reference: dark navy
+chrome, a top business/data/budget HUD, a right incident/inspection/assistant column,
+and a full-width bottom capability deck. Use the official Sangfor corporate logo,
+Athena security portfolio lockup, Cloud lockup and Solvia panda artwork unchanged.
+Solvia replaces the former Sophia concept and reference-derived human portrait.
+
+The scene has cool exterior fill, warm interior strips, glass mullions, tile/carpet/wood
+surface maps, detailed rack fronts, desk accessories and instanced plant foliage.
+Screen-facing room placards disappear in close views. Procedural people and furniture
+remain placeholders; the reference image's realism is not achieved by this iteration.
 
 - Use natural office finishes: oak, painted steel, mesh upholstery, glass and neutral carpet.
 - Keep security evidence distinct through small, contextual color accents.

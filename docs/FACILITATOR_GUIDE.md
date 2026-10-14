@@ -62,3 +62,14 @@ and uptime remain healthy.
 
 Discuss what was visible, what was missed, what was merely delayed, and which services
 still needed recovery. Avoid presenting a simulated win as proof of real-world security efficacy.
+
+## Restore timing and alternate route follow-up
+
+Setup now supports Undo deployment and Reset plan, with full refunds before starting.
+In The Lockout or Under Pressure, SASE changes the next foothold to `office#2` rather
+than merely delaying Finance access. Watch actual evidence and cover that endpoint.
+
+Each restore consumes 2 credits and runs for 6 simulation seconds (4 with HCI), one room
+at a time. Reserve response credits; encryption continues to reduce uptime until completion.
+Cancel returns 1 credit. A cancelled helper job stays suppressed until manually restarted.
+The Solvia panda offers local game guidance; no official support-service call is made.
