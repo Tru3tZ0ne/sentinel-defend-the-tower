@@ -214,9 +214,10 @@ No external runtime requests or browser errors were reported. `git diff --check`
 
 ![Official infrastructure product marks](screenshots/product-cloud-en.png)
 
-Development remains on `feat/architectural-command-gameplay`, PR #1. The public
-GitHub Pages site serves `main`; this feature version will not appear there until
-the PR is merged and Pages finishes deployment. Local preview: `npm run serve`.
+> Status note: this section's branch/Pages statements were accurate when written. The feature
+> work was since merged (PR #1 → `main`, merge commit `38d33b0`) and published to GitHub Pages.
+> See the 2026-10-14 "Performance + gameplay release pass" below for the released state and the
+> live-site verification. Local preview: `npm run serve`.
 
 
 ## Gameplay-polish pass — 2026-10-13
@@ -377,5 +378,22 @@ are unchanged. Realistic office models/animation remain a separate, deferred bri
 ![Session-specific debrief after a delayed outcome](screenshots/release-debrief-en.png)
 
 ![Level 2 after static batching — appearance unchanged](screenshots/release-floor2-en.png)
+
+### Released & verified
+
+PR #1 was merged into `main` (merge commit `38d33b0`) after both CI runs on `ea665a8`
+(`pull_request` and `push`) passed, and published to GitHub Pages (build of `38d33b0`, legacy
+branch source). Verified in a fresh browser context against
+https://tru3tz0ne.github.io/sentinel-defend-the-tower/ : the deployed source carries this
+release's code (the room-restriction hint and the `mergeLevelStatics` batching — not the prior
+`65ac7c4`), the command UI and all 11 official product marks plus the Solvia panda load, both
+floors render with static batches present, a mission starts, EN/ZH switches, and there were no
+console errors or external runtime requests.
+
+Remaining limitations (unchanged): realistic production office models/animation are a separate,
+deferred brief — current figures/furniture are procedural placeholders; exact Sangfor hex/Pantone
+awaits brand-guideline confirmation; hardware-GL frame-time was not measurable in this
+environment (software WebGL is not representative), so only backend-independent scene counts are
+reported. A human acceptance play-test on event hardware remains recommended.
 
 

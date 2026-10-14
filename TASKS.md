@@ -2,6 +2,20 @@
 
 Legend: [x] done · [~] in progress · [ ] todo
 
+## Performance + gameplay release pass — 2026-10-14 (MERGED & PUBLISHED)
+
+- [x] Static per-floor geometry batching (shared cached materials + merged static meshes):
+      fixed-camera L3 setup draw calls ~1,112 → ~343 (~295 L2, ~394 incident), beating the
+      400–450 target; triangles unchanged, both floors pixel-identical, picking preserved.
+- [x] Room restriction now has consequences: in-room lockdown contains; restricting an area
+      ahead of the actor is an access-control checkpoint that delays them once (distinct from
+      prevention/containment, can push an exfil past the deadline).
+- [x] Discoverability: duplicate-buy / already-protected / missing-prereq actions explain themselves.
+- [x] Session-specific actionable debrief (EN/ZH); keyboard room inspection ([ ]), Enter begins the day.
+- [x] Tests: engine (18 groups, +3), smoke, full UI suite; all 9 combos winnable; EN/ZH verified.
+- [x] Merged PR #1 → `main` (38d33b0) after green CI; published to GitHub Pages; live site verified.
+- [ ] Human acceptance play-test on event hardware; realistic office models/animation (separate brief).
+
 ## Gameplay-polish pass — 2026-10-13
 
 Audited the complete loop against the current command UI; preserved it and fixed real gaps.
