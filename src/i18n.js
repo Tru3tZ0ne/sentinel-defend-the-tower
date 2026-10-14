@@ -96,6 +96,7 @@ const DICT = {
   'resp.recover':    { en: 'Restore from snapshots (aStor)', zh: '从快照恢复（aStor）' },
   'resp.needEdr':    { en: 'That device has no EDR to isolate it', zh: '该设备没有可用于隔离的 EDR' },
   'resp.nothingHere':{ en: 'Nothing malicious on that device — no effect', zh: '该设备上没有恶意行为——没有效果' },
+  'resp.cleanEndpoint':{ en: 'That endpoint is clean — you took an employee offline. Confirm the actor first.', zh: '那是一台正常终端——你让一名员工被迫下线。请先确认攻击者所在。' },
   'resp.wrongArea':  { en: 'The intruder is not there — you disrupted the business', zh: '入侵者不在那里——你反而干扰了业务' },
   'resp.restricted': { en: 'Area restricted — access control will slow the actor if they come this way (business disrupted here)', zh: '区域已封控——若攻击者经过这里，访问控制会拖慢其行动（此处业务受影响）' },
   'resp.restrictDelay': { en: 'Access control held the actor at a restricted area — you bought time', zh: '访问控制在封控区拦住了攻击者——你争取到了时间' },

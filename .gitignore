@@ -34,3 +34,5 @@ tools/_propshot.mjs
 tools/_towershot.mjs
 tools/_pickcheck.mjs
 tools/_livecheck.mjs
+tools/_bootprobe.mjs
+tools/_heistshot.mjs

@@ -11,12 +11,25 @@ const errors = [], externalRequests = [];
 page.on('pageerror', e => errors.push(e.message));
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('request', request => { if (/^https?:/.test(request.url()) && !request.url().startsWith(url)) externalRequests.push(request.url()); });
-// These controls never navigate (single-page app) and live in panels that re-paint on each
-// state change. Skip Playwright's post-click navigation wait and the stability wait, which
-// otherwise stall against the continuous render loop under software-WebGL (both floors now
-// render at once, ~doubling SwiftShader frame cost). Real hardware is unaffected; the test
-// still asserts the resulting engine/DOM state after every click.
-const click = selector => page.locator(selector).filter({ visible: true }).click({ timeout: 30000, noWaitAfter: true, force: true });
+// These controls live in panels that re-paint whenever state changes (e.g. buying one
+// operation changes every card's affordable/disabled state, replacing the deck body). Under
+// software-WebGL, frames are seconds apart, so a pixel-level click races the re-paint and the
+// target button detaches or scrolls out ("Element is not visible"). We instead confirm the
+// control is visible, then fire the app's real (delegated) click handler via the DOM — robust
+// to the slow renderer while still exercising the actual handler and asserting resulting state.
+// Coordinate-click coverage (nothing invisibly covers the UI) stays in smoke.mjs (start/begin,
+// real mouse clicks) and in the canvas deploys below (page.mouse.click on both floors).
+const click = async selector => {
+  await page.locator(selector).filter({ visible: true }).first().waitFor({ state: 'visible', timeout: 30000 });
+  // Click synchronously inside the page: querySelector resolves the CURRENT (attached) element and
+  // .click() bubbles to the real delegated handler in one page turn — no Playwright round-trip to
+  // race the panel re-paint under software-WebGL. State is still asserted after each click.
+  const ok = await page.evaluate(sel => {
+    const el = [...document.querySelectorAll(sel)].find(e => e.getClientRects().length) || document.querySelector(sel);
+    if (!el || el.disabled) return false; el.click(); return true;
+  }, selector);
+  if (!ok) throw new Error('click: no enabled element for ' + selector);
+};
 const settleCamera = () => page.waitForTimeout(1000);
 async function canvasPoint(id, kind = 'room') {
   return page.evaluate(({ id, kind }) => {

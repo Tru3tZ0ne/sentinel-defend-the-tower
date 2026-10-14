@@ -604,3 +604,55 @@ coherent realistic art sample, accurate product roles, compact accessible contro
 measured performance and verified publication. It includes the prior CI failure and
 instructs the next developer to inspect current checks before continuing. The shorter
 character prompt remains an asset/lifecycle reference.
+
+
+## CI-green + replayability + richer response pass — 2026-10-14
+
+Continued from `9901c03`. First checked actual CI (not just local/Pages): the "Verify game"
+workflow had been RED since `c743a51` — `ui.test.mjs` timed out under software-WebGL clicking a
+deck/planning control that detached when the panel repainted after a purchase. `f87b4a5` was the
+last green CI. Pages deployed regardless (it does not gate on CI), so the public site ran, but the
+test gate was broken.
+
+### Fix the red CI (control lifecycle under software WebGL)
+The deck body and planning controls legitimately repaint when a purchase changes budget (every
+card's affordable/disabled state can change). On real hardware this is instant; under the CI's
+software WebGL, frames are seconds apart, so a pixel-level `.click()` (even `force`) races the
+repaint and the target button detaches or scrolls out ("Element is not visible"). The test helpers
+in `ui.test.mjs` and `deployments.test.mjs` now confirm the control is visible/attached and then
+fire the app's real delegated click handler via `dispatchEvent('click')` — robust to the slow
+renderer while still exercising the real handler and asserting the resulting engine/DOM state.
+Coordinate-click coverage (nothing invisibly covers the UI) is kept by `smoke.mjs` (start/begin,
+real mouse clicks) and the canvas deploys on both floors (real `page.mouse.click`). No assertions
+were removed and no implementation was disabled.
+
+### Gameplay improvement 1 — reproducible foothold variation (replayability)
+The Quiet Morning's foothold workstation now varies per run within the Open Office
+(`office#1`–`office#4`), seeded, so memorising "isolate office#2" is no longer a reliable scripted
+response — the player must actually detect the entry. Event ordering is unchanged and the chosen
+desk is recorded on the mission (`footholdDesk`) for replay/report. The briefing telegraphs the
+variation (EN/ZH) without revealing which desk. `missionFor`/`newGame` default to a random seed;
+tests pass a fixed seed (0.25 → office#2) for determinism. Other missions keep their stable
+stolen-identity route and the stable `l2-finance#1` endpoint.
+
+### Gameplay improvement 2 — isolating a clean endpoint has a cost
+Isolating an EDR-protected endpoint that is NOT the actor now takes a real employee offline: a
+small business-uptime disruption (−4) with clear EN/ZH feedback, instead of a silent no-op. This
+makes "confirm the actor before you cut" a genuine tradeoff and rewards detecting the (now varied)
+foothold over guessing. Already-contained isolation stays free; exact-endpoint containment is
+unchanged.
+
+### More spatial placement feedback
+While placing a capability, the scene-side prompt now explains the target and cost (device role +
+credits from `deployment-visuals.js`) so the 3D click is informed, reusing the existing compact
+placing note — no new permanent panel.
+
+### Validation
+`npm test` green end to end — engine (20 groups, +foothold-variation and +clean-endpoint-cost),
+smoke (strong→delayed, none→collapse, isolate→contained), the full UI suite, the character
+lifecycle suite, and the deployment-entity suite (all 11 capabilities, paid placement, locate,
+physical picking, both floors, undo/reset, EN/ZH, mobile). All nine assignment/difficulty pairs
+remain winnable within budget; an undefended run still loses. The foothold variation is covered by
+a new test across four seeds (desk-agnostic detection still wins), and the clean-endpoint cost by a
+dedicated test. Remaining: deeper realistic-furniture art and a full in-scene placement preview are
+substantial follow-ups, not completed here.

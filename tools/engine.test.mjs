@@ -4,7 +4,8 @@ import { Engine } from '../src/game/engine.js';
 import { LAYOUT, EMPLOYEES } from '../src/data/scenario.js';
 import { MISSIONS, DIFFICULTIES, missionFor } from '../src/data/missions.js';
 
-const game = (mission = 'quiet', difficulty = 'standard') => new Engine({ LAYOUT, EMPLOYEES, INCIDENT: missionFor(mission, difficulty) });
+// Fixed seed 0.25 keeps the Quiet Morning foothold deterministic (office#2) for these rules.
+const game = (mission = 'quiet', difficulty = 'standard', seed = 0.25) => new Engine({ LAYOUT, EMPLOYEES, INCIDENT: missionFor(mission, difficulty, seed) });
 const advanceTo = (g, time) => { while (!g.ended && g.time < time) g.tick(Math.min(.1, time - g.time)); };
 
 test('all nine mission/difficulty combinations have valid endpoints and finish', () => {
@@ -243,4 +244,39 @@ test('duplicate capability deployment is rejected with feedback and no extra spe
   assert.equal(g.budget, after2);
   assert.ok(after > after2);
   assert.deepEqual(warned, ['resp.alreadyProtected', 'resp.alreadyDeployed']);
+});
+
+// Replayability: the Quiet Morning foothold varies by seed, so one memorised response is weaker;
+// a desk-agnostic detection strategy (perimeter + network + correlation, then lock the actor's
+// room) still wins whichever workstation the actor chose.
+test('the Quiet Morning foothold varies by seed and a detection strategy still wins', () => {
+  const seen = new Set();
+  for (const seed of [0.0, 0.3, 0.6, 0.95]) {
+    const m = missionFor('quiet', 'standard', seed);
+    const fh = m.beats.find(b => b.act === 'foothold'), rc = m.beats.find(b => b.act === 'recon');
+    assert.ok(['office#1', 'office#2', 'office#3', 'office#4'].includes(fh.desk), `foothold ${fh.desk}`);
+    assert.equal(rc.desk, fh.desk, 'recon follows the foothold desk');
+    assert.equal(m.footholdDesk, fh.desk);
+    seen.add(fh.desk);
+    const g = new Engine({ LAYOUT, EMPLOYEES, INCIDENT: m }); g.budget = 99;
+    g.deploy('AF'); g.deploy('NDR'); g.deploy('XDR'); g.beginDay();
+    let guard = 0;
+    while (!g.ended && guard++ < 5000) { g.tick(0.1); if (g.confirmed && g.intruder.room && g.intruder.room !== 'entrance' && !g.intruder.contained) g.lockdownRoom(g.intruder.room); }
+    assert.equal(g.outcome.verdict, 'win', `seed ${seed} (${fh.desk}) -> ${g.outcome.verdict}/${g.outcome.kind}`);
+  }
+  assert.ok(seen.size >= 2, 'different seeds should produce different footholds');
+});
+
+// Guessing has a cost: isolating a clean endpoint takes an employee offline (uptime hit) while
+// isolating the actual foothold contains. Rewards detecting the varied entry over memorising one.
+test('isolating a clean endpoint disrupts business; the actual foothold still contains', () => {
+  const g = game('quiet', 'standard', 0.25); g.budget = 99;   // seed 0.25 -> foothold office#2
+  g.deploy('EDR', 'office#1'); g.deploy('EDR', 'office#2');
+  g.beginDay(); advanceTo(g, 12);
+  assert.equal(g.intruder.desk, 'office#2');
+  const up0 = g.uptime;
+  assert.equal(g.isolateDevice('office#1').contained, false);
+  assert.ok(g.uptime < up0, 'isolating a clean endpoint costs uptime');
+  assert.ok(g.log.some(l => l.action === 'isolate' && l.result === 'clean-endpoint'));
+  assert.equal(g.isolateDevice('office#2').contained, true);
 });

@@ -4,7 +4,7 @@ import { INCIDENT } from './scenario.js';
 const beat = (t, room, act, ev, en, zh, extra = {}) => ({ t, room, act, ev, truth: { en, zh }, ...extra });
 export const MISSIONS = {
   quiet: { ...INCIDENT,
-    brief: { en: 'Follow a quiet intrusion across two floors. Detect, correlate, then contain.', zh: '追踪跨越两层的隐蔽入侵，完成侦测、关联与遏制。' } },
+    brief: { en: 'Follow a quiet intrusion across two floors. The entry workstation differs each run — detect where, don’t guess. Then correlate and contain.', zh: '追踪跨越两层的隐蔽入侵。每局的入侵起始工位都会不同——要靠侦测找出位置，而非猜测。随后完成关联与遏制。' } },
   robber: {
     id: 'robber', name: { en: 'The Lockout', zh: '勒索封锁' }, duration: 100, loseUptimeBelow: 35,
     brief: { en: 'A stolen identity opens the door. Prepare snapshots, protect endpoints, and restore services.', zh: '被盗身份打开了入口。提前准备快照，保护终端并恢复业务。' },
@@ -42,9 +42,24 @@ export const DIFFICULTIES = {
   standard: { budget: 15, timing: 1, damage: 1 },
   expert: { budget: 12, timing: 0.8, damage: 1.15 },
 };
-export function missionFor(id = 'quiet', difficulty = 'standard') {
+// Reproducible per-session variation: the Quiet Morning's foothold workstation differs each
+// run (within the Open Office), so memorising one scripted "isolate office#2" response is less
+// effective — the player must actually detect the entry. Causal ordering is unchanged; the
+// chosen desk is recorded on the mission for replay/report. Other missions keep their stable
+// stolen-identity route. A deterministic seed can be supplied for tests.
+const FOOTHOLD_VARIANTS = { 'two-floor-morning': { room: 'office', desks: ['office#1', 'office#2', 'office#3', 'office#4'] } };
+function applyFootholdVariant(mission, seed) {
+  const v = FOOTHOLD_VARIANTS[mission.id];
+  if (!v) return;
+  const desk = v.desks[Math.floor(seed * v.desks.length) % v.desks.length];
+  mission.footholdDesk = desk; mission.variantSeed = seed;
+  for (const b of mission.beats) if ((b.act === 'foothold' || b.act === 'recon') && b.room === v.room) b.desk = desk;
+}
+export function missionFor(id = 'quiet', difficulty = 'standard', seed = Math.random()) {
   const source = MISSIONS[id] || MISSIONS.quiet;
   const settings = DIFFICULTIES[difficulty] || DIFFICULTIES.standard;
-  return { ...source, difficulty, ...settings, duration: source.duration * settings.timing,
+  const mission = { ...source, difficulty, ...settings, duration: source.duration * settings.timing,
     beats: source.beats.map(b => ({ ...b, t: b.t * settings.timing })) };
+  applyFootholdVariant(mission, seed);
+  return mission;
 }

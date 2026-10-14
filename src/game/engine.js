@@ -323,8 +323,13 @@ export class Engine {
     if (this.phase !== 'incident' || this.ended || !this.edrDesks.has(deskId)) { this.emit('toast', { kind: 'warn', key: 'resp.needEdr' }); return { ok: false }; }
     const here = this.intruder.desk === deskId && !this.intruder.failed;
     if (here && !this.intruder.contained) { this._contain('isolate', deskId); return { ok: true, contained: true }; }
-    this.log.push({ t: this.time, kind: 'respond', action: 'isolate', desk: deskId, result: 'nothing' });
-    this.emit('toast', { kind: 'bad', key: 'resp.nothingHere' });
+    // Isolating a clean endpoint takes a real employee's machine offline: a small business
+    // disruption. This makes "confirm before you cut" a genuine tradeoff and rewards detecting
+    // the actual foothold (which varies per run) over guessing. Already-contained = no cost.
+    const innocent = !this.intruder.contained && !this.intruder.failed;
+    if (innocent) this.uptime = Math.max(0, this.uptime - 4);
+    this.log.push({ t: this.time, kind: 'respond', action: 'isolate', desk: deskId, result: innocent ? 'clean-endpoint' : 'nothing' });
+    this.emit('toast', { kind: 'bad', key: innocent ? 'resp.cleanEndpoint' : 'resp.nothingHere' });
     this.changed();
     return { ok: true, contained: false };
   }

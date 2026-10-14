@@ -47,13 +47,14 @@ async function run() {
   const res = await page.evaluate(() => {
     const S = window.__sentinel; const out = {};
     const detected = g => g.log.filter(l => l.kind === 'attack' && (l.visible || l.blocked || l.prevented)).length;
-    S.newGame(); let g = S.engine; g.budget = 99;
+    // Fixed foothold seed (0.25 -> office#2) so the scripted office#2 deployments are deterministic.
+    S.newGame('quiet', 'standard', 0.25); let g = S.engine; g.budget = 99;
     g.deploy('AF'); g.deploy('NDR'); g.deploy('XDR'); g.deploy('IAG'); g.deploy('EDR', 'office#2'); g.deploy('EDR', 'server#core'); g.deploy('EDR', 'vault#core');
     g.beginDay(); g._paused = true; for (let i = 0; i < 1400 && !g.ended; i++) g.tick(0.1);
     out.A = { ended: g.ended, outcome: g.outcome && g.outcome.kind, detected: detected(g), attacks: g.log.filter(l => l.kind === 'attack').length };
-    S.newGame(); g = S.engine; g.beginDay(); g._paused = true; for (let i = 0; i < 1400 && !g.ended; i++) g.tick(0.1);
+    S.newGame('quiet', 'standard', 0.25); g = S.engine; g.beginDay(); g._paused = true; for (let i = 0; i < 1400 && !g.ended; i++) g.tick(0.1);
     out.B = { ended: g.ended, outcome: g.outcome && g.outcome.kind };
-    S.newGame(); g = S.engine; g.budget = 99; g.deploy('AF'); g.deploy('XDR'); g.deploy('EDR', 'office#2'); g.beginDay(); g._paused = true;
+    S.newGame('quiet', 'standard', 0.25); g = S.engine; g.budget = 99; g.deploy('AF'); g.deploy('XDR'); g.deploy('EDR', 'office#2'); g.beginDay(); g._paused = true;
     let did = false; for (let i = 0; i < 1400 && !g.ended; i++) { g.tick(0.1); if (!did && g.confirmed && g.intruder.room === 'office') { g.isolateDevice('office#2'); did = true; } }
     out.C = { ended: g.ended, contained: g.intruder.contained, outcome: g.outcome && g.outcome.kind };
     return out;

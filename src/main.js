@@ -395,8 +395,8 @@ function updateLabels() {
 }
 
 // ---------- game flow ----------
-function newGame(missionId = selectedMission, difficulty = selectedDifficulty) {
-  const incident = missionFor(missionId, difficulty);
+function newGame(missionId = selectedMission, difficulty = selectedDifficulty, seed = Math.random()) {
+  const incident = missionFor(missionId, difficulty, seed);   // random foothold variant per run; tests pass a fixed seed
   selectedMission = missionId; selectedDifficulty = difficulty;
   initStage();
   engine = new Engine({ LAYOUT, EMPLOYEES, INCIDENT: incident });

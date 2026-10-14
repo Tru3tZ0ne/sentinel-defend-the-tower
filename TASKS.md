@@ -2,6 +2,20 @@
 
 Legend: [x] done · [~] in progress · [ ] todo
 
+## CI-green + replayability + richer response — 2026-10-14
+
+- [x] Fixed the red "Verify game" CI (RED since c743a51): ui/deployment test clicks now fire the
+      app's real delegated handler via the DOM, robust to software-WebGL panel-repaint detachment;
+      coordinate-click coverage kept in smoke + canvas deploys. No assertions removed.
+- [x] Replayability: the Quiet Morning foothold varies per run (office#1–#4, seeded) — detect, not
+      memorise. Briefing telegraphs it (EN/ZH); recorded for replay; tests use a fixed seed.
+- [x] Richer response: isolating a clean endpoint takes an employee offline (uptime cost + clear
+      feedback) instead of a silent no-op — rewards detecting the varied foothold over guessing.
+- [x] Placement prompt explains target role + cost at deploy time (compact, no new panel).
+- [x] Validation: npm test green end-to-end (engine 20, smoke, UI, characters, deployments);
+      9/9 combos winnable; undefended loses.
+- [ ] Deeper realistic-furniture art sample and a full in-scene placement preview (substantial follow-up).
+
 ## Performance + gameplay release pass — 2026-10-14 (MERGED & PUBLISHED)
 
 - [x] Static per-floor geometry batching (shared cached materials + merged static meshes):

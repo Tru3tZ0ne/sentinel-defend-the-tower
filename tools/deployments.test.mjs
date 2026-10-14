@@ -10,9 +10,18 @@ const browser = await chromium.launch({ headless: process.platform !== 'win32', 
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
-// Software CI needs the existing UI suite's control helper; hardware keeps actionability checks.
-const controlClick = { force: process.platform !== 'win32', noWaitAfter: true };
-const click = selector => page.locator(selector).filter({ visible: true }).click(controlClick);
+// Panels repaint on each purchase/refund, so under software-WebGL (frames seconds apart) a pixel
+// click races the repaint and the button detaches. Click synchronously inside the page: querySelector
+// resolves the CURRENT (attached) element and .click() bubbles to the real delegated handler in one
+// page turn — robust to the slow renderer while still exercising the real handler and asserting state.
+const clickSel = async selector => {
+  const ok = await page.evaluate(sel => {
+    const el = [...document.querySelectorAll(sel)].find(e => e.getClientRects().length) || document.querySelector(sel);
+    if (!el || el.disabled) return false; el.click(); return true;
+  }, selector);
+  if (!ok) throw new Error('click: no enabled element for ' + selector);
+};
+const click = clickSel;
 const operations = ['HCI', 'ADC', 'SASE', 'AICP'];
 try {
   await page.goto(url, { waitUntil: 'networkidle' });
@@ -39,7 +48,7 @@ try {
     assert.equal(result.level, id === 'SASE' ? 'L2' : 'L3');
     const card = page.locator(`[data-act="locateDeployment"][data-id="${id}"]`);
     await card.waitFor();
-    await card.click(controlClick);
+    await card.first().evaluate(el => { if (!el.disabled) el.click(); });
     await page.waitForTimeout(850);
     assert.ok(await page.locator('#inspect .deployment-state').isVisible());
     assert.equal(await page.locator('#inspect [data-product-mark]').getAttribute('data-product-mark'), id);
@@ -54,7 +63,7 @@ try {
     assert.equal(focus.floorPressed, 'true');
     if (id === 'AF') {
       // Close/reopen via the actual cabinet body, not only the product card.
-      await page.locator('[data-act="closeInspect"]').click(controlClick);
+      await page.locator('[data-act="closeInspect"]').first().evaluate(el => { if (!el.disabled) el.click(); });
       const point = await page.evaluate(() => {
         const s = window.__sentinel;
         const p = s.deployments.get('AF').position.clone().add(new s.world.THREE.Vector3(0, .6, .52));
@@ -65,7 +74,7 @@ try {
       await page.waitForFunction(() => document.querySelector('#inspect .deployment-state'));
       assert.equal(await page.locator('#inspect [data-product-mark]').getAttribute('data-product-mark'), 'AF');
     }
-    await page.locator('[data-act="undoSetup"]').click(controlClick);
+    await page.locator('[data-act="undoSetup"]').first().evaluate(el => { if (!el.disabled) el.click(); });
     await page.waitForFunction(() => window.__sentinel.deployments.entries.size === 0 && !document.querySelector('#dock [data-act="locateDeployment"]'));
     assert.equal(await page.evaluate(() => window.__sentinel.deployments.pickables.length), 0);
     assert.ok(await page.locator('#inspect').evaluate(el => el.classList.contains('hidden')));
@@ -80,28 +89,28 @@ try {
     s.engine.deploy('EDR', 'l2-finance#1');
     s.engine.deployOperation('SASE');
   });
-  await page.locator('[data-act="tab"][data-tab="defense"]').click(controlClick);
+  await page.locator('[data-act="tab"][data-tab="defense"]').first().evaluate(el => { if (!el.disabled) el.click(); });
   const edrLocate = page.locator('[data-act="locateDeployment"][data-id="EDR"]');
-  await edrLocate.click(controlClick);
+  await edrLocate.first().evaluate(el => { if (!el.disabled) el.click(); });
   assert.equal(await page.locator('[data-act="deploymentEndpoint"]').getAttribute('data-target'), 'office#2');
-  await edrLocate.click(controlClick);
+  await edrLocate.first().evaluate(el => { if (!el.disabled) el.click(); });
   assert.equal(await page.locator('[data-act="deploymentEndpoint"]').getAttribute('data-target'), 'l2-finance#1');
   assert.ok(await page.locator('[data-act="pick"][data-id="EDR"]').isEnabled(), 'locating existing agents must retain placement');
-  await page.locator('[data-act="pick"][data-id="EDR"]').click(controlClick);
+  await page.locator('[data-act="pick"][data-id="EDR"]').first().evaluate(el => { if (!el.disabled) el.click(); });
   await page.locator('.deck-place').waitFor();
-  await page.locator('[data-act="cancel"]').click(controlClick);
-  await page.locator('[data-act="deploymentEndpoint"]').click(controlClick);
+  await page.locator('[data-act="cancel"]').first().evaluate(el => { if (!el.disabled) el.click(); });
+  await page.locator('[data-act="deploymentEndpoint"]').first().evaluate(el => { if (!el.disabled) el.click(); });
   assert.match(await page.locator('#inspect').innerText(), /Finance.*l2-finance#1/i);
-  await page.locator('[data-act="lang"]').click(controlClick);
-  await edrLocate.click(controlClick);
+  await page.locator('[data-act="lang"]').first().evaluate(el => { if (!el.disabled) el.click(); });
+  await edrLocate.first().evaluate(el => { if (!el.disabled) el.click(); });
   assert.equal(await page.locator('#inspect .deployment-state').innerText(), '代理已安装在此终端');
   assert.equal(await page.locator('.deployment-inventory').count(), 0, 'no duplicate deployment strip');
   await page.setViewportSize({ width: 390, height: 844 });
   await edrLocate.scrollIntoViewIfNeeded();
-  await edrLocate.click(controlClick);
+  await edrLocate.first().evaluate(el => { if (!el.disabled) el.click(); });
   assert.ok(await page.locator('#inspect .deployment-state').isVisible());
   assert.ok(await page.locator('.deck').evaluate(el => el.scrollWidth > el.clientWidth));
-  await page.locator('[data-act="resetSetup"]').click(controlClick);
+  await page.locator('[data-act="resetSetup"]').first().evaluate(el => { if (!el.disabled) el.click(); });
   await page.waitForFunction(() => window.__sentinel.deployments.entries.size === 0);
   assert.equal(await page.evaluate(() => window.__sentinel.engine.budget), 22);
   assert.deepEqual(errors, []);

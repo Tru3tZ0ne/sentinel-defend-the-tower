@@ -6,6 +6,7 @@ import { t, loc, getLang } from '../i18n.js';
 import { PRODUCTS, PRODUCT_ORDER } from '../data/products.js';
 import { MISSIONS, DIFFICULTIES, missionFor } from '../data/missions.js';
 import { OPERATIONS } from '../data/operations.js';
+import { DEPLOYMENT_VISUALS } from '../data/deployment-visuals.js';
 import { icon } from './icons.js';
 import { productMark } from './product-marks.js';
 
@@ -205,8 +206,10 @@ export function createOverlay(root, h) {
     else if (tab === 'cloud') body = operationDeck(e);
     else if (tab === 'ops') body = helperDeck(e);
     else body = `<div class="deck-note">${t('review.replayReady')}</div>`;
+    // While placing, explain what and where in the scene: role + cost, so the 3D click is informed.
+    const pv = placing ? DEPLOYMENT_VISUALS[placing] : null;
     const note = placing
-      ? `<div class="deck-place">${t('tray.placing')}: <b>${esc(PRODUCTS[placing].name)}</b> — ${t('tray.clickWorld')} · <button class="linklike" data-act="cancel">${t('tray.cancel')}</button></div>`
+      ? `<div class="deck-place">${t('tray.placing')}: <b>${esc(PRODUCTS[placing].name)}</b>${pv ? ` · ${esc(loc(pv.role))} · ${PRODUCTS[placing].cost} ${t('hud.credits')}` : ''} — ${t('tray.clickWorld')} · <button class="linklike" data-act="cancel">${t('tray.cancel')}</button></div>`
       : '';
     const planning = e.phase === 'prep' ? `<div class="planning-controls"><span>${t('setup.loadout')} <b>${e.planHistory.length}</b></span><button class="linklike" data-act="undoSetup" ${!e.planHistory.length ? 'disabled' : ''}>↶ ${t('setup.undo')}</button><button class="linklike" data-act="resetSetup" ${!e.planHistory.length ? 'disabled' : ''}>${t('setup.reset')}</button></div>` : '';
     // Keep navigation connected when purchases or helper rules repaint only the deck.
