@@ -15,6 +15,7 @@ export function createOverlay(root, h) {
     <div id="boot" class="boot hidden"></div>
     <div id="labels" class="labels"></div>
     <header id="hud" class="hud hidden"></header>
+    <div id="floors" class="floorsel hidden"></div>
     <div id="rightcol" class="rightcol hidden">
       <section id="incident" class="card incident"></section>
       <section id="inspect" class="card inspect hidden"></section>
@@ -28,7 +29,7 @@ export function createOverlay(root, h) {
 
   const $ = s => root.querySelector(s);
   const els = {
-    labels: $('#labels'), hud: $('#hud'), rightcol: $('#rightcol'), incident: $('#incident'),
+    labels: $('#labels'), hud: $('#hud'), floors: $('#floors'), rightcol: $('#rightcol'), incident: $('#incident'),
     inspect: $('#inspect'), sophia: $('#sophiaCard'), dock: $('#dock'), ticker: $('#ticker'),
     toasts: $('#toasts'), start: $('#startScreen'), end: $('#endScreen'),
   };
@@ -62,11 +63,19 @@ export function createOverlay(root, h) {
   function setPhase(phase) {
     const inGame = phase === 'prep' || phase === 'incident';
     els.hud.classList.toggle('hidden', !inGame);
+    els.floors.classList.toggle('hidden', !inGame);
     els.rightcol.classList.toggle('hidden', !inGame);
     els.dock.classList.toggle('hidden', !inGame);
     els.ticker.classList.toggle('hidden', !inGame);
     els.hud.classList.toggle('prep', phase === 'prep');
   }
+
+  // ---------- floor selector ----------
+  function renderFloors(floors, active) {
+    els.floors.innerHTML = `<div class="fs-label">${t('floors.label')}</div>` +
+      floors.slice().reverse().map(f => `<button class="fs-btn ${f.id === active ? 'on' : ''}" data-act="floor" data-floor="${f.id}" title="${esc(loc(f.name))}">${esc(f.id.replace(/[^0-9]/g, '') || f.id)}</button>`).join('');
+  }
+  function pulseFloor(id) { const b = els.floors.querySelector(`[data-floor="${id}"]`); if (b) { b.classList.add('alert'); setTimeout(() => b.classList.remove('alert'), 3200); } }
 
   // ---------- top HUD ----------
   function meter(label, val, cls) {
@@ -277,11 +286,12 @@ export function createOverlay(root, h) {
     if (a === 'isolate') return h.onIsolate(el.dataset.desk);
     if (a === 'lockdown') return h.onLockdown(el.dataset.room);
     if (a === 'recover') return h.onRecover(el.dataset.room);
+    if (a === 'floor') return h.onFloor && h.onFloor(el.dataset.floor);
     if (a === 'tab') { tab = el.dataset.tab; if (tab === 'replay' && h.onReplayTab) return h.onReplayTab(); return h.onTab ? h.onTab(tab) : null; }
     if (map[a]) return map[a]();
   });
 
-  return { els, showStart, hideStart, setPhase, renderHud, renderTray, renderFeed,
+  return { els, showStart, hideStart, setPhase, renderHud, renderTray, renderFeed, renderFloors, pulseFloor,
            showInspect, clearInspect, renderSophia, pulseSophia, toast, setEvent, showEnd, hideEnd, highlightStep,
            get tab() { return tab; } };
 }

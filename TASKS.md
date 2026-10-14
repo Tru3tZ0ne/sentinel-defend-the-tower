@@ -74,6 +74,13 @@ Explored 3 directions (night-ops command [chosen], full holographic table, topol
 - [x] Verified: smoke (contain / delayed / breach distinct) + visual review of prep, deploy, confirm, honest end, EN/中文 UI, replay + live render.
 - [ ] Human play-test & tuning with client.
 
+## Milestone 5 — Second floor / multi-level (DONE, verified)
+- [x] Building generator rebuilt to stack multiple LEVELS (L3 upper + L2 lower) each in its own group, with a shared nav graph linked by an internal stairwell.
+- [x] Floor selector UI (left) — switch the shown level; camera moves; only one level renders at a time, so fog-of-war now has a spatial dimension (the intruder can slip to a floor you're not watching; the floor button pulses + the ticker flags it).
+- [x] Incident re-staged to span both floors: enter L3 reception -> office foothold -> DOWN the stairwell to L2 Finance for credentials -> back UP to L3 server (ransomware) -> Data Room -> exfil. People populate both floors; inactive-floor people hidden.
+- [x] Coverage/observed checks keyed to room ids (L2 rooms share types with L3's product rooms); honest outcomes verified across floors.
+- [x] Verified: smoke green (A win/delayed, B collapse, C contained); floor-switch + cross-floor incident rendered.
+
 ## Milestone 4 — Depth & content (next)
 - [ ] Distinct ransomware-led "Robber" incident; branching second scenario
 - [ ] Infra/business track woven into the world: HCI foundation, ADC vs DDoS, SASE remote branch, aStor snapshots prepared in SETUP

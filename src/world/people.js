@@ -91,7 +91,7 @@ export function createPeople(scene, building, publicNodes, charGltf) {
 
   function deskNodesIn(roomId) { const out = []; for (const d of building.desks.values()) if (d.roomId === roomId && nav.nodes.has('desk:' + d.id)) out.push('desk:' + d.id); return out; }
 
-  function add({ id, startNode, role, visitor, home }) {
+  function add({ id, startNode, role, visitor, home, allowed }) {
     const seed = list.length + (role === 'intruder' ? 4 : 0);
     const fig = glb ? makeGLB(seed) : makeFigure(seed, visitor);
     const start = nav.nodes.get(startNode) || nav.nodes.get('room:' + home) || [...nav.nodes.values()][0];
@@ -101,7 +101,7 @@ export function createPeople(scene, building, publicNodes, charGltf) {
     const homeDesks = home ? deskNodesIn(home) : [];
     const p = { id, role, fig, group: fig.root, pos: fig.root.position, currentNode: startNode,
       path: null, wpIndex: 0, targetNode: null, speed: 1.35 + Math.random() * 0.25,
-      wander: role === 'employee', home, homeDesks, allowed: publicNodes,
+      wander: role === 'employee', home, homeDesks, allowed: allowed || publicNodes,
       halted: false, phase: Math.random() * 6.28, seed, pose: 'idle', facing: fig.root.rotation.y, atDesk: null,
       wait: 0.5 + Math.random() * 2 };
     list.push(p);

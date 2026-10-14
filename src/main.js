@@ -34,9 +34,33 @@ const highlighted = [];
 const labelEls = new Map();
 let replay = null;
 let lastEvent = '';
-const publicNodes = LAYOUT.rooms.filter(r => !['server', 'vault'].includes(r.type)).map(r => 'room:' + r.id);
+let activeLevel = LAYOUT.defaultLevel;
+const roomLevel = new Map(LAYOUT.rooms.map(r => [r.id, r.level]));
+const publicByLevel = {};
+for (const lv of LAYOUT.levels) publicByLevel[lv.id] = LAYOUT.rooms.filter(r => r.level === lv.id && !['server', 'vault'].includes(r.type)).map(r => 'room:' + r.id);
 
 function setTicker(text, kind) { lastEvent = text; if (engine && engine.phase === 'incident') overlay.setEvent(text, false, kind); }
+
+// ---------- floor selector ----------
+function levelOfNode(n) { return building?.nav?.nodes?.get(n)?.level || 'L3'; }
+function personLevel(p) { return levelOfNode(p.currentNode); }
+function setActiveLevel(id, moveCamera = true) {
+  if (!building || !building.floors.some(f => f.id === id)) return;
+  activeLevel = id;
+  for (const f of building.floors) f.group.visible = (f.id === id);
+  const lvl = LAYOUT.levels.find(l => l.id === id);
+  if (moveCamera && world.focusOn) world.focusOn(new THREE.Vector3(-0.5, (lvl?.y || 0) + 0.4, -2.2), 28);
+  if (overlay) overlay.renderFloors(building.floors, activeLevel);
+}
+function updatePeopleFloorVis() {
+  if (!people) return;
+  for (const p of people.list) {
+    const onLevel = personLevel(p) === activeLevel;
+    if (p.role === 'intruder') p.group.visible = onLevel && !!p._entered && !replayHidden();
+    else p.group.visible = onLevel;
+  }
+}
+function replayHidden() { return false; }
 
 // ---------- world (re)build ----------
 function initStage() {
@@ -44,12 +68,12 @@ function initStage() {
   stage = new THREE.Group(); world.scene.add(stage);
   building = buildBuilding(THREE, LAYOUT); stage.add(building.group);
   fx = createFx(stage, building);
-  people = createPeople(stage, building, publicNodes, charGltf);
+  people = createPeople(stage, building, publicByLevel[LAYOUT.defaultLevel], charGltf);
   // Visitor lanyards are worn by a couple of staff too, so the badge never gives the intruder away.
   const lanyard = new Set(['e1', 'e4']);
-  for (const e of EMPLOYEES) people.add({ id: e.id, startNode: 'room:' + e.home, role: 'employee', home: e.home, visitor: lanyard.has(e.id) });
+  for (const e of EMPLOYEES) people.add({ id: e.id, startNode: 'room:' + e.home, role: 'employee', home: e.home, visitor: lanyard.has(e.id), allowed: publicByLevel[roomLevel.get(e.home)] });
   const intr = people.add({ id: 'intruder', startNode: 'entrance', role: 'intruder', visitor: true });
-  intr.group.visible = false; intr.wander = false;
+  intr.group.visible = false; intr.wander = false; intr._entered = false;
   // Room identity now comes from in-world signage + furniture (no floating DOM labels).
   labelEls.clear(); if (overlay?.els?.labels) overlay.els.labels.innerHTML = '';
 }
@@ -100,10 +124,12 @@ function entityFloorPoint(e) {
   return null;
 }
 
+function ensureLevelFor(roomId) { const lv = roomLevel.get(roomId); if (lv && lv !== activeLevel) setActiveLevel(lv, false); }
 function focusClue(clueId) {
   const c = engine.clues.find(x => x.id == clueId); if (!c) return;
   inspectTarget = { kind: 'clue', clueId: c.id };
   renderInspect();
+  ensureLevelFor(c.room);
   const pt = entityFloorPoint(inspectTarget);
   if (pt) { world.focusOn(pt.clone().setY(pt.y + 1), 14); fx.setSelection(pt); }
 }
@@ -144,30 +170,29 @@ function roomName(id) { const r = LAYOUT.rooms.find(x => x.id === id); return r 
 function roomCoverage(roomId) {
   const r = LAYOUT.rooms.find(x => x.id === roomId); if (!r) return [];
   const out = [];
-  if (engine.hasAF && r.type === 'lobby') out.push('af');
+  if (engine.hasAF && roomId === 'reception') out.push('af');
   if (engine.hasNDR) out.push('ndr');
   if ([...engine.edrDesks].some(d => d.split('#')[0] === roomId)) out.push('edr');
-  if (engine.hasIAG && r.type === 'egress') out.push('iag');
-  if (engine.hasXDR && r.type === 'command') out.push('xdr');
-  if (engine.astorReady && r.type === 'server') out.push('astor');
+  if (engine.hasIAG && roomId === 'egress') out.push('iag');
+  if (engine.hasXDR && roomId === 'soc') out.push('xdr');
+  if (engine.astorReady && roomId === 'server') out.push('astor');
   return out;
 }
 // ---- literal fog-of-war: which rooms your deployed sensors can actually see ----
 function roomObserved(roomId) {
-  const r = LAYOUT.rooms.find(x => x.id === roomId); if (!r) return false;
-  if (engine.hasNDR) return true;                                        // floor-wide movement visibility
+  if (engine.hasNDR) return true;                                        // building-wide movement visibility
   if ([...engine.edrDesks].some(d => d.split('#')[0] === roomId)) return true;
-  if (engine.hasAF && r.type === 'lobby') return true;
-  if (engine.hasIAG && r.type === 'egress') return true;
-  if (engine.hasXDR && r.type === 'command') return true;
+  if (engine.hasAF && roomId === 'reception') return true;
+  if (engine.hasIAG && roomId === 'egress') return true;
+  if (engine.hasXDR && roomId === 'soc') return true;
   return false;
 }
 function coveredRooms(product, target) {
   if (product === 'NDR') return LAYOUT.rooms.map(r => r.id);
   if (product === 'EDR' && target) return [target.split('#')[0]];
-  if (product === 'AF') return LAYOUT.rooms.filter(r => r.type === 'lobby').map(r => r.id);
-  if (product === 'IAG') return LAYOUT.rooms.filter(r => r.type === 'egress').map(r => r.id);
-  if (product === 'XDR') return LAYOUT.rooms.filter(r => r.type === 'command').map(r => r.id);
+  if (product === 'AF') return ['reception'];
+  if (product === 'IAG') return ['egress'];
+  if (product === 'XDR') return ['soc'];
   return [];
 }
 function applyCoverage(sweep) {
@@ -260,8 +285,8 @@ function showSophia(id) {
 }
 function sophiaFocusPoint(id) {
   if (!engine) return null;
-  if (id === 'firstClue' && engine.clues[0]) return entityFloorPoint({ kind: 'clue', clueId: engine.clues[0].id });
-  if (id === 'ransomLock') { const rm = [...engine.lockedRooms][0]; return rm ? building.rooms.get(rm)?.center.clone() : null; }
+  if (id === 'firstClue' && engine.clues[0]) { ensureLevelFor(engine.clues[0].room); return entityFloorPoint({ kind: 'clue', clueId: engine.clues[0].id }); }
+  if (id === 'ransomLock') { const rm = [...engine.lockedRooms][0]; if (rm) ensureLevelFor(rm); return rm ? building.rooms.get(rm)?.center.clone() : null; }
   return null;
 }
 function reflowSophia() {
@@ -307,7 +332,12 @@ function newGame() {
       if (pts.length) fx.drawCorrelation(console3, pts);
       setTicker(t('toast.confirmed'), 'warn');
     })
-    .on('intruder-goto', ({ room, desk }) => { const it = people.get('intruder'); if (it) { it.group.visible = true; people.setRoute(it, desk ? 'desk:' + desk : 'room:' + room); } })
+    .on('intruder-goto', ({ room, desk }) => {
+      const it = people.get('intruder'); if (!it) return;
+      it._entered = true; people.setRoute(it, desk ? 'desk:' + desk : 'room:' + room);
+      const lv = roomLevel.get(room);
+      if (lv && lv !== activeLevel) { overlay.pulseFloor(lv); setTicker(t('ticker.otherFloor') + ' · ' + loc(LAYOUT.levels.find(l => l.id === lv)?.name || ''), 'warn'); }
+    })
     .on('lock', ({ room, locked }) => { fx.lockRoom(room, locked); if (locked) setTicker(t('ticker.ransom'), 'bad'); })
     .on('cage-room', ({ room }) => fx.restrictRoom(room))
     .on('contained', ({ desk }) => { const it = people.get('intruder'); if (it) it.halted = true; if (desk) fx.cageDesk(desk); fx.resolveAllClues(); fx.clearCorrelation(); setTicker(t('resp.contained'), 'good'); dirty = true; })
@@ -319,6 +349,7 @@ function newGame() {
   lastEvent = '';
   overlay.hideStart(); overlay.hideEnd();
   overlay.setPhase('prep');
+  setActiveLevel(LAYOUT.defaultLevel, false);
   overlay.renderHud(engine); overlay.renderTray(engine, placing); overlay.renderFeed(engine);
   overlay.setEvent(null, true);
   showSophia('welcome');
@@ -370,6 +401,7 @@ overlay = createOverlay(overlayRoot, {
   onFocusClue: id => focusClue(id),
   onInvestigate: () => { const c = engine.clues[engine.clues.length - 1]; if (c) focusClue(c.id); },
   onTab: () => { overlay.renderTray(engine, placing); },
+  onFloor: id => setActiveLevel(id, true),
   onCloseInspect: () => { inspectTarget = null; overlay.clearInspect(); if (fx) fx.clearSelection(); },
   onAgain: () => newGame(),
   onReplayPlay: () => startReplay(),
@@ -394,7 +426,7 @@ function frame(now) {
   if (incidentRunning) engine.tick(dt * engine.speed);
   if (replay) stepReplay(dt);
   if (fx) fx.update(dt);
-  if (engine) updateLabels();
+  if (people && building) updatePeopleFloorVis();
   world.render();
   requestAnimationFrame(frame);
 }

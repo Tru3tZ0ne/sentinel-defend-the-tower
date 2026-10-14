@@ -141,6 +141,8 @@ const DICT = {
   'ticker.event':   { en: 'EVENT', zh: '事件' },
   'ticker.none':    { en: 'All quiet. Normal business activity.', zh: '一切正常，业务照常运转。' },
   'ticker.ransom':  { en: 'Ransomware locked a room — business uptime is dropping.', zh: '勒索软件锁定了一个房间——业务在线率正在下降。' },
+  'ticker.otherFloor': { en: 'Movement on another floor', zh: '其他楼层有动静' },
+  'floors.label':   { en: 'FLOOR', zh: '楼层' },
   'sophia.show':    { en: 'Show me', zh: '带我去看' },
   'act.isolate':    { en: 'Isolate', zh: '隔离' },
   'act.restrict':   { en: 'Restrict', zh: '封锁' },
