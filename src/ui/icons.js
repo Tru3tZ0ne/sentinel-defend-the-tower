@@ -7,6 +7,7 @@ const svg = (body, vb = 24) =>
   `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
 export const ICONS = {
+  chart: svg('<path d="M4 20V14M9 20V10M14 20V6M19 20V2" stroke-width="3"/>'),
   // AF — perimeter firewall: a shield being screened by scan lines.
   af: svg('<path d="M12 2 4 5v6c0 5 3.5 8 8 11 4.5-3 8-6 8-11V5l-8-3Z"/><path d="M8 9h8M8 12h8M8 15h5"/>'),
 

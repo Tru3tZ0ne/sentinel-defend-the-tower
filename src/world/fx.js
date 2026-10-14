@@ -16,6 +16,23 @@ export function createFx(scene, building) {
   const scanFields = new Map();   // roomId -> cyan coverage grid
   const blinds = new Map();       // roomId -> fog-of-war veil (unobserved)
   const scanWaves = [];           // expanding deploy sweeps
+  // Effects use world coordinates; separate identity groups hide them with their floor.
+  const floorEffects = new Map(building.floors.map(floor => {
+    const group = new THREE.Group(); group.name = 'effects:' + floor.id; scene.add(group); return [floor.id, group];
+  }));
+  function onFloor(object, roomOrLevel) {
+    const level = building.rooms.get(roomOrLevel)?.level || roomOrLevel;
+    (floorEffects.get(level) || scene).add(object);
+  }
+  function removeEffect(object) {
+    object.removeFromParent();
+    object.traverse(o => {
+      o.geometry?.dispose();
+      for (const m of (Array.isArray(o.material) ? o.material : o.material ? [o.material] : [])) {
+        m.map?.dispose(); m.dispose();
+      }
+    });
+  }
 
   // Fog-of-war veil: an unobserved room is shrouded (dims even emissive glows); lifting it
   // with a scan wave is the "sensor brings this area online" moment.
@@ -26,9 +43,9 @@ export function createFx(scene, building) {
         const h = (building.dims.WH || 1.4) + 0.7;
         const m = new THREE.Mesh(new THREE.BoxGeometry(r.width - 0.2, h, r.depth - 0.2),
           new THREE.MeshBasicMaterial({ color: 0x060b16, transparent: true, opacity: 0, depthWrite: false }));
-        m.position.set(r.center.x, h / 2 - 0.1, r.center.z); m.userData.veil = true; scene.add(m); blinds.set(roomId, m);
+        m.position.set(r.center.x, r.center.y + h / 2 - 0.1, r.center.z); m.userData.veil = true; onFloor(m, roomId); blinds.set(roomId, m);
       }
-      const m = blinds.get(roomId); m.visible = true; m.userData.target = 0.7; m.material.opacity = 0.7; // snap on: security view engages
+      const m = blinds.get(roomId); m.visible = true; m.userData.target = 0.28; m.material.opacity = 0.28;
     } else if (blinds.has(roomId)) { blinds.get(roomId).userData.target = 0; } // lift smoothly on reveal
   }
 
@@ -46,7 +63,7 @@ export function createFx(scene, building) {
         const tex = gridTex(); tex.repeat.set((r.width - 1) / 2.2, (r.depth - 1) / 2.2);
         const m = new THREE.Mesh(new THREE.PlaneGeometry(r.width - 0.9, r.depth - 0.9).rotateX(-Math.PI / 2),
           new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
-        m.position.set(r.center.x, 0.09, r.center.z); scene.add(m); scanFields.set(roomId, m);
+        m.position.set(r.center.x, r.center.y + 0.04, r.center.z); onFloor(m, roomId); scanFields.set(roomId, m);
       }
       scanFields.get(roomId).visible = true;
     } else if (scanFields.has(roomId)) { scanFields.get(roomId).visible = false; }
@@ -54,7 +71,7 @@ export function createFx(scene, building) {
   function scanWave(roomId) {
     const r = building.rooms.get(roomId); if (!r) return;
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.06, 8, 44), new THREE.MeshBasicMaterial({ color: 0x5ad2ff, transparent: true, opacity: 0.95, depthWrite: false }));
-    ring.rotation.x = Math.PI / 2; ring.position.set(r.center.x, 0.14, r.center.z); scene.add(ring);
+    ring.rotation.x = Math.PI / 2; ring.position.set(r.center.x, r.center.y + 0.09, r.center.z); onFloor(ring, roomId);
     scanWaves.push({ ring, born: performance.now(), max: Math.max(r.width, r.depth) * 0.62 });
   }
   function clearScans() { for (const m of scanFields.values()) m.visible = false; for (const m of blinds.values()) { m.visible = false; m.userData.target = 0; m.material.opacity = 0; } }
@@ -85,12 +102,12 @@ export function createFx(scene, building) {
       mesh.add(post, p2, beam);
     } else if (productId === 'XDR') {        // command console glow
       const a = building.anchors.XDR.clone();
-      mesh = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.9, 4), emissive(0x9a7bff, 0.8));
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.12), emissive(0x538693, 0.15));
       mesh.position.set(a.x, a.y + 0.9, a.z + 1.2);
     } else if (productId === 'ASTOR') {      // storage shield in server room
       const a = building.anchors.ASTOR.clone();
-      mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), emissive(0x39c0ff, 0.5));
-      mesh.position.set(a.x, a.y + 1.4, 0.6);
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.1, 0.85), emissive(0x536873, 0.1));
+      mesh.position.set(a.x, a.y + 0.55, a.z + 1.4);
     } else if (productId === 'MDR') {        // off-site SOC beacon
       const a = building.anchors.MDR.clone();
       mesh = new THREE.Group();
@@ -100,14 +117,17 @@ export function createFx(scene, building) {
     } else if (productId === 'NDR') {        // coverage along the corridor spine + scan rings at each sensor
       mesh = new THREE.Group();
       const z0 = building.dims.bounds.x0 + 0.5, z1 = building.dims.bounds.x1 - 0.5;
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(z1 - z0, 0.9, 3.0),
-        new THREE.MeshBasicMaterial({ color: 0x39c0ff, transparent: true, opacity: 0.07, depthWrite: false }));
-      beam.position.set((z0 + z1) / 2, 0.45, 0); mesh.add(beam);
+      for (const floor of building.floors) {
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(z1 - z0, 0.9, 3.0),
+          new THREE.MeshBasicMaterial({ color: 0x39c0ff, transparent: true, opacity: 0.04, depthWrite: false }));
+        beam.position.set((z0 + z1) / 2, floor.y + 0.45, 0); beam.userData.level = floor.id; mesh.add(beam);
+      }
       for (const pt of building.anchors.NDR) {
-        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 8), emissive(0x39c0ff, 0.6)); post.position.set(pt.x, 0.45, pt.z); mesh.add(post);
-        const s = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 10), emissive(0x39c0ff, 1.0)); s.position.set(pt.x, 0.95, pt.z); mesh.add(s);
+        const level = building.floors.find(f => Math.abs(f.y + 0.5 - pt.y) < 0.01)?.id;
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9, 8), emissive(0x39c0ff, 0.6)); post.position.set(pt.x, pt.y - 0.05, pt.z); post.userData.level = level; mesh.add(post);
+        const s = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 10), emissive(0x39c0ff, 1.0)); s.position.set(pt.x, pt.y + 0.45, pt.z); s.userData.level = level; mesh.add(s);
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.03, 8, 26), emissive(0x39c0ff, 0.5));
-        ring.rotation.x = Math.PI / 2; ring.position.set(pt.x, 0.1, pt.z); ring.userData.scan = true; mesh.add(ring);
+        ring.rotation.x = Math.PI / 2; ring.position.set(pt.x, pt.y - 0.4, pt.z); ring.userData.scan = true; ring.userData.level = level; mesh.add(ring);
       }
       mesh.userData.ndr = true;
     } else if (productId === 'EDR') {        // protective dome + floor ring over a workstation
@@ -121,13 +141,23 @@ export function createFx(scene, building) {
       if (d?.screen) { d.screen.material.color.setHex(0x4fe6a0); d.screen.material.emissive.setHex(0x3be08a); } // the endpoint now reads as guarded
     }
     if (mesh) {
-      scene.add(mesh); props.set(key, mesh);
+      const room = productId === 'EDR' ? building.desks.get(target)?.roomId : { AF: 'reception', IAG: 'egress', XDR: 'soc', ASTOR: 'server', MDR: 'soc' }[productId];
+      if (room) onFloor(mesh, room); else scene.add(mesh);
+      props.set(key, mesh);
       const a = propAnchor(productId, target); if (a) spawnPulse(a.x, a.y, a.z, PROD_COLOR[productId] || 0x5fd0ff);
     }
     return mesh;
   }
 
   const PROD_COLOR = { AF: 0xff3b5c, IAG: 0xffc24b, XDR: 0x9a7bff, ASTOR: 0x39c0ff, MDR: 0x3fc5ff, NDR: 0x39c0ff, EDR: 0x39e08a };
+  function removeProp(product, target) {
+    const key = product + ':' + (target || '');
+    const prop = props.get(key); if (prop) { removeEffect(prop); props.delete(key); }
+    if (product === 'EDR') {
+      const screen = building.desks.get(target)?.screen;
+      if (screen) { screen.material.color.setHex(0x6fd6ff); screen.material.emissive.setHex(0x6fd6ff); }
+    }
+  }
   function propAnchor(productId, target) {
     if (productId === 'EDR') { const dp = deskPos(target); return dp ? dp.clone().setY(dp.y - 0.6) : null; }
     const a = building.anchors[productId];
@@ -139,7 +169,9 @@ export function createFx(scene, building) {
   const pulses = [];
   function spawnPulse(x, y, z, color) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.05, 8, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false }));
-    ring.rotation.x = Math.PI / 2; ring.position.set(x, y + 0.04, z); scene.add(ring);
+    ring.rotation.x = Math.PI / 2; ring.position.set(x, y + 0.04, z);
+    const floor = building.floors.reduce((a, b) => Math.abs(a.y - y) < Math.abs(b.y - y) ? a : b);
+    onFloor(ring, floor.id);
     pulses.push({ ring, born: performance.now() });
   }
 
@@ -157,7 +189,7 @@ export function createFx(scene, building) {
     }
     corr.userData.born = performance.now(); scene.add(corr);
   }
-  function clearCorrelation() { if (corr) { scene.remove(corr); corr = null; } }
+  function clearCorrelation() { if (corr) { removeEffect(corr); corr = null; } }
 
   // ---------- clue markers ----------
   function addClue(clue) {
@@ -169,7 +201,7 @@ export function createFx(scene, building) {
     g.add(pin, ring);
     g.position.set(pos.x, pos.y + 1.4, pos.z);
     g.userData = { kind: 'clue', clueId: clue.id };
-    scene.add(g);
+    onFloor(g, clue.room); building.pickables.push(g);
     const marker = { id: clue.id, group: g, pin, ring, color, born: performance.now(), confirmed: clue.confidence === 'confirmed', resolved: false };
     clues.push(marker);
     return marker;
@@ -186,7 +218,7 @@ export function createFx(scene, building) {
     const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
     const geo = new THREE.TubeGeometry(curve, 20, 0.05, 6, false);
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x39c0ff, transparent: true, opacity: 0.9 }));
-    scene.add(mesh);
+    onFloor(mesh, toRoom);
     trails.push({ mesh, born: performance.now() });
   }
 
@@ -195,22 +227,22 @@ export function createFx(scene, building) {
     const h = (building.dims.WH || 1.4) + 0.5;
     const ov = new THREE.Mesh(new THREE.BoxGeometry(r.width - 0.3, h, (r.depth || 6) - 0.3),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }));
-    ov.position.set(r.center.x, h / 2, r.center.z); return ov;
+    ov.position.set(r.center.x, r.center.y + h / 2, r.center.z); return ov;
   }
   function lockRoom(roomId, locked) {
     if (locked && !locks.has(roomId)) {
-      const r = building.rooms.get(roomId); const ov = roomBox(r, 0xff3b5c, 0.16); scene.add(ov); locks.set(roomId, ov);
-    } else if (!locked && locks.has(roomId)) { scene.remove(locks.get(roomId)); locks.delete(roomId); }
+      const r = building.rooms.get(roomId); if (!r) return; const ov = roomBox(r, 0xff3b5c, 0.16); onFloor(ov, roomId); locks.set(roomId, ov);
+    } else if (!locked && locks.has(roomId)) { removeEffect(locks.get(roomId)); locks.delete(roomId); }
   }
   function restrictRoom(roomId) {
     if (cages.has('room:' + roomId)) return;
     const r = building.rooms.get(roomId); if (!r) return;
-    const ov = roomBox(r, 0x39c0ff, 0.14); scene.add(ov); cages.set('room:' + roomId, ov);
+    const ov = roomBox(r, 0x39c0ff, 0.14); onFloor(ov, roomId); cages.set('room:' + roomId, ov);
   }
   function cageDesk(deskId) {
     if (cages.has(deskId)) return; const dp = deskPos(deskId); if (!dp) return;
     const cage = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 1.0), new THREE.MeshBasicMaterial({ color: 0x39e08a, wireframe: true, transparent: true, opacity: 0.9 }));
-    cage.position.set(dp.x, dp.y + 0.1, dp.z); scene.add(cage); cages.set(deskId, cage);
+    cage.position.set(dp.x, dp.y + 0.1, dp.z); onFloor(cage, building.desks.get(deskId)?.roomId); cages.set(deskId, cage);
   }
 
   // ---------- intruder reveal ----------
@@ -247,6 +279,9 @@ export function createFx(scene, building) {
 
   function update(dt) {
     const now = performance.now();
+    for (const floor of building.floors) floorEffects.get(floor.id).visible = floor.group.visible;
+    const ndrGroup = props.get('NDR:');
+    if (ndrGroup) for (const child of ndrGroup.children) child.visible = building.floors.find(f => f.id === child.userData.level)?.group.visible ?? true;
     for (const m of clues) {
       if (m.resolved) continue;
       const s = 1 + Math.sin(now * 0.006) * 0.18;
@@ -257,10 +292,11 @@ export function createFx(scene, building) {
     for (let i = trails.length - 1; i >= 0; i--) {
       const age = (now - trails[i].born) / 1000;
       trails[i].mesh.material.opacity = Math.max(0, 0.9 - age * 0.12);
-      if (age > 8) { scene.remove(trails[i].mesh); trails.splice(i, 1); }
+      if (age > 8) { removeEffect(trails[i].mesh); trails.splice(i, 1); }
     }
-    if (revealRing?.visible && revealRing.userData.follow) {
+    if (revealRing?.userData.follow) {
       const g = revealRing.userData.follow;
+      revealRing.visible = g.visible;
       revealRing.position.set(g.position.x, g.position.y + 0.05, g.position.z);
       revealRing.rotation.z += dt * 2;
     }
@@ -268,7 +304,7 @@ export function createFx(scene, building) {
     // per-room light dimming toward target (blind spots fall dark, covered rooms stay lit)
     for (const r of building.rooms.values()) { const l = r.light; if (l && l.userData.target != null) l.intensity += (l.userData.target - l.intensity) * Math.min(1, dt * 3); }
     // coverage grids: scroll + pulse
-    for (const m of scanFields.values()) { if (!m.visible) continue; m.material.map.offset.y = (m.material.map.offset.y + dt * 0.25) % 1; m.material.opacity = 0.1 + Math.sin(now * 0.004) * 0.05; }
+    for (const m of scanFields.values()) { if (!m.visible) continue; m.material.map.offset.y = (m.material.map.offset.y + dt * 0.08) % 1; m.material.opacity = 0.025 + Math.sin(now * 0.004) * 0.01; }
     // fog-of-war veils: fade toward target, hide when clear
     for (const m of blinds.values()) {
       const tgt = m.userData.target || 0; m.material.opacity += (tgt - m.material.opacity) * Math.min(1, dt * 3);
@@ -278,14 +314,14 @@ export function createFx(scene, building) {
     for (let i = scanWaves.length - 1; i >= 0; i--) {
       const w = scanWaves[i], age = (now - w.born) / 1000, s = 1 + age * 9;
       w.ring.scale.setScalar(s); w.ring.material.opacity = Math.max(0, 0.95 - age * 1.1);
-      if (s > w.max || age > 1) { scene.remove(w.ring); scanWaves.splice(i, 1); }
+      if (s > w.max || age > 1) { removeEffect(w.ring); scanWaves.splice(i, 1); }
     }
     // deploy pulses: expand and fade
     for (let i = pulses.length - 1; i >= 0; i--) {
       const age = (now - pulses[i].born) / 1000;
       pulses[i].ring.scale.setScalar(1 + age * 5);
       pulses[i].ring.material.opacity = Math.max(0, 0.9 - age * 1.1);
-      if (age > 0.9) { scene.remove(pulses[i].ring); pulses.splice(i, 1); }
+      if (age > 0.9) { removeEffect(pulses[i].ring); pulses.splice(i, 1); }
     }
     // NDR scan rings: gentle pulse so coverage reads as "watching"
     const ndr = props.get('NDR:');
@@ -300,9 +336,7 @@ export function createFx(scene, building) {
       });
     }
     // animate storage/vault/mdr props gently
-    const astor = props.get('ASTOR:'); if (astor) astor.rotation.y += dt * 0.6;
-    const vault = building.desks.get('vault#core'); if (vault?.coreMesh) vault.coreMesh.rotation.y += dt * 0.4;
   }
 
-  return { addProp, addClue, setClueConfirmed, resolveClue, resolveAllClues, addTrail, lockRoom, restrictRoom, cageDesk, setReveal, clearReveal, setSelection, clearSelection, setHover, drawCorrelation, clearCorrelation, setScan, setBlind, scanWave, clearScans, update, clues };
+  return { addProp, removeProp, addClue, setClueConfirmed, resolveClue, resolveAllClues, addTrail, lockRoom, restrictRoom, cageDesk, setReveal, clearReveal, setSelection, clearSelection, setHover, drawCorrelation, clearCorrelation, setScan, setBlind, scanWave, clearScans, update, clues };
 }

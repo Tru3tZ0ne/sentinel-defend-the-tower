@@ -73,7 +73,7 @@ export const INCIDENT = {
       truth: { en: 'Harvests privileged credentials from a Finance workstation.', zh: '从财务部工作站窃取特权凭据。' } },
     { t: 62, room: 'server',    act: 'move',     ev: 'network',
       truth: { en: 'Climbs back UP to Level 3 and heads for the Server Room.', zh: '返回三层，前往服务器机房。' } },
-    { t: 72, room: 'server',    act: 'ransom',   ev: 'endpoint', locks: 'server', preventBy: 'EDR',
+    { t: 72, room: 'server',    act: 'ransom',   ev: 'endpoint', desk: 'server#core', locks: 'server', preventBy: 'EDR',
       truth: { en: 'Attempts to encrypt the business systems in the Server Room.', zh: '试图加密服务器机房中的业务系统。' } },
     { t: 84, room: 'vault',     act: 'move',     ev: 'network',
       truth: { en: 'Moves to the Data Room where the crown-jewel records live.', zh: '移动到存放核心数据的数据中心。' } },

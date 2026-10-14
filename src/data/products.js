@@ -7,6 +7,7 @@
 
 export const PRODUCTS = {
   AF: {
+    shortName: 'AF / NGFW', label: { en: 'Athena Next-Generation Firewall', zh: 'Athena 下一代防火墙' },
     id: 'AF', name: 'Sangfor AF', athena: 'NGAF · Athena NGFW', icon: 'af', cost: 4,
     worldRole: { en: 'A screening archway at the lobby entrance.', zh: '大堂入口的安检闸门。' },
     tagline:    { en: 'Screening at the front door', zh: '大门口的安检' },
@@ -14,6 +15,7 @@ export const PRODUCTS = {
     limitation: { en: 'Guards the entrance only — once an actor is inside, AF cannot see or stop them.', zh: '只守入口——一旦攻击者进入楼内，AF 既看不见也拦不住。' },
   },
   EDR: {
+    shortName: 'EDR / EPP', label: { en: 'Athena Endpoint Protection', zh: 'Athena 终端安全防护' },
     id: 'EDR', name: 'Sangfor EDR', athena: 'Endpoint Secure · Athena EPP', icon: 'edr', cost: 3,
     worldRole: { en: 'A protective ring over a single workstation.', zh: '覆盖单台工作站的防护光环。' },
     tagline:    { en: 'A smart guard on one endpoint', zh: '单台终端上的智能卫士' },
@@ -21,6 +23,7 @@ export const PRODUCTS = {
     limitation: { en: 'Protects only the endpoints where it is installed. Sangfor notes it cannot fully block unknown/zero-day attacks — so recovery is a fallback, not a guarantee.', zh: '只保护已安装它的终端。深信服也说明它无法完全拦截未知/零日攻击——因此恢复是兜底手段，而非万无一失的保证。' },
   },
   NDR: {
+    shortName: 'STA / NDR', label: { en: 'Athena Network Detection & Response', zh: 'Athena 网络检测与响应' },
     id: 'NDR', name: 'Sangfor STA / NDR', athena: 'Cyber Command · Athena NDR', icon: 'ndr', cost: 5,
     worldRole: { en: 'Sensor nodes watching the corridors & stairwell.', zh: '监视走廊与楼梯间的传感节点。' },
     tagline:    { en: 'Eyes on movement between areas', zh: '区域之间移动的“眼睛”' },
@@ -28,6 +31,7 @@ export const PRODUCTS = {
     limitation: { en: 'Sees movement on the network, not actions on a host — and it detects; it does not block on the endpoint.', zh: '看得见网络上的移动，却看不见主机内部的动作——它负责发现，而非在终端上直接处置。' },
   },
   IAG: {
+    shortName: 'IAG / SWG', label: { en: 'Athena Secure Web Gateway', zh: 'Athena 安全 Web 网关' },
     id: 'IAG', name: 'Sangfor IAG', athena: 'Internet Access Gateway · SWG', icon: 'iag', cost: 3,
     worldRole: { en: 'A checkpoint gate at the mailroom / egress.', zh: '收发室 / 出口处的检查闸门。' },
     tagline:    { en: 'The checkpoint on the way out', zh: '向外通道上的检查点' },
@@ -35,6 +39,7 @@ export const PRODUCTS = {
     limitation: { en: 'Watches the exit, not the break-in. On its own it never catches the intrusion itself.', zh: '守的是出口，不是入口。单独使用，它发现不了入侵本身。' },
   },
   XDR: {
+    shortName: 'XDR', label: { en: 'Athena Extended Detection & Response', zh: 'Athena 扩展检测与响应' },
     id: 'XDR', name: 'Sangfor XDR', athena: 'XDDR · Athena XDR', icon: 'xdr', cost: 6,
     worldRole: { en: 'A command console in the Security Office.', zh: '安防办公室里的指挥控制台。' },
     tagline:    { en: 'Connects the clues into one incident', zh: '把线索串成同一起事件' },
@@ -42,6 +47,7 @@ export const PRODUCTS = {
     limitation: { en: 'Has nothing to correlate until sensors feed it — powerful, but never works alone.', zh: '没有传感器喂数据就无从关联——很强大，但从不单打独斗。' },
   },
   MDR: {
+    shortName: 'MDR', label: { en: 'Athena Managed Detection & Response', zh: 'Athena 托管检测与响应' },
     id: 'MDR', name: 'Sangfor MDR', athena: 'Cyber Guardian · Athena MDR', icon: 'mdr', cost: 6,
     worldRole: { en: 'A remote SOC beacon linked off-site.', zh: '连接异地的远程安全运营信标。' },
     tagline:    { en: 'A remote expert team, around the clock', zh: '7×24 的远程专家团队' },
@@ -49,6 +55,7 @@ export const PRODUCTS = {
     limitation: { en: 'A service, not a sensor — it still relies on your deployed tools for visibility, and the decision stays yours.', zh: '它是服务而非传感器——仍依赖你部署的工具获取可见性，最终决定权也在你。' },
   },
   ASTOR: {
+    shortName: 'aStor', label: { en: 'Sangfor Enterprise Storage', zh: 'Sangfor 企业级存储' },
     id: 'ASTOR', name: 'Sangfor aStor', athena: 'Enterprise Distributed Storage', icon: 'astor', cost: 3,
     worldRole: { en: 'Resilient storage protecting the Server Room.', zh: '守护服务器机房的坚固存储。' },
     tagline:    { en: 'Resilient storage with protected snapshots', zh: '带受保护快照的坚固存储' },

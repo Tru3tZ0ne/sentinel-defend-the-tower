@@ -3,7 +3,34 @@
 > An interactive "protect the building" game for Sangfor's international business:
 > product introductions, presales conversations, and customer events.
 
-Status: **Milestone 2 (3D living-building redesign)** · Last updated: 2026-10-13
+Status: **Playable mission and operations expansion** · Last updated: 2026-10-14
+
+## Current implementation (authoritative)
+
+The building has two selectable floors. Players choose Quiet Morning, The Lockout,
+or Under Pressure, then Guided/Standard/Expert difficulty (22/15/12 initial credits).
+Setup is untimed; the incident earns one credit per 12 simulation seconds.
+
+HCI, ADC, SASE and AICP are playable setup-only operations. HCI reduces service-failure
+and encryption-downtime impact; ADC reduces the scripted traffic surge; SASE rejects
+the unauthorized remote session and adds a slower alternate route. AICP runs a local
+rule that either notifies after XDR correlation or restores previously prepared aStor
+snapshots. No external AI service is called. These are illustrative game rules.
+
+EDR is deployed per endpoint. Isolation must hit the exact endpoint occupied by the actor.
+Room restriction costs uptime. Containment does not remove existing encryption; recovery
+remains available until affected rooms are restored or the session ends. Review distinguishes
+containment, unfinished recovery, blocked exfiltration, delay, breach and business collapse.
+The replay includes only attacks that actually occurred. JSON session reports use English
+field values and include the actual deployment, operational and response history.
+
+The visual target is realistic corporate interiors and close-up office characters.
+Current procedural figures are temporary, and the daylight workspace UI is an intermediate
+presentation improvement. See [ART_DIRECTION.md](ART_DIRECTION.md),
+[DEVELOPMENT_LOG.md](docs/DEVELOPMENT_LOG.md) and [CLAUDE_HANDOFF.md](docs/CLAUDE_HANDOFF.md).
+
+The original concept and historical milestone notes below explain the earlier design;
+the current implementation section and source modules take precedence where they differ.
 
 > **Milestone 2 redesign note.** The experience was rebuilt from a 2D dashboard into a
 > living **3D isometric cutaway** (Three.js, vendored locally): floors, rooms, desks,
@@ -92,13 +119,13 @@ Visibility is keyed to **evidence type** and **location**:
 | Product | Deploy where | Sees (evidence) | Can do | Key limitation (teachable) |
 |---|---|---|---|---|
 | **AF** (NGAF) | Perimeter | `exploit` (inbound) | Block/slow intrusion at the door | Blind once the attacker is *inside* |
-| **EDR** (Endpoint Secure) | Per room | `endpoint` in that room | Isolate host; auto-stop ransomware (~3s honeypot) | Only sees rooms where it's installed |
+| **EDR** (Endpoint Secure) | Per endpoint | `endpoint` on that host | Isolate the exact device; prevent this scenario's encryption on a protected host | Only protects installed endpoints; game prevention is not a zero-day guarantee |
 | **STA/NDR** (Cyber Command) | Building-wide (1 buy) | `network` (lateral movement) everywhere | Trace movement, map the path | Can't see host actions or block on the host |
 | **IAG** | Outbound gateway | `exfil` (data leaving) | DLP: block exfiltration | Watches the exit, not the intrusion |
 | **XDR** (XDDR) | Command Room | — (consumes others' clues) | Correlate ≥2 clue types → *Confirmed* incident, reveal location, boost response | Needs sensors feeding it; useless alone |
 | **MDR** (Cyber Guardian) | Roster | — | 24/7 analysts: recommendations + assisted containment | Costs the most; advises, you still decide |
-| **aStor** | Vault/systems | — | Backup → recover locked rooms (restore uptime) | Recovery, not prevention |
-| **SASE / ADC / HCI / AICP / Agent Builder** | Infra track (later milestones) | — | Business growth, availability, AI automation | Expand capacity *and* attack surface |
+| **aStor** | Server room | — | Prepared protected snapshots enable room recovery | Must be prepared in setup; not automatic full backup |
+| **SASE / ADC / HCI / AICP / Agent Builder** | Setup operations | Scoped access / service signals | Slower remote route, reduced service impact, local helper rules | Scenario abstractions with explicit dependencies, not product performance promises |
 
 Budget: you start with limited credits and earn a small income over time. You cannot
 afford full coverage — the game is about *where* you invest.

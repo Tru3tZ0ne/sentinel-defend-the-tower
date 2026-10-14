@@ -7,19 +7,23 @@
 // recovery are honest about what each product actually does.
 
 import { PRODUCTS } from '../data/products.js';
+import { OPERATIONS } from '../data/operations.js';
 
 let uid = 0; const nid = () => ++uid;
 
 export class Engine {
   constructor(scenario) {
     this.sc = scenario;                  // { LAYOUT, EMPLOYEES, INCIDENT }
-    this.inc = scenario.INCIDENT;
+    this.inc = { ...scenario.INCIDENT, beats: scenario.INCIDENT.beats.map(b => ({ ...b })) };
     this.phase = 'prep';
     this.time = 0;
     this.ended = null;                   // 'win' | 'lose-breach' | 'lose-uptime'
     this.result = null;
 
-    this.budget = 15;
+    this.budget = this.inc.budget ?? 15;
+    this.operations = new Set();
+    this.helperRule = 'notify';
+    this.helperNotified = false;
     this._incomeAcc = 0;
     this.uptime = 100;
     this.data = 100;
@@ -41,6 +45,11 @@ export class Engine {
     this._mdrAssisted = false;
 
     this.lockedRooms = new Set();
+    this.restrictedRooms = new Set();   // access-controlled areas that slow the actor en route
+    this._restrictUsed = new Set();     // each restriction slows the actor once
+    this.recoveryJobs = new Map();
+    this.helperSuppressed = new Set();
+    this.planHistory = [];
     this.log = [];
     this._sophia = new Set();
     this.listeners = {};
@@ -67,24 +76,30 @@ export class Engine {
     return { kind: slot?.kind || 'slot', room: slot?.room };
   }
 
-  canAfford(productId) { return this.budget >= PRODUCTS[productId].cost; }
+  canAfford(productId) { return !!PRODUCTS[productId] && this.budget >= PRODUCTS[productId].cost; }
 
   // ---- deploy ----
   deploy(productId, target) {
     const p = PRODUCTS[productId];
-    if (!p || this.ended) return { ok: false };
+    if (!p || this.ended || !['prep', 'incident'].includes(this.phase)) return { ok: false };
     if (this.budget < p.cost) { this.emit('toast', { kind: 'warn', key: 'panel.cantAfford' }); return { ok: false }; }
 
     if (productId === 'EDR') {
-      if (!target || this.edrDesks.has(target)) return { ok: false };
+      const parts = String(target || '').split('#');
+      const [room, endpoint] = parts;
+      const r = this.sc.LAYOUT.rooms.find(r => r.id === room);
+      const valid = parts.length === 2 && r && ((r.desks && /^[1-9]\d*$/.test(endpoint) && Number(endpoint) <= r.desks) || (['server', 'vault'].includes(room) && endpoint === 'core'));
+      if (!valid) return { ok: false };
+      if (this.edrDesks.has(target)) { this.emit('toast', { kind: 'warn', key: 'resp.alreadyProtected' }); return { ok: false }; }
       this.edrDesks.add(target);
     } else {
-      if (this.bySlot.has(productId)) return { ok: false };
+      if (this.bySlot.has(productId)) { this.emit('toast', { kind: 'warn', key: 'resp.alreadyDeployed' }); return { ok: false }; }
       this.bySlot.set(productId, true);
       if (productId === 'ASTOR' && this.phase === 'prep') this.astorReady = true; // prepared before the attack
     }
     this.budget -= p.cost;
     this.deployed.push({ product: productId, target });
+    if (this.phase === 'prep') this.planHistory.push({ product: productId, target });
     this.log.push({ t: this.time, phase: this.phase, kind: 'deploy', product: productId, target });
     this.emit('deploy', { product: productId, target });
     this.emit('toast', { kind: 'good', key: 'toast.deployed', product: productId });
@@ -94,6 +109,59 @@ export class Engine {
   }
 
   // ---- phases ----
+  deployOperation(id) {
+    const op = OPERATIONS[id];
+    if (!op || this.phase !== 'prep' || this.operations.has(id) || this.budget < op.cost) return { ok: false };
+    this.operations.add(id); this.budget -= op.cost;
+    this.planHistory.push({ operation: id });
+    this.log.push({ t: this.time, kind: 'operation', product: id });
+    this.emit('operation', { product: id, room: op.room });
+    this.changed(); return { ok: true };
+  }
+
+  setHelperRule(rule) {
+    if (this.phase !== 'prep' || !['notify', 'recover'].includes(rule)) return false;
+    this.helperRule = rule; this.changed(); return true;
+  }
+
+  undoSetup() {
+    if (this.phase !== 'prep' || !this.planHistory.length) return { ok: false };
+    const item = this.planHistory.pop();
+    if (item.operation) {
+      this.operations.delete(item.operation); this.budget += OPERATIONS[item.operation].cost;
+    } else {
+      this.deployed.pop(); this.budget += PRODUCTS[item.product].cost;
+      if (item.product === 'EDR') this.edrDesks.delete(item.target);
+      else this.bySlot.delete(item.product);
+      if (item.product === 'ASTOR') this.astorReady = false;
+    }
+    this.log.push({ t: this.time, kind: 'undo', ...item });
+    this.emit('undo', item); this.changed(); return { ok: true };
+  }
+
+  objectives() {
+    const uptimeTarget = this.inc.id === 'storm' ? 80 : 70;
+    return [
+      { key: 'objective.contain', met: this.intruder.contained },
+      { key: 'objective.data', met: this.data === 100 },
+      { key: this.inc.id === 'robber' ? 'objective.restore' : this.inc.id === 'storm' ? 'objective.uptime80' : 'objective.uptime70',
+        met: this.inc.id === 'robber' ? this.lockedRooms.size === 0 : this.uptime >= uptimeTarget },
+    ];
+  }
+
+  _helper() {
+    if (!this.operations.has('AICP')) return;
+    if (this.helperRule === 'notify' && this.confirmed && !this.helperNotified) {
+      this.helperNotified = true;
+      this.log.push({ t: this.time, kind: 'helper', action: 'notify' });
+      this.emit('toast', { kind: 'good', key: 'helper.notified' });
+    }
+    if (this.helperRule === 'recover' && this.astorReady && !this.recoveryJobs.size && this.budget >= 2) {
+      const room = [...this.lockedRooms].find(id => !this.helperSuppressed.has(id));
+      if (room) this.recover(room);
+    }
+  }
+
   beginDay() {
     if (this.phase !== 'prep') return;
     this.phase = 'incident';
@@ -104,16 +172,23 @@ export class Engine {
   }
 
   tick(dt) {
-    if (this.phase !== 'incident' || this.ended) return;
+    if (this.phase !== 'incident' || this.ended || !Number.isFinite(dt) || dt <= 0) return;
+    // Bound simulation steps so offline tests and slow frames preserve causal ordering.
+    if (dt > 0.25) {
+      while (dt > 0 && !this.ended) { const step = Math.min(dt, 0.25); this.tick(step); dt -= step; }
+      return;
+    }
     this.time += dt;
     this._incomeAcc += dt;
     while (this._incomeAcc >= 12) { this._incomeAcc -= 12; this.budget = Math.min(99, this.budget + 1); }
 
-    if (this.lockedRooms.size) this.uptime = Math.max(0, this.uptime - 2.2 * dt * this.lockedRooms.size);
+    if (this.lockedRooms.size) this.uptime = Math.max(0, this.uptime - 2.2 * dt * this.lockedRooms.size * (this.inc.damage || 1) * (this.operations.has('HCI') ? 0.6 : 1));
 
     this._advance();
     this._correlate();
     this._mdrAssist();
+    this._helper();
+    this._recoveries(dt);
     this._sophiaChecks();
     this._endChecks();
     this.changed();
@@ -125,12 +200,41 @@ export class Engine {
       if (this.intruder.contained || this.intruder.failed) break;
       const b = beats[this.beatIndex];
       if (this.time < b.t + this.delay) break;
+      // Access control: a restricted area slows the actor the first time they reach it.
+      // This delays this beat and every beat after it — distinct from prevention or containment.
+      if (b.room && this.restrictedRooms.has(b.room) && !this._restrictUsed.has(b.room)) {
+        this._restrictUsed.add(b.room);
+        this.delay += 12;
+        this.log.push({ t: this.time, kind: 'restrict-delay', room: b.room });
+        this.emit('toast', { kind: 'good', key: 'resp.restrictDelay' });
+        this.sophia('restrictDelay');
+        break;   // re-evaluate next tick with the actor held back at the checkpoint
+      }
       this.beatIndex++;
       this._beat(b);
     }
   }
 
   _beat(b) {
+    if (b.act === 'ddos' || b.act === 'failure') {
+      const mitigated = this.operations.has(b.act === 'ddos' ? 'ADC' : 'HCI');
+      this.uptime = Math.max(0, this.uptime - (mitigated ? 4 : 24) * (this.inc.damage || 1));
+      this._evidence(b, { prevented: mitigated });
+      this.emit('toast', { kind: mitigated ? 'good' : 'warn', key: mitigated ? 'service.mitigated' : 'service.impacted' });
+      return;
+    }
+    if (b.act === 'remote' && this.operations.has('SASE')) {
+      this._evidence(b, { blocked: true }); this.delay += 12;
+      // A denied remote identity changes the next foothold, including its sensor coverage.
+      const next = this.inc.beats.slice(this.beatIndex).find(beat => beat.act === 'foothold');
+      if (next) {
+        next.room = 'office'; next.desk = 'office#2';
+        next.truth = { en: 'After remote access is denied, the actor switches to a local Open Office endpoint.', zh: '远程访问遭拒后，攻击者改用开放办公区的本地终端。' };
+        this.log.push({ t: this.time, kind: 'branch', route: 'local-office', trigger: 'SASE' });
+      }
+      this.emit('toast', { kind: 'good', key: 'service.remoteBlocked' });
+      return;
+    }
     // perimeter: AF blocks the obvious entry but a determined actor finds another way in.
     if (b.act === 'enter') {
       const blocked = this.hasAF;
@@ -146,7 +250,7 @@ export class Engine {
     this.emit('intruder-goto', { room: b.room, desk: b.desk });
 
     if (b.act === 'move') { this._evidence(b, { fromRoom: prevRoom }); return; }
-    if (b.act === 'foothold' || b.act === 'recon' || b.act === 'collect') { this._evidence(b); return; }
+    if (['foothold', 'recon', 'collect', 'remote'].includes(b.act)) { this._evidence(b); return; }
 
     if (b.act === 'ransom') {
       const prevented = b.desk ? this.edrDesks.has(b.desk) : this.edrDesks.has('server#core');
@@ -168,11 +272,11 @@ export class Engine {
     const ev = { id: nid(), t: this.time, type: b.ev, room: b.room, desk: b.desk, act: b.act, truth: b.truth, ...extra };
     this.evidence.push(ev);
     const visible = this._visible(ev);
-    this.log.push({ t: this.time, kind: 'attack', act: b.act, room: b.room, desk: b.desk, ev: b.ev, blocked: !!extra.blocked, prevented: !!extra.prevented, visible });
+    this.log.push({ t: this.time, kind: 'attack', act: b.act, room: b.room, desk: b.desk, ev: b.ev, truth: b.truth, blocked: !!extra.blocked, prevented: !!extra.prevented, visible });
     if (!visible) return;
     if (this.firstDetection == null) this.firstDetection = this.time;
     this.typesSeen.add(ev.type);
-    const clue = { id: ev.id, type: ev.type, room: ev.room, desk: ev.desk, t: this.time,
+    const clue = { id: ev.id, type: ev.type, room: ev.room, desk: ev.desk, fromRoom: extra.fromRoom, t: this.time,
       confidence: this.confirmed ? 'confirmed' : 'weak', blocked: !!extra.blocked, prevented: !!extra.prevented, resolved: false };
     this.clues.push(clue);
     this.emit('clue', clue);
@@ -181,6 +285,9 @@ export class Engine {
   }
 
   _visible(ev) {
+    if (ev.act === 'remote' && this.operations.has('SASE')) return true;
+    if (ev.act === 'ddos' && this.operations.has('ADC')) return true;
+    if (ev.act === 'failure' && this.operations.has('HCI')) return true;
     switch (ev.type) {
       case 'perimeter': return this.hasAF;
       case 'endpoint':  return ev.desk ? this.edrDesks.has(ev.desk) : false;
@@ -213,9 +320,8 @@ export class Engine {
 
   // ---- responses ----
   isolateDevice(deskId) {
-    if (this.ended || !this.edrDesks.has(deskId)) { this.emit('toast', { kind: 'warn', key: 'resp.needEdr' }); return { ok: false }; }
-    const here = this.intruder.desk === deskId || (this.sc.LAYOUT.rooms.find(r => r.id === this.intruder.room) &&
-                 this._deskRoom(deskId) === this.intruder.room);
+    if (this.phase !== 'incident' || this.ended || !this.edrDesks.has(deskId)) { this.emit('toast', { kind: 'warn', key: 'resp.needEdr' }); return { ok: false }; }
+    const here = this.intruder.desk === deskId && !this.intruder.failed;
     if (here && !this.intruder.contained) { this._contain('isolate', deskId); return { ok: true, contained: true }; }
     this.log.push({ t: this.time, kind: 'respond', action: 'isolate', desk: deskId, result: 'nothing' });
     this.emit('toast', { kind: 'bad', key: 'resp.nothingHere' });
@@ -224,30 +330,57 @@ export class Engine {
   }
 
   lockdownRoom(roomId) {
-    if (this.ended) return { ok: false };
+    if (this.phase !== 'incident' || this.ended || !this.sc.LAYOUT.rooms.some(r => r.id === roomId)) return { ok: false };
     this.emit('cage-room', { room: roomId });
+    // Actor is here → access control cuts them off: containment.
     if (this.intruder.room === roomId && !this.intruder.contained && !this.intruder.failed) {
-      this.uptime = Math.max(0, this.uptime - 6);   // access control disrupts that area's work
+      this.uptime = Math.max(0, this.uptime - 6);   // access control disrupts that area's legit work
       this._contain('lockdown', null, roomId);
       return { ok: true, contained: true };
     }
-    this.uptime = Math.max(0, this.uptime - 10);     // blunt lockdown of the wrong area hurts more
-    this.log.push({ t: this.time, kind: 'respond', action: 'lockdown', room: roomId, result: 'wrong' });
-    this.emit('toast', { kind: 'bad', key: 'resp.wrongArea' });
+    // Actor is elsewhere → the restriction stands as a checkpoint ahead of them. It slows the
+    // actor the first time they try to move through this area (see _advance), at the cost of
+    // disrupting that area's work. Restricting an area the actor never reaches is a wasted cost.
+    if (this.restrictedRooms.has(roomId)) { this.emit('toast', { kind: 'warn', key: 'resp.alreadyRestricted' }); return { ok: true, contained: false }; }
+    this.restrictedRooms.add(roomId);
+    this.uptime = Math.max(0, this.uptime - 6);
+    this.log.push({ t: this.time, kind: 'respond', action: 'restrict', room: roomId });
+    this.emit('toast', { kind: 'info', key: 'resp.restricted' });
     this.changed();
     return { ok: true, contained: false };
   }
 
   recover(roomId) {
-    if (this.ended || !this.lockedRooms.has(roomId)) return { ok: false };
+    if (this.phase !== 'incident' || this.ended || !this.lockedRooms.has(roomId)) return { ok: false };
     if (!this.astorReady) { this.emit('toast', { kind: 'warn', key: 'resp.needPrepared' }); return { ok: false }; }
-    this.lockedRooms.delete(roomId);
-    this.emit('lock', { room: roomId, locked: false });
-    this.uptime = Math.min(100, this.uptime + 12);   // restore from protected snapshots (partial, takes effort)
-    this.log.push({ t: this.time, kind: 'respond', action: 'recover', room: roomId });
-    this.emit('toast', { kind: 'good', key: 'toast.recovered' });
+    if (this.recoveryJobs.size || this.budget < 2) {
+      this.emit('toast', { kind: 'warn', key: this.recoveryJobs.size ? 'recovery.busy' : 'recovery.funds' }); return { ok: false };
+    }
+    const duration = this.operations.has('HCI') ? 4 : 6;
+    this.helperSuppressed.delete(roomId);
+    this.budget -= 2; this.recoveryJobs.set(roomId, { elapsed: 0, duration });
+    this.log.push({ t: this.time, kind: 'respond', action: 'recover-start', room: roomId, cost: 2, duration });
     this.changed();
     return { ok: true };
+  }
+
+  cancelRecovery(roomId) {
+    if (this.phase !== 'incident' || !this.recoveryJobs.has(roomId)) return { ok: false };
+    this.recoveryJobs.delete(roomId); this.helperSuppressed.add(roomId); this.budget += 1;
+    this.log.push({ t: this.time, kind: 'respond', action: 'recover-cancel', room: roomId, refund: 1 });
+    this.changed(); return { ok: true };
+  }
+
+  _recoveries(dt) {
+    for (const [room, job] of this.recoveryJobs) {
+      job.elapsed += dt;
+      if (job.elapsed + 1e-8 < job.duration) continue;
+      this.recoveryJobs.delete(room); this.lockedRooms.delete(room);
+      this.uptime = Math.min(100, this.uptime + 12);
+      this.emit('lock', { room, locked: false });
+      this.log.push({ t: this.time, kind: 'respond', action: 'recover', room });
+      this.emit('toast', { kind: 'good', key: 'toast.recovered' });
+    }
   }
 
   _contain(via, deskId, roomId) {
@@ -257,7 +390,8 @@ export class Engine {
     this.emit('contained', { via, desk: deskId, room: roomId || this.intruder.room });
     this.log.push({ t: this.time, kind: 'respond', action: via, desk: deskId, room: roomId || this.intruder.room, result: 'contained' });
     this.emit('toast', { kind: 'good', key: 'resp.contained' });
-    this._end('win', true);
+    // Containment stops the actor, but existing encryption still needs recovery.
+    if (!this.lockedRooms.size) this._end('win', true);
   }
 
   _deskRoom(deskId) { return deskId.split('#')[0]; }
@@ -270,7 +404,8 @@ export class Engine {
   _endChecks() {
     if (this.ended) return;
     if (this.uptime <= this.inc.loseUptimeBelow) { this._end('lose-uptime'); return; }
-    if (this.time >= this.inc.duration) { this._end('win'); }
+    if (this.intruder.contained && !this.lockedRooms.size) { this._end('win', true); return; }
+    if (this.time >= this.inc.duration) { this._end('win', this.intruder.contained); }
   }
 
   _end(result, contained = false) {
@@ -286,6 +421,7 @@ export class Engine {
   // threat, a data breach, or a business collapse are all different and must read differently.
   _outcome(result, contained) {
     if (result === 'win') {
+      if (contained && this.lockedRooms.size) return { verdict: 'partial', kind: 'contained-disrupted', titleKey: 'end.disrupted.title', summaryKey: 'end.disrupted.body' };
       if (contained) return { verdict: 'win', kind: 'contained', titleKey: 'end.contained.title', summaryKey: 'end.contained.body' };
       if (this.intruder.failed) return { verdict: 'win', kind: 'blocked', titleKey: 'end.blocked.title', summaryKey: 'end.blocked.body' };
       // day ended while the actor was still operating — delayed, NOT contained

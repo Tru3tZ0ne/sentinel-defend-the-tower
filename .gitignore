@@ -25,3 +25,8 @@ tools/_probe2.mjs
 tools/_closeup.mjs
 tools/_logic.mjs
 tools/_floors.mjs
+tools/_verify.mjs
+tools/_perfcount.mjs
+tools/_perffixed.mjs
+tools/_visualcheck.mjs
+tools/_playcheck.mjs

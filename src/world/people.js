@@ -11,7 +11,7 @@ const TINTS = [0xffffff, 0xe9e2d6, 0xd9e0ea, 0xe7dede, 0xdfe7de, 0xeae2ee, 0xe0e
 // fallback procedural palettes
 const SKIN = [0xf1c9a5, 0xe6b48c, 0xc68642, 0x9c6b3f, 0xffd9b3, 0x7a4a26];
 const HAIR = [0x23201e, 0x4a2f1b, 0x6b4a2a, 0x121212, 0x9a9a9a, 0x3a2b24, 0xb5884f];
-const SHIRTS = [0x5b7fb0, 0x5f9a6a, 0xb0645f, 0x7a6ca8, 0x4fa0a0, 0xc9a24b, 0x586a86, 0xcf7aa0, 0xd98f4e];
+const SHIRTS = [0x485569, 0x65716f, 0x6f777c, 0x535c68, 0x466571, 0x77776d, 0x586a78, 0x666c76, 0x4b5663];
 const PANTS = [0x2f3a56, 0x3a3f4a, 0x4a3b2f, 0x2b3b3b, 0x394150];
 
 export function createPeople(scene, building, publicNodes, charGltf) {
@@ -99,7 +99,7 @@ export function createPeople(scene, building, publicNodes, charGltf) {
     fig.root.userData = { kind: 'person', personId: id };
     scene.add(fig.root);
     const homeDesks = home ? deskNodesIn(home) : [];
-    const p = { id, role, fig, group: fig.root, pos: fig.root.position, currentNode: startNode,
+    const p = { id, role, fig, group: fig.root, pos: fig.root.position.clone(), currentNode: startNode,
       path: null, wpIndex: 0, targetNode: null, speed: 1.35 + Math.random() * 0.25,
       wander: role === 'employee', home, homeDesks, allowed: allowed || publicNodes,
       halted: false, phase: Math.random() * 6.28, seed, pose: 'idle', facing: fig.root.rotation.y, atDesk: null,
@@ -113,9 +113,12 @@ export function createPeople(scene, building, publicNodes, charGltf) {
     let target = toNode;
     if (!nav.nodes.has(target)) { const room = roomOfDeskNode(target); target = room && nav.nodes.has('room:' + room) ? 'room:' + room : null; }
     if (!target) { p.path = null; return false; }
-    const path = findPath(nav, p.currentNode, target);
-    if (!path || path.length < 2) { p.path = null; return false; }
-    p.path = path; p.wpIndex = 1; p.targetNode = target; p.atDesk = null; return true;
+    // A new incident beat can redirect someone before their previous route finishes.
+    const from = p.path ? [...nav.nodes.values()].reduce((a, b) => a.pos.distanceToSquared(p.pos) < b.pos.distanceToSquared(p.pos) ? a : b).id : p.currentNode;
+    const path = findPath(nav, from, target);
+    if (!path) { p.path = null; return false; }
+    if (path.length === 1 && p.pos.distanceTo(path[0]) < .05) { p.path = null; p.currentNode = target; p.atDesk = target.startsWith('desk:') ? target.slice(5) : null; return false; }
+    p.path = path; p.wpIndex = path.length > 1 && from === p.currentNode ? 1 : 0; p.targetNode = target; p.atDesk = null; return true;
   }
   function decide(p) {
     const atDeskNow = p.currentNode.startsWith('desk:');
@@ -149,6 +152,8 @@ export function createPeople(scene, building, publicNodes, charGltf) {
       let dyaw = p.facing - p.group.rotation.y; while (dyaw > Math.PI) dyaw -= 2 * Math.PI; while (dyaw < -Math.PI) dyaw += 2 * Math.PI;
       p.group.rotation.y += dyaw * Math.min(1, dt * 10);
 
+      // Animation offsets must never feed back into simulation/navigation coordinates.
+      p.group.position.copy(p.pos);
       if (p.fig.isGLB) animateGLB(p, dt, moving);
       else animateProc(p, dt, tnow, moving, working);
     }

@@ -9,19 +9,31 @@ only *see* what their tools let them see.
 > art direction: [`ART_DIRECTION.md`](./ART_DIRECTION.md) ·
 > asset provenance: [`assets/brand/ASSETS.md`](./assets/brand/ASSETS.md)
 
+Current development: three assignments, three difficulty levels, playable infrastructure
+preparation, a local helper-rule workflow, a reference-led dark command interface, bilingual
+session review and JSON report export. Response choices have consequences — isolate the exact
+device, lock down the room the actor is in, or restrict an area ahead of them to slow their
+advance. Static scene detail is batched per floor for performance. Realistic close-up characters
+and interiors remain an asset-production milestone; current figures are procedural placeholders.
+
+Developer records: [development log](docs/DEVELOPMENT_LOG.md),
+[Claude Code continuation prompt](docs/CLAUDE_HANDOFF.md),
+[facilitator guide](docs/FACILITATOR_GUIDE.md).
+
 ## Run it locally
 
 No build step. Any static server works:
 
 ```bash
-npx serve .            # or:
+npm run serve         # http://localhost:8123
+# Alternatively:
 python3 -m http.server 8080
 ```
 
 Then open the printed URL. (Opening `index.html` via `file://` won't work — ES modules
 need `http`.)
 
-## Project structure (Milestone 2 — 3D)
+## Project structure
 
 ```
 index.html              entry: import map for three + canvas/overlay (relative paths → Pages ready)
@@ -30,25 +42,30 @@ src/
   i18n.js               EN / 中文 strings (t/loc helpers)
   data/
     products.js         product catalog (roles, cost, visibility, world presence) — edit freely
-    scenario.js         single-floor layout (room footprints) + cast + ground-truth incident
+    scenario.js         two-floor layout, cast and baseline incident
+    missions.js         three incident schedules and difficulty settings
+    operations.js       HCI, ADC, SASE and AICP planning rules
+    session-copy.js     EN/ZH mission, planning and debrief copy
   game/
     engine.js           phase-based simulation: fog-of-war, deploy/respond, win/lose, replay log
     sophia.js           Sophia's layered, building-pointing hints
   world/
     world.js            Three.js scene: camera, lights, orbit, picking
-    building.js         generates the single-floor diorama (rooms, corridor, signage, furniture) + nav graph
+    building.js         generates both floors, signage, temporary furniture and the shared nav graph
     people.js           low-poly figures that walk the nav graph
     fx.js               product props, clue markers, trails, containment visuals
   ui/
     overlay.js          DOM overlay: HUD, deploy tray, inspect card, feed, Sophia, end/replay
     icons.js            original SVG icon set
-  style/main.css        command-center theme over the canvas
+    audio.js            opt-in, locally synthesized office ambience
+  style/main.css        core UI layout
+  style/workspace.css   dark command-interface presentation skin
   vendor/three/         vendored Three.js r160 + OrbitControls (local, offline-friendly)
-assets/brand/           logo placeholder + asset sources
-tools/                  static server + headless smoke test
+assets/brand/           official logo images and recorded sources
+tools/                  static server, engine tests and browser tests
 ```
 
-Rendering is **Three.js (WebGL 2)**, low-poly stylized for performance on laptops/tablets.
+Rendering uses **Three.js r160** with temporary procedural geometry for performance on laptops/tablets.
 The library is vendored locally (no CDN), so the app loads fast and works offline.
 
 ## Test (headless)
@@ -56,15 +73,26 @@ The library is vendored locally (no CDN), so the app loads fast and works offlin
 ```bash
 npm install            # installs Playwright
 npx playwright install chromium
-npm test               # runs tools/smoke.mjs: loads the game, plays a scenario,
-                       # fails on console errors, writes screenshots to tools/shots/
+npm test               # engine rules + original smoke + actual UI/canvas interactions
+npm run test:engine    # fast deterministic rule regressions
+npm run test:ui        # mission selection, real canvas deployment, recovery, review and reports
 ```
 
 ## Deploy to GitHub Pages
 
 Because everything is static with relative paths, deployment is just pushing the repo
 and enabling Pages (branch `main`, root). The app then runs at
-`https://<user>.github.io/<repo>/`. (Not yet pushed — see `TASKS.md`.)
+`https://<user>.github.io/<repo>/`. Feature branches should be reviewed before merging
+into the configured Pages source branch.
+
+## Controls
+
+Drag to orbit, scroll to zoom, and use the floor buttons or **1 / 2** to switch floors.
+**H** returns to the floor overview, **`[` / `]`** cycle room inspection on the active floor,
+**Enter** begins the day in setup, **Escape** cancels placement (or clears the current
+inspection), and **Space** pauses or resumes a live incident. Sound starts muted and can be
+enabled in the top bar. Choose the assignment and difficulty before entering setup; setup has
+no time limit.
 
 ## Localization
 
@@ -73,5 +101,18 @@ product blurbs and level text carry `{ en, zh }` fields in `src/data/`.
 
 ## Branding note
 
-The logo and Sangfor-red accent are **reasoned placeholders**. Confirm the exact brand
-color and drop in official logo/product assets before any customer-facing use.
+Official Sangfor logo images are recorded in `assets/brand/ASSETS.md` and used unchanged.
+The green UI accents are approximate; confirm exact numeric palette values against
+official brand guidelines before final brand approval.
+
+
+### Current command interface
+
+The reference-led dark interface uses official Sangfor/Athena/Cloud assets and the Solvia
+panda guide. Setup supports full-refund undo/reset. SASE changes the next foothold route;
+snapshot restoration costs 2 credits and takes 6 seconds (4 with HCI), with progress and
+cancellation. Mission objectives and English reports expose actual outcomes.
+
+See [the development record](docs/DEVELOPMENT_LOG.md) and
+[Claude continuation prompt](docs/CLAUDE_HANDOFF.md). Procedural scene assets remain
+intermediate placeholders; realistic character and furniture production is deferred.

@@ -1,6 +1,7 @@
 // Localization — EN / 中文. t(key, vars) for UI strings; loc(field) for {en,zh} data.
 // Product brand names are intentionally not translated.
 
+import { SESSION_COPY } from './data/session-copy.js';
 export const LANGS = ['en', 'zh'];
 
 const DICT = {
@@ -58,6 +59,7 @@ const DICT = {
   'inspect.purpose':  { en: 'Purpose', zh: '用途' },
   'inspect.deskCount':{ en: 'Workstations', zh: '工作站' },
   'inspect.locked':   { en: 'Locked by ransomware — uptime is dropping', zh: '被勒索软件锁定——在线率正在下降' },
+  'inspect.restricted': { en: 'Access-restricted — will slow the actor if they pass through', zh: '已访问封控——若攻击者经过将被拖慢' },
   'cover.af':   { en: 'AF screens the entrance', zh: 'AF 守住入口' },
   'cover.ndr':  { en: 'NDR watches movement in/out', zh: 'NDR 监视进出移动' },
   'cover.edr':  { en: 'EDR protects a workstation here', zh: '此处有 EDR 保护工作站' },
@@ -95,6 +97,11 @@ const DICT = {
   'resp.needEdr':    { en: 'That device has no EDR to isolate it', zh: '该设备没有可用于隔离的 EDR' },
   'resp.nothingHere':{ en: 'Nothing malicious on that device — no effect', zh: '该设备上没有恶意行为——没有效果' },
   'resp.wrongArea':  { en: 'The intruder is not there — you disrupted the business', zh: '入侵者不在那里——你反而干扰了业务' },
+  'resp.restricted': { en: 'Area restricted — access control will slow the actor if they come this way (business disrupted here)', zh: '区域已封控——若攻击者经过这里，访问控制会拖慢其行动（此处业务受影响）' },
+  'resp.restrictDelay': { en: 'Access control held the actor at a restricted area — you bought time', zh: '访问控制在封控区拦住了攻击者——你争取到了时间' },
+  'resp.alreadyRestricted': { en: 'That area is already restricted', zh: '该区域已被封控' },
+  'resp.alreadyProtected': { en: 'That device already has EDR', zh: '该设备已部署 EDR' },
+  'resp.alreadyDeployed': { en: 'That capability is already deployed', zh: '该能力已部署' },
   'resp.needPrepared': { en: 'No protected snapshots were prepared beforehand', zh: '事先没有准备受保护的快照' },
   'resp.contained':  { en: 'Threat contained', zh: '威胁已遏制' },
 
@@ -107,11 +114,11 @@ const DICT = {
   'toast.recovered':    { en: 'Room restored from snapshots', zh: '房间已从快照恢复' },
 
   // sophia
-  'sophia.name':  { en: 'Sophia', zh: 'Sophia' },
-  'sophia.role':  { en: 'Your security analyst', zh: '你的安全分析师' },
+  'sophia.name':  { en: 'Solvia', zh: 'Solvia' },
+  'sophia.role':  { en: 'Your tower guide', zh: '你的大厦引导助手' },
   'sophia.more':  { en: 'Tell me more', zh: '再详细些' },
-  'sophia.ask':   { en: 'Ask Sophia', zh: '问 Sophia' },
-  'sophia.greet': { en: "Hi, I'm Sophia. I'll ride along. Tap me whenever a clue, action, or product isn't clear — I'll point you toward something in the building first, then explain if you want.", zh: '你好，我是 Sophia，会一路陪着你。遇到看不懂的线索、操作或产品，点我一下——我会先把你引向楼里的某处，需要时再细说。' },
+  'sophia.ask':   { en: 'Ask Solvia', zh: '问 Solvia' },
+  'sophia.greet': { en: "Hi, I'm Solvia. I'll ride along. Tap me whenever a clue, action, or product isn't clear — I'll point you toward something in the building first, then explain if you want.", zh: '你好，我是 Solvia，会一路陪着你。遇到看不懂的线索、操作或产品，点我一下——我会先把你引向楼里的某处，需要时再细说。' },
 
   // incident panel / deck / tabs / ticker (ops UI)
   'inc.label':      { en: 'ACTIVE INCIDENT', zh: '当前事件' },
@@ -134,10 +141,10 @@ const DICT = {
   'info.astor2':    { en: 'Resilient distributed storage with WORM snapshots.', zh: '带 WORM 快照的坚固分布式存储。' },
   'info.adc':       { en: 'Application delivery & load balancing.', zh: '应用交付与负载均衡。' },
   'info.sase':      { en: 'Secure access for remote branches & users.', zh: '面向远程分支与用户的安全接入。' },
-  'info.aicp':      { en: 'AI infrastructure powering Sophia & Security GPT.', zh: '支撑 Sophia 与 Security GPT 的 AI 基础设施。' },
+  'info.aicp':      { en: 'Infrastructure for AI workloads and local helper rules.', zh: '承载 AI 工作负载与本地助手规则的基础设施。' },
   'info.xdrops':    { en: 'Correlates your sensors into one incident.', zh: '将各传感器关联为同一事件。' },
   'info.mdrops':    { en: '24/7 managed analysts, powered by XDR.', zh: '由 XDR 支撑的 7×24 托管专家。' },
-  'info.gpt':       { en: 'The AI engine behind XDR / MDR & Sophia.', zh: 'XDR / MDR 与 Sophia 背后的 AI 引擎。' },
+  'info.gpt':       { en: 'The AI engine behind Sangfor XDR / MDR.', zh: 'Sangfor XDR / MDR 背后的 AI 引擎。' },
   'ticker.event':   { en: 'EVENT', zh: '事件' },
   'ticker.none':    { en: 'All quiet. Normal business activity.', zh: '一切正常，业务照常运转。' },
   'ticker.ransom':  { en: 'Ransomware locked a room — business uptime is dropping.', zh: '勒索软件锁定了一个房间——业务在线率正在下降。' },
@@ -182,8 +189,14 @@ const DICT = {
   'end.backToGame':{ en: 'Back to building', zh: '返回大厦' },
 };
 
+Object.assign(DICT, SESSION_COPY);
 let current = 'en';
-export function setLang(l) { if (LANGS.includes(l)) current = l; }
+export function setLang(l) {
+  if (LANGS.includes(l)) {
+    current = l;
+    if (typeof document !== 'undefined') document.documentElement.lang = l === 'zh' ? 'zh-CN' : 'en';
+  }
+}
 export function getLang() { return current; }
 export function t(key, vars) {
   const e = DICT[key]; let s = e ? (e[current] ?? e.en) : key;

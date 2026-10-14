@@ -3,17 +3,19 @@
 // phase, so the setup phase has no time pressure.
 import * as THREE from 'three';
 import { setLang, getLang, loc, t } from './i18n.js';
-import { LAYOUT, EMPLOYEES, INCIDENT } from './data/scenario.js';
+import { LAYOUT, EMPLOYEES } from './data/scenario.js';
 import { PRODUCTS } from './data/products.js';
+import { productMark } from './ui/product-marks.js';
+import { missionFor } from './data/missions.js';
 import { createWorld } from './world/world.js';
+import { createAmbience } from './world/audio.js';
 import { buildBuilding } from './world/building.js';
 import { createFx } from './world/fx.js';
 import { createPeople } from './world/people.js';
 import { GLTFLoader } from './vendor/three/GLTFLoader.js';
 
-// Art direction: premium STYLIZED (not photoreal). Characters are original stylized art.
-// The GLB pipeline is retained for later (set USE_GLB_CHARACTERS + CHAR_MODEL to enable a
-// licensed character pack), but the shipped look is the crafted stylized figure.
+// Procedural characters remain a temporary fallback until realistic office assets pass QA.
+// Keep the GLB pipeline available for reviewed, licensed and animated characters.
 const USE_GLB_CHARACTERS = false;
 const CHAR_MODEL = 'assets/models/CesiumMan.glb';
 let charGltf = null;
@@ -26,6 +28,7 @@ import { createOverlay } from './ui/overlay.js';
 const canvas = document.getElementById('scene');
 const overlayRoot = document.getElementById('overlay');
 const world = createWorld(canvas);
+const ambience = createAmbience();
 
 let stage, building, fx, people, engine, overlay;
 let placing = null, dirty = false, inspectTarget = null;
@@ -35,6 +38,7 @@ const labelEls = new Map();
 let replay = null;
 let lastEvent = '';
 let activeLevel = LAYOUT.defaultLevel;
+let selectedMission = 'quiet', selectedDifficulty = 'standard';
 const roomLevel = new Map(LAYOUT.rooms.map(r => [r.id, r.level]));
 const publicByLevel = {};
 for (const lv of LAYOUT.levels) publicByLevel[lv.id] = LAYOUT.rooms.filter(r => r.level === lv.id && !['server', 'vault'].includes(r.type)).map(r => 'room:' + r.id);
@@ -42,14 +46,15 @@ for (const lv of LAYOUT.levels) publicByLevel[lv.id] = LAYOUT.rooms.filter(r => 
 function setTicker(text, kind) { lastEvent = text; if (engine && engine.phase === 'incident') overlay.setEvent(text, false, kind); }
 
 // ---------- floor selector ----------
-function levelOfNode(n) { return building?.nav?.nodes?.get(n)?.level || 'L3'; }
-function personLevel(p) { return levelOfNode(p.currentNode); }
+function personLevel(p) {
+  return LAYOUT.levels.reduce((a, b) => Math.abs(a.y - p.pos.y) < Math.abs(b.y - p.pos.y) ? a : b).id;
+}
 function setActiveLevel(id, moveCamera = true) {
   if (!building || !building.floors.some(f => f.id === id)) return;
   activeLevel = id;
   for (const f of building.floors) f.group.visible = (f.id === id);
   const lvl = LAYOUT.levels.find(l => l.id === id);
-  if (moveCamera && world.focusOn) world.focusOn(new THREE.Vector3(-0.5, (lvl?.y || 0) + 0.4, -2.2), 28);
+  if (moveCamera && world.focusOn) world.focusOn(new THREE.Vector3(-0.5, (lvl?.y || 0) + 0.4, -1), 42);
   if (overlay) overlay.renderFloors(building.floors, activeLevel);
 }
 function updatePeopleFloorVis() {
@@ -64,9 +69,23 @@ function replayHidden() { return false; }
 
 // ---------- world (re)build ----------
 function initStage() {
-  if (stage) world.scene.remove(stage);
+  if (stage) {
+    clearHighlight();
+    const geometries = new Set(), materials = new Set(), textures = new Set();
+    stage.traverse(o => {
+      if (o.geometry) geometries.add(o.geometry);
+      for (const m of (Array.isArray(o.material) ? o.material : o.material ? [o.material] : [])) {
+        materials.add(m);
+        for (const value of Object.values(m)) if (value?.isTexture) textures.add(value);
+      }
+      o.shadow?.map?.dispose();
+    });
+    geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose());
+    world.scene.remove(stage);
+  }
   stage = new THREE.Group(); world.scene.add(stage);
   building = buildBuilding(THREE, LAYOUT); stage.add(building.group);
+  for (const floor of building.floors) floor.group.visible = floor.id === LAYOUT.defaultLevel;
   fx = createFx(stage, building);
   people = createPeople(stage, building, publicByLevel[LAYOUT.defaultLevel], charGltf);
   // Visitor lanyards are worn by a couple of staff too, so the badge never gives the intruder away.
@@ -74,8 +93,13 @@ function initStage() {
   for (const e of EMPLOYEES) people.add({ id: e.id, startNode: 'room:' + e.home, role: 'employee', home: e.home, visitor: lanyard.has(e.id), allowed: publicByLevel[roomLevel.get(e.home)] });
   const intr = people.add({ id: 'intruder', startNode: 'entrance', role: 'intruder', visitor: true });
   intr.group.visible = false; intr.wander = false; intr._entered = false;
-  // Room identity now comes from in-world signage + furniture (no floating DOM labels).
+  // Screen-facing architectural placards stay readable at the command-view distance.
   labelEls.clear(); if (overlay?.els?.labels) overlay.els.labels.innerHTML = '';
+  for (const r of LAYOUT.rooms) {
+    const el = document.createElement('div'); el.className = 'room-placard';
+    el.innerHTML = `${icon(roomIcon(r.type))}<span><b>${esc(loc(r.name))}</b><small>${t('placard.' + r.type)}</small></span>`;
+    overlay.els.labels.appendChild(el); labelEls.set(r.id, el);
+  }
 }
 
 // ---------- helpers ----------
@@ -87,10 +111,11 @@ function personRoom(p) {
 }
 function roomOccupants(roomId) { return people.list.filter(p => p.id !== 'intruder' && personRoom(p) === roomId); }
 
-function clearHighlight() { for (const h of highlighted) { h.mesh.material.emissive.setHex(h.e); h.mesh.material.emissiveIntensity = h.i; } highlighted.length = 0; }
-function hl(mesh, color = 0xE60027, inten = 0.5) {
+function clearHighlight() { for (const h of highlighted) { h.mesh.material.emissive.setHex(h.e); h.mesh.material.emissiveIntensity = h.i; h.mesh.material.opacity = h.opacity; } highlighted.length = 0; }
+function hl(mesh, color = 0x39e08a, inten = 0.5) {
   if (!mesh?.material?.emissive) return;
-  highlighted.push({ mesh, e: mesh.material.emissive.getHex(), i: mesh.material.emissiveIntensity });
+  highlighted.push({ mesh, e: mesh.material.emissive.getHex(), i: mesh.material.emissiveIntensity, opacity: mesh.material.opacity });
+  if (mesh.material.opacity === 0) mesh.material.opacity = .2;
   mesh.material.emissive.setHex(color); mesh.material.emissiveIntensity = inten;
 }
 function highlightPlacement(prod) {
@@ -99,7 +124,8 @@ function highlightPlacement(prod) {
     for (const d of building.desks.values()) { const m = d.deskMesh || d.coreMesh; if (m && !engine.edrDesks.has(d.id)) hl(m, 0x39e08a, 0.55); }
   } else {
     const elig = engine.eligible(prod);
-    if (elig.room) { const r = building.rooms.get(elig.room); if (r) hl(r.pad, 0xE60027, 0.6); }
+    // Valid deploy targets glow brand-green ("place here") — red is reserved for threats.
+    if (elig.room) { const r = building.rooms.get(elig.room); if (r) hl(r.pad, 0x39e08a, 0.55); }
     else { for (const r of building.rooms.values()) hl(r.pad, 0x39c0ff, 0.28); } // network / offsite: anywhere
   }
 }
@@ -210,21 +236,26 @@ function applyCoverage(sweep) {
 
 function coverageHtml(cover) {
   if (!cover.length) return `<div class="cover none">${icon('attacker')} ${t('inspect.noCoverage')}</div>`;
-  return `<div class="cover-list">${cover.map(c => `<span class="cover-pill ${c}">${icon(c === 'af' ? 'af' : c === 'ndr' ? 'ndr' : c === 'edr' ? 'edr' : c === 'iag' ? 'iag' : c === 'xdr' ? 'xdr' : 'astor')} ${t('cover.' + c)}</span>`).join('')}</div>`;
+  return `<div class="cover-list">${cover.map(c => `<span class="cover-pill ${c}">${productMark(c.toUpperCase())} ${t('cover.' + c)}</span>`).join('')}</div>`;
 }
 function inspectRoom(roomId) {
   const r = LAYOUT.rooms.find(x => x.id === roomId); if (!r) return '';
+  const level = LAYOUT.levels.find(l => l.id === r.level);
   const occ = roomOccupants(roomId).length;
   const locked = engine.lockedRooms.has(roomId);
+  const restricted = engine.restrictedRooms && engine.restrictedRooms.has(roomId);
   const inc = engine.phase === 'incident';
   const deskCount = [...building.desks.values()].filter(d => d.roomId === roomId && d.deskMesh).length;
   const actions = [];
-  if (inc && locked) actions.push(`<button class="actbtn good" data-act="recover" data-room="${roomId}">${icon('astor')}<span>${t('act.restore')}</span></button>`);
-  if (inc && !locked) actions.push(`<button class="actbtn" data-act="lockdown" data-room="${roomId}">${icon('lock')}<span>${t('act.restrict')}</span></button>`);
+  const recovery = engine.recoveryJobs.get(roomId);
+  if (inc && locked && !recovery) actions.push(`<button class="actbtn good" data-act="recover" data-room="${roomId}" ${!engine.astorReady || engine.budget < 2 || engine.recoveryJobs.size ? 'disabled' : ''}>${icon('astor')}<span>${t('recovery.offer', { seconds: engine.operations.has('HCI') ? 4 : 6 })}</span></button>`);
+  if (recovery) actions.push(`<div class="recovery-status"><span>${t('recovery.progress', { seconds: Math.ceil(recovery.duration - recovery.elapsed) })}</span><progress max="${recovery.duration}" value="${recovery.elapsed}"></progress><button class="linklike" data-act="cancelRecovery" data-room="${roomId}">${t('recovery.cancel')}</button></div>`);
+  if (inc && !locked && !restricted) actions.push(`<button class="actbtn" data-act="lockdown" data-room="${roomId}">${icon('lock')}<span>${t('act.restrict')}</span></button>`);
   return `
-    <div class="ins-head"><h3>${icon(roomIcon(r.type))} ${loc(r.name)}</h3><span class="ins-sub">${t('inspect.level')}</span></div>
+    <div class="ins-head"><h3>${icon(roomIcon(r.type))} ${loc(r.name)}</h3><span class="ins-sub">${loc(level?.name)}</span></div>
     <div class="ins-purpose">${t('room.' + r.type) || ''}</div>
     ${locked ? `<div class="locked-row">${icon('lock')} ${t('inspect.locked')}</div>` : ''}
+    ${restricted ? `<div class="locked-row restricted">${icon('lock')} ${t('inspect.restricted')}</div>` : ''}
     <div class="ins-rows">
       <div><span>${t('inspect.occupants')}</span><b>${occ}</b></div>
       ${deskCount ? `<div><span>${t('inspect.deskCount')}</span><b>${deskCount}</b></div>` : ''}
@@ -244,7 +275,7 @@ function inspectDesk(deskId, roomId) {
   if (inc && edr) acts.push(`<button class="actbtn danger" data-act="isolate" data-desk="${deskId}">${icon('edr')}<span>${t('act.isolate')}</span></button>`);
   if (inc) acts.push(`<button class="actbtn" data-act="lockdown" data-room="${roomId}">${icon('lock')}<span>${t('act.restrict')}</span></button>`);
   return `
-    <div class="ins-head"><h3>${icon('endpoint')} ${t('inspect.workstation')}</h3><span class="ins-sub">${roomName(roomId)}</span></div>
+    <div class="ins-head"><h3>${icon('endpoint')} ${t('inspect.workstation')}</h3><span class="ins-sub">${roomName(roomId)} · ${esc(deskId)}</span></div>
     <div class="st-rows">
       ${statusRow(t('st.endpoint'), edr, t('st.protected'), t('st.unprotected'))}
       ${statusRow(t('st.network'), observed, t('st.observed'), t('st.unobserved'))}
@@ -262,7 +293,7 @@ function _unusedDesk(deskId, roomId) {
 }
 function inspectPerson(id) {
   const emp = EMPLOYEES.find(e => e.id === id);
-  const name = id === 'intruder' ? loc(INCIDENT.intruder.name) : (emp ? loc(emp.name) : t('inspect.person'));
+  const name = id === 'intruder' ? loc(engine.inc.intruder.name) : (emp ? loc(emp.name) : t('inspect.person'));
   return `<div class="ins-head"><h3>${icon('mdr')} ${esc(name)}</h3><span class="ins-sub">${t('inspect.person')}</span></div>
     <div class="ins-note">${t('inspect.personNote')}</div>`;
 }
@@ -300,9 +331,9 @@ function updateLabels() {
   for (const [id, el] of labelEls) {
     const r = building.rooms.get(id); if (!r) continue;
     _v.copy(r.center); _v.y += 1.7; _v.project(world.camera);
-    const vis = _v.z < 1 && _v.x > -1 && _v.x < 1 && _v.y > -1 && _v.y < 1;
+    const vis = r.level === activeLevel && engine && !engine.ended && _v.z < 1 && _v.x > -1 && _v.x < 1 && _v.y > -1 && _v.y < 1 && world.camera.position.distanceTo(world.controls.target) > 20;
     if (!vis) { el.style.display = 'none'; continue; }
-    el.style.display = 'block';
+    el.style.display = 'flex';
     el.style.left = ((_v.x * 0.5 + 0.5) * canvas.clientWidth) + 'px';
     el.style.top = ((-_v.y * 0.5 + 0.5) * canvas.clientHeight) + 'px';
     const locked = engine && engine.lockedRooms.has(id);
@@ -311,15 +342,21 @@ function updateLabels() {
 }
 
 // ---------- game flow ----------
-function newGame() {
+function newGame(missionId = selectedMission, difficulty = selectedDifficulty) {
+  const incident = missionFor(missionId, difficulty);
+  selectedMission = missionId; selectedDifficulty = difficulty;
   initStage();
-  engine = new Engine({ LAYOUT, EMPLOYEES, INCIDENT });
+  engine = new Engine({ LAYOUT, EMPLOYEES, INCIDENT: incident });
   engine.speed = 1; engine._paused = false;
-  placing = null; inspectTarget = null; replay = null;
+  placing = null; inspectTarget = null; replay = null; _firstDeployed = false;
   engine
     .on('change', () => { dirty = true; })
     .on('deploy', ({ product, target }) => { fx.addProp(product, target); applyCoverage(coveredRooms(product, target)); dirty = true; firstDeploy(); })
-    .on('clue', c => { if (c.type === 'network') fx.addTrail(c.fromRoom, c.room); else fx.addClue(c); setTicker(`${t('clue.' + c.type)} · ${roomName(c.room)}`); dirty = true; })
+    .on('undo', ({ product, target }) => { if (product) fx.removeProp(product, target); applyCoverage(); dirty = true; })
+    .on('operation', ({ product, room }) => {
+      fx.scanWave(room); overlay.toast({ kind: 'good', key: 'toast.deployed', product }); dirty = true;
+    })
+    .on('clue', c => { fx.addClue(c); if (c.type === 'network' && c.fromRoom) fx.addTrail(c.fromRoom, c.room); setTicker(`${t('clue.' + c.type)} · ${roomName(c.room)}`); dirty = true; })
     .on('confirm', () => {
       engine.clues.forEach(c => fx.setClueConfirmed(c.id));
       const it = people.get('intruder'); if (it) fx.setReveal(it.group);
@@ -348,8 +385,9 @@ function newGame() {
 
   lastEvent = '';
   overlay.hideStart(); overlay.hideEnd();
+  overlay.clearInspect();
   overlay.setPhase('prep');
-  setActiveLevel(LAYOUT.defaultLevel, false);
+  setActiveLevel(LAYOUT.defaultLevel, true);
   overlay.renderHud(engine); overlay.renderTray(engine, placing); overlay.renderFeed(engine);
   overlay.setEvent(null, true);
   showSophia('welcome');
@@ -364,28 +402,44 @@ function endGame() { clearHighlight(); placing = null; overlay.clearInspect(); o
 
 // ---------- spatial replay ----------
 function startReplay() {
+  stopReplay();
   overlay.els.end.classList.add('replaying');
   const it = people.get('intruder');
-  if (it) { it.halted = false; it.group.visible = true; const start = building.nav.nodes.get('entrance'); it.group.position.copy(start.pos); it.currentNode = 'entrance'; it.path = null; fx.setReveal(it.group); }
-  replay = { index: 0, timer: 0, beats: engine.inc.beats };
-  overlay.highlightStep(0);
+  if (it) { it._normalSpeed = it.speed; it.halted = false; it._entered = true; it.group.visible = true; const start = building.nav.nodes.get('entrance'); it.pos.copy(start.pos); it.group.position.copy(start.pos); it.currentNode = 'entrance'; it.path = null; fx.setReveal(it.group); }
+  // Replay only events that actually happened, including the first event.
+  replay = { index: -1, timer: 1.8, beats: engine.log.filter(l => l.kind === 'attack') };
+  stepReplay(0);
+}
+function stopReplay() {
+  const it = people?.get('intruder');
+  if (it?._normalSpeed != null) { it.speed = it._normalSpeed; delete it._normalSpeed; it.halted = true; }
+  replay = null;
 }
 function stepReplay(dt) {
   if (!replay) return;
   const it = people.get('intruder'); if (!it) return;
-  people.update(dt * 1.2);
   replay.timer += dt;
-  if (replay.timer >= 1.8) {
+  if (replay.timer >= 1.8 && !it.path) {
     replay.timer = 0; replay.index++;
-    if (replay.index >= replay.beats.length) { replay = null; return; }
+    if (replay.index >= replay.beats.length) { stopReplay(); return; }
     const b = replay.beats[replay.index];
+    ensureLevelFor(b.room);
     people.setRoute(it, b.desk ? 'desk:' + b.desk : 'room:' + b.room);
+    if (it.path) {
+      let distance = it.pos.distanceTo(it.path[it.wpIndex]);
+      for (let i = it.wpIndex + 1; i < it.path.length; i++) distance += it.path[i - 1].distanceTo(it.path[i]);
+      it.speed = Math.max(it._normalSpeed, distance / 1.3);
+    }
+    const point = building.rooms.get(b.room)?.center;
+    if (point) world.focusOn(point.clone().setY(point.y + 1), 20);
     overlay.highlightStep(replay.index);
   }
 }
 
 // ---------- overlay handlers ----------
 overlay = createOverlay(overlayRoot, {
+  isAudioOn: () => ambience.enabled,
+  onAudioToggle: async () => { await ambience.toggle(); if (engine) overlay.renderHud(engine); },
   onStart: newGame,
   onBeginDay: beginDay,
   onPickProduct: id => { placing = (placing === id) ? null : id; if (placing) highlightPlacement(id); else clearHighlight(); overlay.renderTray(engine, placing); },
@@ -396,22 +450,55 @@ overlay = createOverlay(overlayRoot, {
   onIsolate: desk => { engine.isolateDevice(desk); renderInspect(); },
   onLockdown: room => { engine.lockdownRoom(room); renderInspect(); },
   onRecover: room => { engine.recover(room); renderInspect(); },
+  onCancelRecovery: room => { engine.cancelRecovery(room); renderInspect(); },
+  onUndoSetup: () => { engine.undoSetup(); placing = null; clearHighlight(); },
+  onResetSetup: () => { while (engine.phase === 'prep' && engine.planHistory.length) engine.undoSetup(); placing = null; clearHighlight(); },
   onSophiaMore: () => { sophiaState.expanded = true; reflowSophia(); },
   onSophiaShow: () => { const f = sophiaFocusPoint(sophiaState.id); if (f) { world.focusOn(f.clone().setY(f.y + 1), 14); fx.setSelection(f); } sophiaState.expanded = true; reflowSophia(); },
   onFocusClue: id => focusClue(id),
   onInvestigate: () => { const c = engine.clues[engine.clues.length - 1]; if (c) focusClue(c.id); },
   onTab: () => { overlay.renderTray(engine, placing); },
+  onOperation: id => engine.deployOperation(id),
+  onHelperRule: rule => engine.setHelperRule(rule),
+  onLocation: room => {
+    ensureLevelFor(room); inspectTarget = { kind: 'room', roomId: room }; renderInspect();
+    const point = entityFloorPoint(inspectTarget); if (point) { world.focusOn(point.clone().setY(point.y + 1), 11); fx.setSelection(point); }
+  },
+  onOverview: () => setActiveLevel(activeLevel),
+  onCloseView: () => {
+    const point = entityFloorPoint(inspectTarget) || building.rooms.get(activeLevel === 'L2' ? 'l2-work' : 'office').center;
+    world.focusOn(point.clone().setY(point.y + 1), 9);
+  },
+  onChangeAssignment: () => {
+    stopReplay(); placing = null; clearHighlight(); clearTimeout(prepTimer);
+    engine = null; inspectTarget = null; overlay.hideEnd(); overlay.clearInspect(); overlay.setPhase('start'); overlay.showStart();
+  },
+  onExportReport: () => {
+    const report = { schemaVersion: 1, mission: engine.inc.name.en, difficulty: engine.inc.difficulty,
+      outcome: engine.outcome.kind, score: engine.score, uptime: Math.round(engine.uptime), dataIntegrity: engine.data,
+      remainingCredits: engine.budget, operations: [...engine.operations], helperRule: engine.helperRule,
+      lockedRooms: [...engine.lockedRooms], deployed: engine.deployed, objectives: engine.objectives(),
+      events: engine.log.map(event => ({ ...event, ...(event.truth ? { truth: event.truth.en } : {}) })) };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'sentinel-session.json'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
   onFloor: id => setActiveLevel(id, true),
   onCloseInspect: () => { inspectTarget = null; overlay.clearInspect(); if (fx) fx.clearSelection(); },
   onAgain: () => newGame(),
   onReplayPlay: () => startReplay(),
-  onBackToGame: () => { overlay.els.end.classList.remove('replaying'); replay = null; overlay.showEnd(engine); },
+  onBackToGame: () => { overlay.els.end.classList.remove('replaying'); stopReplay(); overlay.showEnd(engine); },
 });
 
 function refreshAll() {
   if (building?.refreshSigns) building.refreshSigns();   // re-draw in-world signage in the new language
+  for (const r of LAYOUT.rooms) {
+    const el = labelEls.get(r.id); if (el) el.innerHTML = `${icon(roomIcon(r.type))}<span><b>${esc(loc(r.name))}</b><small>${t('placard.' + r.type)}</small></span>`;
+  }
   if (!engine) { overlay.showStart(); return; }
   if (engine.phase === 'review') { overlay.showEnd(engine); return; }
+  overlay.setPhase(engine.phase);
+  overlay.renderFloors(building.floors, activeLevel);
   overlay.renderHud(engine); overlay.renderTray(engine, placing); overlay.renderFeed(engine); reflowSophia(); renderInspect();
   if (engine.phase === 'prep') overlay.setEvent(null, true); else overlay.setEvent(lastEvent, false);
 }
@@ -420,14 +507,16 @@ function refreshAll() {
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  // The opaque assignment screen needs no continuous 3D work behind it.
+  if (!engine) { requestAnimationFrame(frame); return; }
   const incidentRunning = engine && engine.phase === 'incident' && !engine._paused;
-  const simDt = incidentRunning ? dt * engine.speed : dt;
-  if (people) people.update(incidentRunning ? dt * engine.speed : dt);
+  if (people) people.update(engine?.phase === 'incident' && engine._paused ? 0 : incidentRunning ? dt * engine.speed : dt);
   if (incidentRunning) engine.tick(dt * engine.speed);
   if (replay) stepReplay(dt);
   if (fx) fx.update(dt);
   if (people && building) updatePeopleFloorVis();
   world.render();
+  updateLabels();
   requestAnimationFrame(frame);
 }
 
@@ -441,6 +530,29 @@ setInterval(() => {
 
 canvas.addEventListener('click', worldClick);
 canvas.addEventListener('pointermove', onPointerMove);
+// Keyboard inspection: cycle rooms on the active floor without the mouse.
+let kbRoomIdx = -1;
+function kbCycleRoom(dir) {
+  if (!engine || !['prep', 'incident'].includes(engine.phase)) return;
+  const rs = LAYOUT.rooms.filter(r => r.level === activeLevel);
+  if (!rs.length) return;
+  kbRoomIdx = (kbRoomIdx + dir + rs.length) % rs.length;
+  inspectTarget = { kind: 'room', roomId: rs[kbRoomIdx].id }; renderInspect();
+  const pt = entityFloorPoint(inspectTarget); if (pt) { world.focusOn(pt.clone().setY(pt.y + 1), 14); fx.setSelection(pt); }
+}
+window.addEventListener('keydown', ev => {
+  if (ev.target.closest('input, textarea, select, button, [contenteditable=true]') || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  if (ev.code === 'Escape') { if (placing) { placing = null; clearHighlight(); overlay.renderTray(engine, placing); } else if (inspectTarget) { inspectTarget = null; overlay.clearInspect(); fx.clearSelection(); } }
+  if (ev.code === 'Space' && engine?.phase === 'incident') { ev.preventDefault(); engine._paused = !engine._paused; overlay.renderHud(engine); }
+  if (ev.code === 'Enter' && engine?.phase === 'prep') { ev.preventDefault(); beginDay(); }
+  if (engine && ['prep', 'incident'].includes(engine.phase)) {
+    if (ev.code === 'Digit1') setActiveLevel('L3');
+    if (ev.code === 'Digit2') setActiveLevel('L2');
+    if (ev.code === 'KeyH') setActiveLevel(activeLevel);
+    if (ev.code === 'BracketLeft') { ev.preventDefault(); kbCycleRoom(-1); }
+    if (ev.code === 'BracketRight') { ev.preventDefault(); kbCycleRoom(1); }
+  }
+});
 
 // boot
 initStage();
@@ -449,6 +561,6 @@ overlay.setPhase('start');
 requestAnimationFrame(frame);
 
 // expose for headless testing
-window.__sentinel = { get engine() { return engine; }, newGame, beginDay, world,
+window.__sentinel = { get engine() { return engine; }, get building() { return building; }, get people() { return people; }, newGame, beginDay, world,
   inspect(e) { inspectTarget = e; renderInspect(); const p = entityFloorPoint(e); if (p) fx.setSelection(p); },
   focusClue };
