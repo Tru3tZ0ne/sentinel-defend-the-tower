@@ -2,6 +2,24 @@
 
 Legend: [x] done · [~] in progress · [ ] todo
 
+## Current iteration — 2026-10-14
+
+- [x] Three playable assignments and Guided/Standard/Expert difficulty
+- [x] HCI, ADC and SASE operational effects, limited to setup preparation
+- [x] AICP local helper rules with explicit XDR/aStor dependencies
+- [x] Exact-endpoint isolation, valid endpoint checks and recovery after containment
+- [x] EN/ZH mission selection, operation controls, helper rules and debrief
+- [x] Actual-event replay, unfinished-recovery outcome and English JSON report export
+- [x] Daylight scene, restrained workspace UI, close-view/overview controls
+- [x] Floor-aware effects, visible-floor picking and transient-effect disposal
+- [x] Keyboard controls, opt-in synthesized ambience and facilitator notes
+- [x] English development record and Claude Code continuation prompt
+- [ ] Realistic office models, rigging and close-up animation QA (asset work deferred)
+- [ ] Human play-test, tuning and visual acceptance
+
+The entries below are historical milestone records. Current visual direction and known
+limitations are in `ART_DIRECTION.md` and `docs/CLAUDE_HANDOFF.md`.
+
 ## Milestone 0 — Research & setup
 - [x] Research Sangfor products (EDR, AF, STA/NDR, IAG, SASE, XDR, MDR, HCI, aStor, ADC, AICP, Agent Builder) from official sources
 - [x] Record product roles → game metaphors (`DESIGN.md`, `assets/brand/ASSETS.md`)
@@ -81,19 +99,19 @@ Explored 3 directions (night-ops command [chosen], full holographic table, topol
 - [x] Coverage/observed checks keyed to room ids (L2 rooms share types with L3's product rooms); honest outcomes verified across floors.
 - [x] Verified: smoke green (A win/delayed, B collapse, C contained); floor-switch + cross-floor incident rendered.
 
-## Milestone 4 — Depth & content (next)
-- [ ] Distinct ransomware-led "Robber" incident; branching second scenario
-- [ ] Infra/business track woven into the world: HCI foundation, ADC vs DDoS, SASE remote branch, aStor snapshots prepared in SETUP
-- [ ] AICP + Agent Builder: Sophia/automation framing; build-a-helper-agent moment
-- [ ] Ambient audio; keyboard navigation; facilitator notes (what each beat demonstrates in a presales conversation)
+## Milestone 4 — Depth & content
+- [x] Distinct ransomware-led Lockout incident and service-pressure incident
+- [x] Infra/business track: HCI, ADC, SASE, aStor preparation
+- [x] AICP + Agent Builder local helper-rule workflow
+- [x] Ambient audio, keyboard controls and facilitator notes
 
 ## Milestone 4 — Demo-grade
-- [ ] Swap in official Sangfor logo/product branding (pending client assets)
-- [ ] Multiple levels / difficulty; event-friendly summary
-- [ ] Offline demo build evaluation
+- [x] Official Sangfor logo images in the UI and reception signage
+- [x] Multiple floors/difficulties, debrief and downloadable session report
+- [x] Local-only browser loading tested; no build step or external runtime services
 
 ## Open questions for the client
-- [ ] Confirm official brand palette (exact Sangfor red hex) and provide logo/icon files
+- [ ] Confirm exact official palette values with a brand guideline; current accents are approximate
 - [ ] Use current **Athena** product names, classic names (EDR/AF/NDR…), or show both?
-- [ ] Target repo name / github.io URL for deployment
+- [x] Repository and GitHub Pages URL established
 - [ ] Any products to prioritize or de-emphasize for the first customer events?

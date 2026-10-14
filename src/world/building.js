@@ -6,8 +6,8 @@
 import { loc } from '../i18n.js';
 
 const P = {
-  floor: 0xb8966a, floorLine: 0xa8865a, corridor: 0xb6bfcc, rug: { office: 0x6f86a6, meeting: 0x8a76a6, lobby: 0xac855f, command: 0x8a6f78, server: 0x5f8a98, vault: 0xc0a050, egress: 0x6f9086 },
-  wall: 0xcfc8ba, wallBack: 0xc6bfb0, trim: 0xb8b0a2,
+  floor: 0xbca88c, floorLine: 0xa8865a, corridor: 0xbfc5c4, rug: { office: 0x737f80, meeting: 0x7e8783, lobby: 0xb09b80, command: 0x66777a, server: 0x79858a, vault: 0x7c898e, egress: 0x8b9087 },
+  wall: 0xe7e5df, wallBack: 0xd9ddd9, trim: 0xa4ada9,
   glass: 0x9fd0e6, glassFrame: 0xc3ccd6,
   deskTop: 0xe7e2da, deskLeg: 0x8a93a6, chair: 0x414c66,
   metal: 0x9aa3b4, monitor: 0x20252e, screenOn: 0x6fd6ff, wood: 0xb98a5a, sofa: 0x6d7c97,
@@ -32,7 +32,7 @@ export function buildBuilding(THREE, LAYOUT) {
   const mat = matMk;
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const YUP = new THREE.Vector3(0, 1, 0);
-  const ROOM_LIGHT = { office: [0xbcd0f0, 5.5], meeting: [0xc2d2ee, 5], lobby: [0xffe0b8, 6.5], command: [0x9a86ff, 5.5], server: [0x3fb0ff, 6.5], vault: [0xffcf6e, 7.5], egress: [0x9fe0c0, 4.5] };
+  const ROOM_LIGHT = { office: [0xfff0dc, 3], meeting: [0xfff0dc, 3], lobby: [0xffe8c8, 3.5], command: [0xe0edf3, 3], server: [0xd6e7ef, 3], vault: [0xd6e7ef, 3], egress: [0xfff0dc, 2.5] };
 
   const logoTex = new THREE.TextureLoader().load('assets/brand/sangfor-logo-white.png');
   logoTex.colorSpace = THREE.SRGBColorSpace; logoTex.anisotropy = 8;
@@ -135,7 +135,7 @@ export function buildBuilding(THREE, LAYOUT) {
       add(box(2.8, 0.1, 0.1, mat(P.brand), false), cx, 1.95, r.rect.z0 + 0.24);
       plant(r.rect.x0 + 0.8, r.rect.z1 - 0.9);
     } else if (r.type === 'server') {
-      add(box(rw - 1.2, 0.03, rd - 1.4, emis(P.serverGlow, 0.06), false), cx, 0.07, cz);
+      add(box(rw - 1.2, 0.03, rd - 1.4, mat(0x7e8b8f, { roughness: 0.72 }), false), cx, 0.07, cz);
       let first = null;
       for (let k = 0; k < 5; k++) {
         const rack = box(0.6, 1.5, 0.8, mat(P.rack, { metalness: 0.3, roughness: 0.5 })); add(rack, r.rect.x0 + 1.0 + k * 0.95, 0.75, r.rect.z0 + 1.1); if (!first) first = rack;
@@ -147,11 +147,15 @@ export function buildBuilding(THREE, LAYOUT) {
         node('desk:server#core', V(r.rect.x0 + 1.0, 0.05, C.z0 - 1.2)); link('desk:server#core', 'room:server');
       }
     } else if (r.type === 'vault') {
-      add(cyl(1.05, 1.15, 0.24, mat(P.vaultPlinth), 10), cx, 0.12, cz);
-      const core = mesh(new THREE.IcosahedronGeometry(0.66, 0), new THREE.MeshStandardMaterial({ color: P.vaultCore, emissive: P.vaultCore, emissiveIntensity: 0.8, roughness: 0.3 }));
-      core.position.set(cx, 1.1, cz); core.userData = { kind: 'desk', deskId: 'vault#core', roomId: 'vault' }; curGroup.add(core); pickables.push(core);
-      for (const [dx, dz, rot] of [[0, 1.35, 0], [0, -1.35, 0], [1.35, 0, Math.PI / 2], [-1.35, 0, Math.PI / 2]]) { const bar = box(2.4, 0.05, 0.05, emis(P.gold, 0.4), false); bar.position.set(cx + dx, 0.78, cz + dz); bar.rotation.y = rot; curGroup.add(bar); }
-      desks.set('vault#core', { id: 'vault#core', roomId: 'vault', pos: V(cx, 1.1 + curY, cz), coreMesh: core });
+      // Protected business records live in recognizable storage cabinets.
+      const core = box(0.85, 1.8, 1.0, mat(0x303b42, { metalness: 0.45, roughness: 0.4 }));
+      add(core, cx - 0.55, 0.9, cz); core.userData = { kind: 'desk', deskId: 'vault#core', roomId: 'vault' }; pickables.push(core);
+      add(box(0.85, 1.8, 1.0, mat(0x303b42, { metalness: 0.45, roughness: 0.4 })), cx + 0.55, 0.9, cz);
+      for (const dx of [-0.55, 0.55]) for (let row = 0; row < 8; row++) {
+        add(box(0.7, 0.15, 0.035, mat(0x55616a, { metalness: 0.5 })), cx + dx, 0.2 + row * 0.2, cz + 0.52);
+        add(box(0.035, 0.035, 0.04, emis(0x7cba87, 0.25), false), cx + dx + 0.25, 0.2 + row * 0.2, cz + 0.55);
+      }
+      desks.set('vault#core', { id: 'vault#core', roomId: 'vault', pos: V(cx - 0.55, 0.9 + curY, cz), coreMesh: core });
       node('desk:vault#core', V(cx, 0.05, C.z0 - 1.2)); link('desk:vault#core', 'room:vault');
       add(box(0.5, 0.3, 0.1, emis(P.accentCyan, 0.5), false), r.rect.x1 - 0.5, 1.1, C.z0 - 0.02);
     } else if (r.type === 'meeting') {
@@ -191,7 +195,7 @@ export function buildBuilding(THREE, LAYOUT) {
     for (const r of levelRooms) {
       const { rect } = r; const rcx = (rect.x0 + rect.x1) / 2, rcz = (rect.z0 + rect.z1) / 2, rw = rect.x1 - rect.x0, rd = rect.z1 - rect.z0;
       rooms.set(r.id, { id: r.id, type: r.type, level: level.id, center: V(rcx, 0.05 + level.y, rcz), width: rw, depth: rd, rect });
-      const pad = new THREE.Mesh(new THREE.BoxGeometry(rw - 0.3, 0.06, rd - 0.3), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(rw - 0.3, 0.06, rd - 0.3), new THREE.MeshStandardMaterial({ color: 0x578c5f, emissive: 0x578c5f, emissiveIntensity: 0, transparent: true, opacity: 0, depthWrite: false }));
       pad.position.set(rcx, 0.08, rcz); pad.userData = { kind: 'room', roomId: r.id }; curGroup.add(pad); pickables.push(pad); rooms.get(r.id).pad = pad;
       add(box(rw - 1.4, 0.015, rd - 1.6, mat(P.rug[r.type] || P.rug.office, { roughness: 0.95 }), false), rcx, 0.062, rcz);
       makeSign(r, r.door.x, WH + 0.33, (r.door.side === 'back' ? C.z1 : C.z0) + 0.07);

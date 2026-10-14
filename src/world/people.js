@@ -99,7 +99,7 @@ export function createPeople(scene, building, publicNodes, charGltf) {
     fig.root.userData = { kind: 'person', personId: id };
     scene.add(fig.root);
     const homeDesks = home ? deskNodesIn(home) : [];
-    const p = { id, role, fig, group: fig.root, pos: fig.root.position, currentNode: startNode,
+    const p = { id, role, fig, group: fig.root, pos: fig.root.position.clone(), currentNode: startNode,
       path: null, wpIndex: 0, targetNode: null, speed: 1.35 + Math.random() * 0.25,
       wander: role === 'employee', home, homeDesks, allowed: allowed || publicNodes,
       halted: false, phase: Math.random() * 6.28, seed, pose: 'idle', facing: fig.root.rotation.y, atDesk: null,
@@ -113,9 +113,12 @@ export function createPeople(scene, building, publicNodes, charGltf) {
     let target = toNode;
     if (!nav.nodes.has(target)) { const room = roomOfDeskNode(target); target = room && nav.nodes.has('room:' + room) ? 'room:' + room : null; }
     if (!target) { p.path = null; return false; }
-    const path = findPath(nav, p.currentNode, target);
-    if (!path || path.length < 2) { p.path = null; return false; }
-    p.path = path; p.wpIndex = 1; p.targetNode = target; p.atDesk = null; return true;
+    // A new incident beat can redirect someone before their previous route finishes.
+    const from = p.path ? [...nav.nodes.values()].reduce((a, b) => a.pos.distanceToSquared(p.pos) < b.pos.distanceToSquared(p.pos) ? a : b).id : p.currentNode;
+    const path = findPath(nav, from, target);
+    if (!path) { p.path = null; return false; }
+    if (path.length === 1 && p.pos.distanceTo(path[0]) < .05) { p.path = null; p.currentNode = target; p.atDesk = target.startsWith('desk:') ? target.slice(5) : null; return false; }
+    p.path = path; p.wpIndex = path.length > 1 && from === p.currentNode ? 1 : 0; p.targetNode = target; p.atDesk = null; return true;
   }
   function decide(p) {
     const atDeskNow = p.currentNode.startsWith('desk:');
@@ -149,6 +152,8 @@ export function createPeople(scene, building, publicNodes, charGltf) {
       let dyaw = p.facing - p.group.rotation.y; while (dyaw > Math.PI) dyaw -= 2 * Math.PI; while (dyaw < -Math.PI) dyaw += 2 * Math.PI;
       p.group.rotation.y += dyaw * Math.min(1, dt * 10);
 
+      // Animation offsets must never feed back into simulation/navigation coordinates.
+      p.group.position.copy(p.pos);
       if (p.fig.isGLB) animateGLB(p, dt, moving);
       else animateProc(p, dt, tnow, moving, working);
     }

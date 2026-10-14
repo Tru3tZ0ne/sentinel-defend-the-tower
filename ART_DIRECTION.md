@@ -1,6 +1,28 @@
 # Art Direction — Sentinel: Defend the Tower
 
-## Direction (DECIDED 2026-10-13): Premium **stylized** — not photoreal
+## Current direction (2026-10-14): realistic corporate interiors and office characters
+
+The target is recognizable, realistic close-up office environments and business-attired
+people, with physically plausible materials, lighting, proportions and animation.
+The previous stylized direction below is historical and is superseded by this section.
+
+This iteration establishes neutral daylight, restrained light workspace panels, clearer
+camera framing and close-view controls. It replaces the rotating gold data object with
+storage cabinets. Existing procedural people and furniture remain temporary; these
+changes do not complete the realistic-art milestone.
+
+- Use natural office finishes: oak, painted steel, mesh upholstery, glass and neutral carpet.
+- Keep security evidence distinct through small, contextual color accents.
+- Avoid scanlines, neon decoration, floating treasure objects and saturated room lighting.
+- Preserve official Sangfor logo images unchanged; apply branding as local decals or textures.
+- New assets need material, scale, topology, rigging, animation, provenance and browser QA.
+- Prioritize close-up business characters, reception, workstations, chairs and server racks.
+- Do not enable the bundled soldier or generic mannequin as final office staff.
+- Do not introduce live vendor dependencies or account credentials into the static runtime.
+
+Asset production is deferred. See [the handoff](docs/CLAUDE_HANDOFF.md) for integration requirements.
+
+## Historical direction (2026-10-13, superseded): premium stylized
 After evaluating realistic 3D (GTA-style): free, license-clean, business-attired realistic
 office NPCs don't exist/aren't reachable (Ready Player Me host blocked; Quaternius is stylized;
 Mixamo needs an Adobe login; the only free reachable realistic humans are a soldier / nude

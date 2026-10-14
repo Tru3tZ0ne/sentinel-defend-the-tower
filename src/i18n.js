@@ -1,6 +1,7 @@
 // Localization — EN / 中文. t(key, vars) for UI strings; loc(field) for {en,zh} data.
 // Product brand names are intentionally not translated.
 
+import { SESSION_COPY } from './data/session-copy.js';
 export const LANGS = ['en', 'zh'];
 
 const DICT = {
@@ -182,8 +183,14 @@ const DICT = {
   'end.backToGame':{ en: 'Back to building', zh: '返回大厦' },
 };
 
+Object.assign(DICT, SESSION_COPY);
 let current = 'en';
-export function setLang(l) { if (LANGS.includes(l)) current = l; }
+export function setLang(l) {
+  if (LANGS.includes(l)) {
+    current = l;
+    if (typeof document !== 'undefined') document.documentElement.lang = l === 'zh' ? 'zh-CN' : 'en';
+  }
+}
 export function getLang() { return current; }
 export function t(key, vars) {
   const e = DICT[key]; let s = e ? (e[current] ?? e.en) : key;

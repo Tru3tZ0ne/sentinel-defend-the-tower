@@ -1,9 +1,11 @@
-// Security-operations UI shell over the 3D scene. A night-ops command centre:
+// Security-operations UI shell over the 3D scene:
 // top status bar, a right column (incident timeline · inspect card · Sophia analyst),
 // a bottom capability deck with live status + tabs, and an event ticker. Pure presentation
 // + event delegation; all decisions go back through `h` (handlers).
 import { t, loc, getLang } from '../i18n.js';
 import { PRODUCTS, PRODUCT_ORDER } from '../data/products.js';
+import { MISSIONS, DIFFICULTIES, missionFor } from '../data/missions.js';
+import { OPERATIONS } from '../data/operations.js';
 import { icon } from './icons.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -34,9 +36,25 @@ export function createOverlay(root, h) {
     toasts: $('#toasts'), start: $('#startScreen'), end: $('#endScreen'),
   };
   let tab = 'defense';
+  let assignment = 'quiet', difficulty = 'standard';
+  const rendered = new WeakMap();
+  function paint(element, html) {
+    if (rendered.get(element) === html) return;
+    const focused = document.activeElement;
+    const focusKey = element.contains(focused) && focused.dataset?.act ? { ...focused.dataset } : null;
+    const scroll = element.querySelector('.deck')?.scrollLeft || 0;
+    const details = [...element.querySelectorAll('details')].map(d => d.open);
+    element.innerHTML = html; rendered.set(element, html);
+    if (focusKey) {
+      const replacement = [...element.querySelectorAll('[data-act]')].find(button => Object.entries(focusKey).every(([key, value]) => button.dataset[key] === value));
+      replacement?.focus({ preventScroll: true });
+    }
+    const deck = element.querySelector('.deck'); if (deck) deck.scrollLeft = scroll;
+    element.querySelectorAll('details').forEach((detail, i) => { if (details[i] != null) detail.open = details[i]; });
+  }
 
   const brand = () => `<span class="brand">
-    <img class="brand-logo" src="assets/brand/sangfor-logo-white.png" alt="Sangfor" />
+    <img class="brand-logo" src="assets/brand/sangfor-logo-color.png" alt="Sangfor" />
     <span class="brand-divider"></span>
     <span class="brand-stack"><span class="brand-word">SENTINEL</span><span class="brand-sub">${t('game.subtitle')}</span></span>
     <span class="brand-badge">${t('badge.placeholder')}</span></span>`;
@@ -49,11 +67,20 @@ export function createOverlay(root, h) {
       <div class="start-inner">
         <div class="start-top">${brand()}${langBtn()}</div>
         <div class="start-hero">
+          <div class="hero-copy">
           <div class="hero-eyebrow">${t('game.byline')}</div>
           <h1 class="hero-title">${t('game.title')}<span>${t('game.subtitle')}</span></h1>
           <p class="hero-tagline">${t('start.tagline')}</p>
           <ul class="hero-brief"><li>${t('start.brief1')}</li><li>${t('start.brief2')}</li><li>${t('start.brief3')}</li></ul>
+          <p class="camera-instructions">${t('camera.help')}</p>
+          </div>
+          <div class="assignment-picker">
+            <h2>${t('mission.label')}</h2>
+            <div class="mission-options">${Object.entries(MISSIONS).map(([id, m], i) => `<button class="mission-option ${assignment === id ? 'selected' : ''}" data-act="mission" data-id="${id}" aria-pressed="${assignment === id}"><span class="mission-number">0${i + 1}</span><b>${esc(loc(m.name))}</b><span>${esc(loc(m.brief))}</span></button>`).join('')}</div>
+            <div class="difficulty-options" role="group" aria-label="${t('mission.difficulty')}"><span>${t('mission.difficulty')}</span>${Object.keys(DIFFICULTIES).map(id => `<button class="chip ${difficulty === id ? 'on' : ''}" data-act="difficulty" data-id="${id}" aria-pressed="${difficulty === id}">${t('difficulty.' + id)}</button>`).join('')}</div>
+            <p class="assignment-resources">${t('mission.resources', { budget: DIFFICULTIES[difficulty].budget, seconds: Math.round(missionFor(assignment, difficulty).duration) })}</p>
           <button class="btn primary big" data-act="start">${t('start.play')} →</button>
+          </div>
         </div>
       </div>`;
   }
@@ -73,7 +100,7 @@ export function createOverlay(root, h) {
   // ---------- floor selector ----------
   function renderFloors(floors, active) {
     els.floors.innerHTML = `<div class="fs-label">${t('floors.label')}</div>` +
-      floors.slice().reverse().map(f => `<button class="fs-btn ${f.id === active ? 'on' : ''}" data-act="floor" data-floor="${f.id}" title="${esc(loc(f.name))}">${esc(f.id.replace(/[^0-9]/g, '') || f.id)}</button>`).join('');
+      floors.slice().reverse().map(f => `<button class="fs-btn ${f.id === active ? 'on' : ''}" data-act="floor" data-floor="${f.id}" aria-label="${esc(loc(f.name))}" aria-pressed="${f.id === active}" title="${esc(loc(f.name))}">${esc(f.id.replace(/[^0-9]/g, '') || f.id)}</button>`).join('') + `<span class="fs-divider"></span><button class="iconbtn" data-act="overview" title="${t('camera.overview')}" aria-label="${t('camera.overview')}">⌂</button><button class="iconbtn" data-act="closeView" title="${t('camera.focus')}" aria-label="${t('camera.focus')}">⊕</button>`;
   }
   function pulseFloor(id) { const b = els.floors.querySelector(`[data-floor="${id}"]`); if (b) { b.classList.add('alert'); setTimeout(() => b.classList.remove('alert'), 3200); } }
 
@@ -91,7 +118,7 @@ export function createOverlay(root, h) {
     const controls = live ? `
       <button class="iconbtn" data-act="pause" title="${e._paused ? t('hud.resume') : t('hud.pause')}">${e._paused ? '▶' : '❚❚'}</button>
       <span class="speed">${[1, 2, 3].map(s => `<button class="chip ${e.speed === s ? 'on' : ''}" data-act="speed" data-s="${s}">${s}×</button>`).join('')}</span>` : '';
-    els.hud.innerHTML = `
+    paint(els.hud, `
       <div class="hud-left">${brand()}</div>
       <div class="hud-center">
         ${meter(t('hud.uptime'), e.uptime, 'biz')}
@@ -100,8 +127,8 @@ export function createOverlay(root, h) {
       </div>
       <div class="hud-right">
         <div class="hud-clock ${live ? 'live' : 'prep'}">${live ? `<span class="dot"></span>` : ''}${clock}</div>
-        ${controls}${langBtn()}
-      </div>`;
+        ${controls}<button class="iconbtn audio-toggle" data-act="audio" aria-pressed="${!!h.isAudioOn?.()}" title="${t(h.isAudioOn?.() ? 'audio.on' : 'audio.off')}">${t(h.isAudioOn?.() ? 'audio.on' : 'audio.off')}</button>${langBtn()}
+      </div>`);
   }
 
   // ---------- right: incident timeline ----------
@@ -118,19 +145,21 @@ export function createOverlay(root, h) {
     const rows = [...clues].slice(-5).reverse().map(c => {
       const tg = c.blocked ? `<span class="tl-tag good">${t('end.blocked')}</span>`
         : c.prevented ? `<span class="tl-tag good">${t('end.prevented')}</span>` : '';
-      return `<li class="tl ev-${c.type}" data-act="focusClue" data-clue="${c.id}">
+      return `<li><button class="tl ev-${c.type}" data-act="focusClue" data-clue="${c.id}">
         <span class="tl-dot"></span>
         <span class="tl-body"><span class="tl-h">${t('clue.' + c.type)} ${tg}</span>
-        <span class="tl-sub">${t('clue.at')} ${esc(roomName(c.room))}</span></span></li>`;
+        <span class="tl-sub">${t('clue.at')} ${esc(roomName(c.room))}</span></span></button></li>`;
     }).join('');
     const cta = (!e.hasXDR && e.typesSeen && e.typesSeen.size >= 2)
       ? `<button class="btn block warn-b" data-act="investigate">${icon('xdr')} ${t('inc.needXDR')}</button>`
       : clues.length ? `<button class="btn block" data-act="investigate">${t('inc.locate')} →</button>` : '';
-    els.incident.innerHTML = `
+    paint(els.incident, `
+      <div class="assignment-caption">${esc(loc(e.inc.name))} · ${t('difficulty.' + (e.inc.difficulty || 'standard'))}</div>
       <div class="card-h"><span class="card-ico ${head.cls}">${icon(status === 'idle' ? 'ndr' : 'attacker')}</span>
         <div><span class="card-k">${t('inc.label')}</span><h3 class="${head.cls}">${head.t}</h3></div></div>
       ${clues.length ? `<ul class="timeline-live">${rows}</ul>` : `<p class="card-empty">${t(e.phase === 'prep' ? 'feed.hintPrep' : 'feed.none')}</p>`}
-      ${cta}`;
+      ${cta}
+      <details class="response-plan" ${e.phase === 'prep' ? 'open' : ''}><summary>${t('plan.title')}</summary><ol><li class="${e.typesSeen.size >= 2 ? 'complete' : ''}">${t('plan.detect')}</li><li class="${e.confirmed ? 'complete' : ''}">${t('plan.correlate')}</li><li class="${e.intruder.contained ? 'complete' : ''}">${t('plan.contain')}</li></ol></details>`);
   }
 
   // ---------- right: inspect card ----------
@@ -161,13 +190,13 @@ export function createOverlay(root, h) {
     const tabsHtml = TABS.map(([id, key, ic]) => `<button class="dtab ${tab === id ? 'on' : ''}" data-act="tab" data-tab="${id}">${icon(ic)} ${t(key)}</button>`).join('');
     let body;
     if (tab === 'defense') body = defenseDeck(e, placing);
-    else if (tab === 'cloud') body = infoDeck('cloud');
-    else if (tab === 'ops') body = infoDeck('ops');
-    else body = `<div class="deck-note">${t('tab.replayNote')}</div>`;
+    else if (tab === 'cloud') body = operationDeck(e);
+    else if (tab === 'ops') body = helperDeck(e);
+    else body = `<div class="deck-note">${t('review.replayReady')}</div>`;
     const note = placing
       ? `<div class="deck-place">${t('tray.placing')}: <b>${esc(PRODUCTS[placing].name)}</b> — ${t('tray.clickWorld')} · <button class="linklike" data-act="cancel">${t('tray.cancel')}</button></div>`
       : '';
-    els.dock.innerHTML = `<div class="dock-tabs">${tabsHtml}</div>${note}<div class="deck">${body}</div>`;
+    paint(els.dock, `<div class="dock-tabs">${tabsHtml}</div>${note}<div class="deck">${body}</div>`);
   }
   function defenseDeck(e, placing) {
     return PRODUCT_ORDER.map(id => {
@@ -180,19 +209,21 @@ export function createOverlay(root, h) {
       const status = active
         ? (isEDR ? `<span class="pst on">● ${count} ${t('deck.devices')}</span>` : `<span class="pst on">● ${t('deck.active')}</span>`)
         : afford ? `<span class="pst av">${t('deck.available')}</span>` : `<span class="pst no">${t('deck.locked')}</span>`;
-      return `<button class="pcard ${placing === id ? 'placing' : ''} ${active ? 'is-on' : ''} ${(!afford && !active) ? 'dim' : ''}" data-act="pick" data-id="${id}" ${done ? 'disabled' : ''}>
+      return `<button class="pcard ${placing === id ? 'placing' : ''} ${active ? 'is-on' : ''} ${(!afford && !active) ? 'dim' : ''}" data-act="pick" data-id="${id}" ${done || !afford ? 'disabled' : ''}>
         <span class="pcard-top"><span class="pcard-ico">${icon(p.icon)}</span><span class="pcard-cost">${active ? '' : p.cost + ' ' + t('hud.credits')}</span></span>
         <span class="pcard-name">${esc(p.name)}</span>
-        <span class="pcard-tag">${esc(loc(p.tagline))}</span>
+        <span class="pcard-tag">${id === 'ASTOR' && active && !e.astorReady ? t('ops.tooLate') : esc(loc(p.tagline))}</span>
         ${status}</button>`;
     }).join('');
   }
-  function infoDeck(which) {
-    const items = which === 'cloud'
-      ? [['hci', 'HCI'], ['astor2', 'aStor'], ['adc', 'ADC'], ['sase', 'SASE'], ['aicp', 'AICP']]
-      : [['xdrops', 'XDR'], ['mdrops', 'MDR'], ['gpt', 'Security GPT']];
-    return `<div class="info-strip">${items.map(([k, n]) => `<div class="info-card"><b>${n}</b><span>${t('info.' + k)}</span></div>`).join('')}
-      <div class="info-note">${t('info.soon')}</div></div>`;
+  function operationDeck(e) {
+    return Object.entries(OPERATIONS).map(([id, p]) => {
+      const active = e.operations.has(id), locked = e.phase !== 'prep' || e.budget < p.cost;
+      return `<article class="operation-card ${active ? 'is-on' : ''}"><div class="operation-head">${icon(p.icon)}<b>${esc(p.name)}</b><span>${p.cost} ${t('hud.credits')}</span></div><p>${esc(loc(p.text))}</p><button class="btn tiny" data-act="operation" data-id="${id}" ${active || locked ? 'disabled' : ''}>${active ? t('deck.active') : e.phase !== 'prep' ? t('ops.prepOnly') : t('ops.deploy')}</button><button class="linklike" data-act="location" data-room="${p.room}">${t('ops.open')} →</button></article>`;
+    }).join('');
+  }
+  function helperDeck(e) {
+    return `<div class="helper-panel"><h3>${t('helper.title')}</h3>${['notify', 'recover'].map(rule => `<button class="helper-rule ${e.helperRule === rule ? 'selected' : ''}" data-act="helperRule" data-rule="${rule}" aria-pressed="${e.helperRule === rule}" ${e.phase !== 'prep' ? 'disabled' : ''}>${t('helper.' + rule)}</button>`).join('')}<p>${t(e.helperRule === 'notify' ? 'helper.requiresNotify' : 'helper.requiresRecover')}</p><div class="helper-dependencies"><span class="${e.operations.has('AICP') ? 'complete' : ''}">AICP</span><span class="${(e.helperRule === 'notify' ? e.hasXDR : e.astorReady) ? 'complete' : ''}">${e.helperRule === 'notify' ? 'XDR' : 'aStor'}</span></div></div><div class="helper-context"><h3>AICP + Agent Builder</h3><p>${esc(loc(OPERATIONS.AICP.text))}</p><button class="btn tiny" data-act="operation" data-id="AICP" ${e.operations.has('AICP') || e.phase !== 'prep' || e.budget < OPERATIONS.AICP.cost ? 'disabled' : ''}>${e.operations.has('AICP') ? t('deck.active') : t('ops.deploy') + ' · 3 ' + t('hud.credits')}</button><p>${t('plan.recovery')}</p></div>`;
   }
 
   // ---------- prep begin CTA (lives in the ticker row during prep) ----------
@@ -208,7 +239,7 @@ export function createOverlay(root, h) {
 
   // ---------- toasts ----------
   function toast(p) {
-    const txt = p.clue ? t('clue.' + p.clue) : (p.product ? `${PRODUCTS[p.product]?.name || ''} · ${t(p.key)}` : t(p.key || ''));
+    const txt = p.clue ? t('clue.' + p.clue) : (p.product ? `${PRODUCTS[p.product]?.name || OPERATIONS[p.product]?.name || ''} · ${t(p.key)}` : t(p.key || ''));
     const n = document.createElement('div');
     n.className = `toast ${p.kind || 'info'}`;
     n.innerHTML = p.clue ? `<span class="ev-${p.clue}">${icon(p.clue)}</span> ${esc(txt)}` : esc(txt);
@@ -222,7 +253,7 @@ export function createOverlay(root, h) {
   function showEnd(e) {
     const o = e.outcome || {};              // { kind: 'contained'|'survived-delayed'|'breach'|'collapse', ... }
     const win = o.verdict === 'win';
-    const kindCls = win ? (o.kind === 'contained' ? 'win' : 'partial') : 'lose';
+    const kindCls = o.verdict === 'partial' ? 'partial' : win ? 'win' : 'lose';
     const attacks = e.log.filter(l => l.kind === 'attack');
     const detected = attacks.filter(a => a.visible || a.blocked || a.prevented).length;
     els.end.className = 'endScreen';
@@ -240,6 +271,7 @@ export function createOverlay(root, h) {
             <div><b>${detected}/${attacks.length}</b><span>${t('end.detected')}</span></div>
           </div>
         </div>
+        <section class="debrief"><h2>${t('review.lessons')}</h2><p class="assignment-caption">${esc(loc(e.inc.name))} · ${t('difficulty.' + (e.inc.difficulty || 'standard'))}</p><ul>${debrief(e).map(key => `<li>${t(key)}</li>`).join('')}</ul></section>
         <div class="replay">
           <div class="replay-head"><div><h2>${t('end.replay')}</h2><p>${t('end.replay.sub')}</p></div>
             <button class="btn" data-act="replayPlay">${t('end.replay.play')}</button></div>
@@ -248,16 +280,18 @@ export function createOverlay(root, h) {
         <div class="end-actions">
           <button class="btn ghost" data-act="backToGame">${t('end.backToGame')}</button>
           <button class="btn primary big" data-act="again">${t('end.again')}</button>
+          <button class="btn" data-act="changeAssignment">${t('mission.change')}</button>
+          <button class="btn" data-act="exportReport">${t('review.export')}</button>
         </div>
       </div>`;
   }
   function timeline(e, attacks) {
     const roomName = id => { const r = e.sc.LAYOUT.rooms.find(x => x.id === id); return r ? loc(r.name) : id; };
     return attacks.map((a, i) => {
-      const beat = e.inc.beats.find(b => b.act === a.act && b.room === a.room) || {};
+      const beat = a;
       let status, cls;
       if (a.blocked) { status = t('end.blocked'); cls = 'good'; }
-      else if (a.prevented) { status = t('end.prevented'); cls = 'good'; }
+      else if (a.prevented) { status = t(['ddos', 'failure'].includes(a.act) ? 'end.mitigated' : 'end.prevented'); cls = 'good'; }
       else if (a.contained) { status = t('end.contained'); cls = 'good'; }
       else if (a.visible) { status = t('end.detected'); cls = 'seen'; }
       else { status = t('end.missed'); cls = 'bad'; }
@@ -266,6 +300,14 @@ export function createOverlay(root, h) {
         <div class="tl-main"><div class="tl-truth">${esc(loc(beat.truth) || a.act)}</div>
           <div class="tl-meta"><span class="tl-time">${Math.round(a.t)}s</span><span class="tl-room">${esc(roomName(a.room))}</span><span class="tl-status ${cls}">${status}</span></div></div></li>`;
     }).join('');
+  }
+  function debrief(e) {
+    const keys = [];
+    if (e.clues.length === 0) keys.push('review.noSensors');
+    if (!e.hasXDR) keys.push('review.noXdr');
+    if (e.lockedRooms.size || !e.astorReady) keys.push('review.noSnapshots');
+    keys.push(e.intruder.contained ? 'review.contained' : 'review.activeThreat');
+    return keys;
   }
   function hideEnd() { els.end.className = 'hidden'; els.end.innerHTML = ''; }
   function highlightStep(i) { els.end.querySelectorAll('.tl-row').forEach(r => r.classList.toggle('active', +r.dataset.step === i)); }
@@ -279,7 +321,16 @@ export function createOverlay(root, h) {
       pause: h.onPauseToggle, sophiaMore: h.onSophiaMore, sophiaShow: h.onSophiaShow || h.onSophiaMore,
       closeInspect: h.onCloseInspect, again: h.onAgain, backToGame: h.onBackToGame,
       replayPlay: h.onReplayPlay, investigate: h.onInvestigate,
+      audio: h.onAudioToggle,
+      overview: h.onOverview, closeView: h.onCloseView, changeAssignment: h.onChangeAssignment, exportReport: h.onExportReport,
     };
+    if (el.disabled) return;
+    if (a === 'mission') { assignment = el.dataset.id; return showStart(); }
+    if (a === 'difficulty') { difficulty = el.dataset.id; return showStart(); }
+    if (a === 'start') { tab = 'defense'; return h.onStart(assignment, difficulty); }
+    if (a === 'operation') return h.onOperation(el.dataset.id);
+    if (a === 'helperRule') return h.onHelperRule(el.dataset.rule);
+    if (a === 'location') return h.onLocation(el.dataset.room);
     if (a === 'pick') return h.onPickProduct(el.dataset.id);
     if (a === 'focusClue') return h.onFocusClue(el.dataset.clue);
     if (a === 'speed') return h.onSpeed(+el.dataset.s);

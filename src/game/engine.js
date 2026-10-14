@@ -7,6 +7,7 @@
 // recovery are honest about what each product actually does.
 
 import { PRODUCTS } from '../data/products.js';
+import { OPERATIONS } from '../data/operations.js';
 
 let uid = 0; const nid = () => ++uid;
 
@@ -19,7 +20,10 @@ export class Engine {
     this.ended = null;                   // 'win' | 'lose-breach' | 'lose-uptime'
     this.result = null;
 
-    this.budget = 15;
+    this.budget = this.inc.budget ?? 15;
+    this.operations = new Set();
+    this.helperRule = 'notify';
+    this.helperNotified = false;
     this._incomeAcc = 0;
     this.uptime = 100;
     this.data = 100;
@@ -67,16 +71,20 @@ export class Engine {
     return { kind: slot?.kind || 'slot', room: slot?.room };
   }
 
-  canAfford(productId) { return this.budget >= PRODUCTS[productId].cost; }
+  canAfford(productId) { return !!PRODUCTS[productId] && this.budget >= PRODUCTS[productId].cost; }
 
   // ---- deploy ----
   deploy(productId, target) {
     const p = PRODUCTS[productId];
-    if (!p || this.ended) return { ok: false };
+    if (!p || this.ended || !['prep', 'incident'].includes(this.phase)) return { ok: false };
     if (this.budget < p.cost) { this.emit('toast', { kind: 'warn', key: 'panel.cantAfford' }); return { ok: false }; }
 
     if (productId === 'EDR') {
-      if (!target || this.edrDesks.has(target)) return { ok: false };
+      const parts = String(target || '').split('#');
+      const [room, endpoint] = parts;
+      const r = this.sc.LAYOUT.rooms.find(r => r.id === room);
+      const valid = parts.length === 2 && r && ((r.desks && /^[1-9]\d*$/.test(endpoint) && Number(endpoint) <= r.desks) || (['server', 'vault'].includes(room) && endpoint === 'core'));
+      if (!valid || this.edrDesks.has(target)) return { ok: false };
       this.edrDesks.add(target);
     } else {
       if (this.bySlot.has(productId)) return { ok: false };
@@ -94,6 +102,32 @@ export class Engine {
   }
 
   // ---- phases ----
+  deployOperation(id) {
+    const op = OPERATIONS[id];
+    if (!op || this.phase !== 'prep' || this.operations.has(id) || this.budget < op.cost) return { ok: false };
+    this.operations.add(id); this.budget -= op.cost;
+    this.log.push({ t: this.time, kind: 'operation', product: id });
+    this.emit('operation', { product: id, room: op.room });
+    this.changed(); return { ok: true };
+  }
+
+  setHelperRule(rule) {
+    if (this.phase !== 'prep' || !['notify', 'recover'].includes(rule)) return false;
+    this.helperRule = rule; this.changed(); return true;
+  }
+
+  _helper() {
+    if (!this.operations.has('AICP')) return;
+    if (this.helperRule === 'notify' && this.confirmed && !this.helperNotified) {
+      this.helperNotified = true;
+      this.log.push({ t: this.time, kind: 'helper', action: 'notify' });
+      this.emit('toast', { kind: 'good', key: 'helper.notified' });
+    }
+    if (this.helperRule === 'recover' && this.astorReady) {
+      for (const room of [...this.lockedRooms]) this.recover(room);
+    }
+  }
+
   beginDay() {
     if (this.phase !== 'prep') return;
     this.phase = 'incident';
@@ -104,16 +138,22 @@ export class Engine {
   }
 
   tick(dt) {
-    if (this.phase !== 'incident' || this.ended) return;
+    if (this.phase !== 'incident' || this.ended || !Number.isFinite(dt) || dt <= 0) return;
+    // Bound simulation steps so offline tests and slow frames preserve causal ordering.
+    if (dt > 0.25) {
+      while (dt > 0 && !this.ended) { const step = Math.min(dt, 0.25); this.tick(step); dt -= step; }
+      return;
+    }
     this.time += dt;
     this._incomeAcc += dt;
     while (this._incomeAcc >= 12) { this._incomeAcc -= 12; this.budget = Math.min(99, this.budget + 1); }
 
-    if (this.lockedRooms.size) this.uptime = Math.max(0, this.uptime - 2.2 * dt * this.lockedRooms.size);
+    if (this.lockedRooms.size) this.uptime = Math.max(0, this.uptime - 2.2 * dt * this.lockedRooms.size * (this.inc.damage || 1) * (this.operations.has('HCI') ? 0.6 : 1));
 
     this._advance();
     this._correlate();
     this._mdrAssist();
+    this._helper();
     this._sophiaChecks();
     this._endChecks();
     this.changed();
@@ -131,6 +171,18 @@ export class Engine {
   }
 
   _beat(b) {
+    if (b.act === 'ddos' || b.act === 'failure') {
+      const mitigated = this.operations.has(b.act === 'ddos' ? 'ADC' : 'HCI');
+      this.uptime = Math.max(0, this.uptime - (mitigated ? 4 : 24) * (this.inc.damage || 1));
+      this._evidence(b, { prevented: mitigated });
+      this.emit('toast', { kind: mitigated ? 'good' : 'warn', key: mitigated ? 'service.mitigated' : 'service.impacted' });
+      return;
+    }
+    if (b.act === 'remote' && this.operations.has('SASE')) {
+      this._evidence(b, { blocked: true }); this.delay += 12;
+      this.emit('toast', { kind: 'good', key: 'service.remoteBlocked' });
+      return;
+    }
     // perimeter: AF blocks the obvious entry but a determined actor finds another way in.
     if (b.act === 'enter') {
       const blocked = this.hasAF;
@@ -146,7 +198,7 @@ export class Engine {
     this.emit('intruder-goto', { room: b.room, desk: b.desk });
 
     if (b.act === 'move') { this._evidence(b, { fromRoom: prevRoom }); return; }
-    if (b.act === 'foothold' || b.act === 'recon' || b.act === 'collect') { this._evidence(b); return; }
+    if (['foothold', 'recon', 'collect', 'remote'].includes(b.act)) { this._evidence(b); return; }
 
     if (b.act === 'ransom') {
       const prevented = b.desk ? this.edrDesks.has(b.desk) : this.edrDesks.has('server#core');
@@ -168,11 +220,11 @@ export class Engine {
     const ev = { id: nid(), t: this.time, type: b.ev, room: b.room, desk: b.desk, act: b.act, truth: b.truth, ...extra };
     this.evidence.push(ev);
     const visible = this._visible(ev);
-    this.log.push({ t: this.time, kind: 'attack', act: b.act, room: b.room, desk: b.desk, ev: b.ev, blocked: !!extra.blocked, prevented: !!extra.prevented, visible });
+    this.log.push({ t: this.time, kind: 'attack', act: b.act, room: b.room, desk: b.desk, ev: b.ev, truth: b.truth, blocked: !!extra.blocked, prevented: !!extra.prevented, visible });
     if (!visible) return;
     if (this.firstDetection == null) this.firstDetection = this.time;
     this.typesSeen.add(ev.type);
-    const clue = { id: ev.id, type: ev.type, room: ev.room, desk: ev.desk, t: this.time,
+    const clue = { id: ev.id, type: ev.type, room: ev.room, desk: ev.desk, fromRoom: extra.fromRoom, t: this.time,
       confidence: this.confirmed ? 'confirmed' : 'weak', blocked: !!extra.blocked, prevented: !!extra.prevented, resolved: false };
     this.clues.push(clue);
     this.emit('clue', clue);
@@ -181,6 +233,9 @@ export class Engine {
   }
 
   _visible(ev) {
+    if (ev.act === 'remote' && this.operations.has('SASE')) return true;
+    if (ev.act === 'ddos' && this.operations.has('ADC')) return true;
+    if (ev.act === 'failure' && this.operations.has('HCI')) return true;
     switch (ev.type) {
       case 'perimeter': return this.hasAF;
       case 'endpoint':  return ev.desk ? this.edrDesks.has(ev.desk) : false;
@@ -213,9 +268,8 @@ export class Engine {
 
   // ---- responses ----
   isolateDevice(deskId) {
-    if (this.ended || !this.edrDesks.has(deskId)) { this.emit('toast', { kind: 'warn', key: 'resp.needEdr' }); return { ok: false }; }
-    const here = this.intruder.desk === deskId || (this.sc.LAYOUT.rooms.find(r => r.id === this.intruder.room) &&
-                 this._deskRoom(deskId) === this.intruder.room);
+    if (this.phase !== 'incident' || this.ended || !this.edrDesks.has(deskId)) { this.emit('toast', { kind: 'warn', key: 'resp.needEdr' }); return { ok: false }; }
+    const here = this.intruder.desk === deskId && !this.intruder.failed;
     if (here && !this.intruder.contained) { this._contain('isolate', deskId); return { ok: true, contained: true }; }
     this.log.push({ t: this.time, kind: 'respond', action: 'isolate', desk: deskId, result: 'nothing' });
     this.emit('toast', { kind: 'bad', key: 'resp.nothingHere' });
@@ -224,7 +278,7 @@ export class Engine {
   }
 
   lockdownRoom(roomId) {
-    if (this.ended) return { ok: false };
+    if (this.phase !== 'incident' || this.ended || !this.sc.LAYOUT.rooms.some(r => r.id === roomId)) return { ok: false };
     this.emit('cage-room', { room: roomId });
     if (this.intruder.room === roomId && !this.intruder.contained && !this.intruder.failed) {
       this.uptime = Math.max(0, this.uptime - 6);   // access control disrupts that area's work
@@ -239,7 +293,7 @@ export class Engine {
   }
 
   recover(roomId) {
-    if (this.ended || !this.lockedRooms.has(roomId)) return { ok: false };
+    if (this.phase !== 'incident' || this.ended || !this.lockedRooms.has(roomId)) return { ok: false };
     if (!this.astorReady) { this.emit('toast', { kind: 'warn', key: 'resp.needPrepared' }); return { ok: false }; }
     this.lockedRooms.delete(roomId);
     this.emit('lock', { room: roomId, locked: false });
@@ -247,6 +301,7 @@ export class Engine {
     this.log.push({ t: this.time, kind: 'respond', action: 'recover', room: roomId });
     this.emit('toast', { kind: 'good', key: 'toast.recovered' });
     this.changed();
+    if (this.intruder.contained && !this.lockedRooms.size) this._end('win', true);
     return { ok: true };
   }
 
@@ -257,7 +312,8 @@ export class Engine {
     this.emit('contained', { via, desk: deskId, room: roomId || this.intruder.room });
     this.log.push({ t: this.time, kind: 'respond', action: via, desk: deskId, room: roomId || this.intruder.room, result: 'contained' });
     this.emit('toast', { kind: 'good', key: 'resp.contained' });
-    this._end('win', true);
+    // Containment stops the actor, but existing encryption still needs recovery.
+    if (!this.lockedRooms.size) this._end('win', true);
   }
 
   _deskRoom(deskId) { return deskId.split('#')[0]; }
@@ -270,7 +326,8 @@ export class Engine {
   _endChecks() {
     if (this.ended) return;
     if (this.uptime <= this.inc.loseUptimeBelow) { this._end('lose-uptime'); return; }
-    if (this.time >= this.inc.duration) { this._end('win'); }
+    if (this.intruder.contained && !this.lockedRooms.size) { this._end('win', true); return; }
+    if (this.time >= this.inc.duration) { this._end('win', this.intruder.contained); }
   }
 
   _end(result, contained = false) {
@@ -286,6 +343,7 @@ export class Engine {
   // threat, a data breach, or a business collapse are all different and must read differently.
   _outcome(result, contained) {
     if (result === 'win') {
+      if (contained && this.lockedRooms.size) return { verdict: 'partial', kind: 'contained-disrupted', titleKey: 'end.disrupted.title', summaryKey: 'end.disrupted.body' };
       if (contained) return { verdict: 'win', kind: 'contained', titleKey: 'end.contained.title', summaryKey: 'end.contained.body' };
       if (this.intruder.failed) return { verdict: 'win', kind: 'blocked', titleKey: 'end.blocked.title', summaryKey: 'end.blocked.body' };
       // day ended while the actor was still operating — delayed, NOT contained
