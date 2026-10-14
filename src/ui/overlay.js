@@ -323,15 +323,21 @@ export function createOverlay(root, h) {
           <div class="tl-meta"><span class="tl-time">${Math.round(a.t)}s</span><span class="tl-room">${esc(roomName(a.room))}</span><span class="tl-status ${cls}">${status}</span></div></div></li>`;
     }).join('');
   }
+  // Debrief recommendations are drawn from what actually happened this session — coverage,
+  // correlation, the decision branch, restriction use, outcome and remaining damage.
   function debrief(e) {
+    const o = e.outcome || {};
     const keys = [];
-    if (e.log.some(event => event.kind === 'branch')) keys.push('review.branch');
-    if (e.log.some(event => event.action === 'recover-start') || e.lockedRooms.size) keys.push('review.restoreCost');
     if (e.clues.length === 0) keys.push('review.noSensors');
-    if (!e.hasXDR) keys.push('review.noXdr');
-    if (e.lockedRooms.size || !e.astorReady) keys.push('review.noSnapshots');
+    else if (!e.hasXDR && e.typesSeen.size >= 2) keys.push('review.noXdr');
+    if (e.log.some(event => event.kind === 'branch')) keys.push('review.branch');
+    if (e.log.some(event => event.kind === 'restrict-delay')) keys.push('review.restrict');
+    if (o.kind === 'breach') keys.push('review.breach');
+    if (o.kind === 'delayed') keys.push('review.delayed');
+    if (o.kind === 'collapse') keys.push('review.collapse');
+    if (o.kind === 'contained-disrupted' || e.lockedRooms.size) keys.push(e.astorReady ? 'review.restoreCost' : 'review.noSnapshots');
     keys.push(e.intruder.contained ? 'review.contained' : 'review.activeThreat');
-    return keys;
+    return [...new Set(keys)].slice(0, 5);
   }
   function hideEnd() { els.end.className = 'hidden'; els.end.innerHTML = ''; }
   function highlightStep(i) { els.end.querySelectorAll('.tl-row').forEach(r => r.classList.toggle('active', +r.dataset.step === i)); }

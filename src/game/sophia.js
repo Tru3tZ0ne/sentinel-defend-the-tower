@@ -46,6 +46,10 @@ export const HINTS = {
     dir:  { en: "The actor has reached the Data Room. The last gate is the mailroom exit — a checkpoint (IAG) there can stop the data from leaving.", zh: '攻击者已到达数据中心。最后一道闸门是收发室出口——那里的检查点（IAG）可以阻止数据外发。' },
     more: { en: "IAG is your final safety net against exfiltration, but relying on the last gate is risky — ideally you'd have contained the actor well before here.", zh: 'IAG 是防外泄的最后一道安全网，但只靠最后一道闸门很冒险——理想情况下，你早该在抵达这里之前就遏制住攻击者。' },
   },
+  restrictDelay: {
+    dir:  { en: "Access control held the actor at a restricted area — you've bought time. Use it: confirm the incident and isolate the exact device, or restore before encryption spreads.", zh: '访问控制在封控区拦下了攻击者——你争取到了时间。抓紧利用：确认事件并隔离准确的设备，或在加密扩散前完成恢复。' },
+    more: { en: "Restriction slows an intruder; it doesn't stop them. The delay can push their exit past the end of the day, but containment — isolating the device or cutting off the area they're in — is what actually ends the threat.", zh: '封控能拖慢入侵者，但并不能阻止他们。这段延迟或许能把他们的外泄推到一天结束之后，但真正终结威胁的，是遏制——隔离设备，或切断他们所在的区域。' },
+  },
 };
 
 export function getHint(id) { return HINTS[id] || null; }

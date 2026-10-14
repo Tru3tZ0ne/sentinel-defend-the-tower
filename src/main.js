@@ -243,17 +243,19 @@ function inspectRoom(roomId) {
   const level = LAYOUT.levels.find(l => l.id === r.level);
   const occ = roomOccupants(roomId).length;
   const locked = engine.lockedRooms.has(roomId);
+  const restricted = engine.restrictedRooms && engine.restrictedRooms.has(roomId);
   const inc = engine.phase === 'incident';
   const deskCount = [...building.desks.values()].filter(d => d.roomId === roomId && d.deskMesh).length;
   const actions = [];
   const recovery = engine.recoveryJobs.get(roomId);
   if (inc && locked && !recovery) actions.push(`<button class="actbtn good" data-act="recover" data-room="${roomId}" ${!engine.astorReady || engine.budget < 2 || engine.recoveryJobs.size ? 'disabled' : ''}>${icon('astor')}<span>${t('recovery.offer', { seconds: engine.operations.has('HCI') ? 4 : 6 })}</span></button>`);
   if (recovery) actions.push(`<div class="recovery-status"><span>${t('recovery.progress', { seconds: Math.ceil(recovery.duration - recovery.elapsed) })}</span><progress max="${recovery.duration}" value="${recovery.elapsed}"></progress><button class="linklike" data-act="cancelRecovery" data-room="${roomId}">${t('recovery.cancel')}</button></div>`);
-  if (inc && !locked) actions.push(`<button class="actbtn" data-act="lockdown" data-room="${roomId}">${icon('lock')}<span>${t('act.restrict')}</span></button>`);
+  if (inc && !locked && !restricted) actions.push(`<button class="actbtn" data-act="lockdown" data-room="${roomId}">${icon('lock')}<span>${t('act.restrict')}</span></button>`);
   return `
     <div class="ins-head"><h3>${icon(roomIcon(r.type))} ${loc(r.name)}</h3><span class="ins-sub">${loc(level?.name)}</span></div>
     <div class="ins-purpose">${t('room.' + r.type) || ''}</div>
     ${locked ? `<div class="locked-row">${icon('lock')} ${t('inspect.locked')}</div>` : ''}
+    ${restricted ? `<div class="locked-row restricted">${icon('lock')} ${t('inspect.restricted')}</div>` : ''}
     <div class="ins-rows">
       <div><span>${t('inspect.occupants')}</span><b>${occ}</b></div>
       ${deskCount ? `<div><span>${t('inspect.deskCount')}</span><b>${deskCount}</b></div>` : ''}
@@ -528,14 +530,27 @@ setInterval(() => {
 
 canvas.addEventListener('click', worldClick);
 canvas.addEventListener('pointermove', onPointerMove);
+// Keyboard inspection: cycle rooms on the active floor without the mouse.
+let kbRoomIdx = -1;
+function kbCycleRoom(dir) {
+  if (!engine || !['prep', 'incident'].includes(engine.phase)) return;
+  const rs = LAYOUT.rooms.filter(r => r.level === activeLevel);
+  if (!rs.length) return;
+  kbRoomIdx = (kbRoomIdx + dir + rs.length) % rs.length;
+  inspectTarget = { kind: 'room', roomId: rs[kbRoomIdx].id }; renderInspect();
+  const pt = entityFloorPoint(inspectTarget); if (pt) { world.focusOn(pt.clone().setY(pt.y + 1), 14); fx.setSelection(pt); }
+}
 window.addEventListener('keydown', ev => {
   if (ev.target.closest('input, textarea, select, button, [contenteditable=true]') || ev.ctrlKey || ev.metaKey || ev.altKey) return;
-  if (ev.code === 'Escape' && placing) { placing = null; clearHighlight(); overlay.renderTray(engine, placing); }
+  if (ev.code === 'Escape') { if (placing) { placing = null; clearHighlight(); overlay.renderTray(engine, placing); } else if (inspectTarget) { inspectTarget = null; overlay.clearInspect(); fx.clearSelection(); } }
   if (ev.code === 'Space' && engine?.phase === 'incident') { ev.preventDefault(); engine._paused = !engine._paused; overlay.renderHud(engine); }
+  if (ev.code === 'Enter' && engine?.phase === 'prep') { ev.preventDefault(); beginDay(); }
   if (engine && ['prep', 'incident'].includes(engine.phase)) {
     if (ev.code === 'Digit1') setActiveLevel('L3');
     if (ev.code === 'Digit2') setActiveLevel('L2');
     if (ev.code === 'KeyH') setActiveLevel(activeLevel);
+    if (ev.code === 'BracketLeft') { ev.preventDefault(); kbCycleRoom(-1); }
+    if (ev.code === 'BracketRight') { ev.preventDefault(); kbCycleRoom(1); }
   }
 });
 

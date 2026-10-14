@@ -199,3 +199,48 @@ test('infrastructure operations match the exercising events of each assignment',
   // HCI stays useful wherever a room can lock (ransomware downtime + faster restore).
   for (const m of ['quiet', 'robber', 'storm']) assert.ok(missionFor(m).beats.some(b => b.locks), `${m} has a lockable room`);
 });
+
+// Room restriction is a DELAY consequence distinct from containment: an area restricted ahead
+// of the actor slows them the first time they pass through it, at the cost of disrupting that area.
+test('restricting an area ahead of the actor delays them without containing', () => {
+  const g = game('quiet'); g.budget = 99; g.deploy('NDR');
+  g.beginDay(); advanceTo(g, 40);               // actor is down on L2 collecting, not yet at the server
+  assert.notEqual(g.intruder.room, 'server');
+  const up0 = g.uptime;
+  const res = g.lockdownRoom('server');
+  assert.equal(res.contained, false);
+  assert.ok(g.restrictedRooms.has('server'));
+  assert.ok(g.uptime < up0, 'restriction disrupts that area');
+  advanceTo(g, 74);                             // server beats (move t62 / ransom t72) are pushed back 12s
+  assert.equal(g.lockedRooms.has('server'), false, 'ransomware should be delayed past its schedule');
+  assert.ok(g.log.some(l => l.kind === 'restrict-delay' && l.room === 'server'));
+  advanceTo(g, 95);
+  assert.ok(g.lockedRooms.has('server'), 'the delayed ransomware still lands with no endpoint defence');
+  // a restriction is consumed once — it does not keep re-delaying every subsequent beat
+  assert.equal(g.log.filter(l => l.kind === 'restrict-delay').length, 1);
+});
+
+test('locking down the room the actor is in still contains them; restrict is rejected once set', () => {
+  const g = game('quiet'); g.budget = 99;
+  g.beginDay(); advanceTo(g, 12);
+  assert.equal(g.intruder.room, 'office');
+  assert.equal(g.lockdownRoom('office').contained, true);
+  assert.ok(g.intruder.contained);
+  const h = game('quiet'); h.budget = 99; h.beginDay(); advanceTo(h, 40);
+  assert.ok(h.lockdownRoom('vault').ok);
+  const up = h.uptime; assert.equal(h.lockdownRoom('vault').contained, false);
+  assert.equal(h.uptime, up, 'restricting an already-restricted area does not charge again');
+});
+
+test('duplicate capability deployment is rejected with feedback and no extra spend', () => {
+  const g = game(); const warned = [];
+  g.on('toast', p => { if (['resp.alreadyProtected', 'resp.alreadyDeployed'].includes(p.key)) warned.push(p.key); });
+  assert.ok(g.deploy('EDR', 'office#2').ok);
+  const after = g.budget;
+  assert.equal(g.deploy('EDR', 'office#2').ok, false);
+  assert.ok(g.deploy('NDR').ok); const after2 = g.budget;
+  assert.equal(g.deploy('NDR').ok, false);
+  assert.equal(g.budget, after2);
+  assert.ok(after > after2);
+  assert.deepEqual(warned, ['resp.alreadyProtected', 'resp.alreadyDeployed']);
+});

@@ -307,5 +307,75 @@ calls out, and — more importantly — a draw-call/frame-time improvement can o
 **hardware-accelerated GL**, which this environment does not provide. It is queued as a dedicated,
 separately-measured performance pass (before/after on an Iris-Xe-class browser), per the handoff.
 
-Development remains on `feat/architectural-command-gameplay`, PR #1; GitHub Pages still serves
-`main`, so this feature version is not the public live site until the PR is merged.
+## Performance + gameplay release pass — 2026-10-14
+
+This pass implemented the deferred performance optimization and substantive gameplay depth,
+then merged and published the reviewed feature work.
+
+### Performance: static geometry batching
+
+The detail pass had turned every rack panel/LED/handle, desk leg, drawer, mullion, chair and
+plant pot into its own mesh (~666 meshes per floor). `src/world/building.js` now:
+
+- **Caches identical static materials** (keyed by colour + serializable options), so repeated
+  detail shares one material. Textured materials (floors/rugs) are intentionally not cached.
+- **Merges static, opaque, non-interactive meshes per level** into one mesh per
+  (material, shadow-flags) bucket, via `mergeGeometries` (already vendored). Geometry is baked
+  into level-local space, so stacked floors stay correct.
+- **Keeps pickables and runtime-mutated meshes separate** with their own (cloned) materials:
+  room pads, desk tops, `server#core` / `vault#core` cores and the desk screens the EDR deploy
+  tints. Picking, placement highlighting and the guarded-screen tint are all still per-object.
+
+Measured (backend-independent `renderer.info`, 1440×900, DPR 1, **fixed camera** `(1.5,32,28)`→
+`(-0.5,0,-2.2)`, SwiftShader; FPS not representative and not claimed):
+
+| Scene state | Draw calls before | Draw calls after | Triangles (unchanged) |
+| --- | --- | --- | --- |
+| L3 setup | 1,112 | **343** | 132,618 → 132,630 |
+| L2 setup | 1,106 | **295** | 114,138 |
+| L3 active incident (t≈40) | 1,163 | **394** | ~153,440 |
+
+Draw calls fall ~69% at setup, beating the ~400–450 target; triangle counts are unchanged
+(same geometry, just batched). Both floors were screenshotted before/after and are pixel-identical,
+and the pick API still resolves `office#2` and the server room pad. Lights (≈7 room + globals per
+visible floor) and the single 2048² shadow map are unchanged; the hidden floor is already excluded
+by Three.js visibility culling. Hardware-GL FPS could not be measured in this environment.
+
+### Gameplay depth
+
+- **Room restriction is now a real decision with consequences.** Locking down the room the actor
+  is in still contains them. Restricting an area **ahead** of the actor sets an access-control
+  checkpoint that slows them the first time they pass through (adds 12s to the schedule, consumed
+  once), at a 6% uptime cost — distinct from prevention and containment. The delay can push an
+  exfil past the deadline (a `delayed` outcome instead of a breach). Restricting an off-path area
+  is a wasted disruption. Authoritative in the engine; shown in the inspector, ticker and Sophia.
+- **Discoverability at the point of action.** Buying a capability you already have, or an EDR on an
+  already-protected endpoint, now explains why (`resp.alreadyDeployed` / `resp.alreadyProtected`)
+  instead of failing silently. (Insufficient budget and missing prerequisites already did.)
+- **Session-specific debrief.** Recommendations are derived from the actual outcome and actions —
+  late/weak correlation, the SASE branch, restriction use, breach, delayed, collapse and
+  unfinished recovery each produce concrete next-attempt advice (EN/ZH).
+- **Keyboard access.** `[` / `]` cycle room inspection on the active floor; Enter begins the day in
+  setup; Escape also clears the current inspection. Floor/pause/cancel keys unchanged.
+
+### Validation
+
+`npm test` green — **engine (18 groups)**, smoke (strong→delayed, none→collapse, isolate→contained)
+and the full Playwright UI suite. New engine regressions: restriction-delays-without-containing
+(and single-consumption), in-room lockdown still contains + restrict-once, and duplicate-deploy
+feedback. Nine mission/difficulty combinations remain winnable within budget. Visual review of both
+floors (post-batching, identical), EN/ZH new feedback, and a full play-through to review/replay.
+
+Scope preserved: stable endpoint IDs, immutable mission templates, exact-endpoint isolation,
+detection/correlation/containment/exit-block/recovery distinctions, the recovery contract
+(prepared aStor, 2 credits, exclusive slot, 6s/4s, cancellation refund + suppression), mixed
+setup undo/reset, and EN/ZH throughout. Official product marks, Solvia and the dark command UI
+are unchanged. Realistic office models/animation remain a separate, deferred brief.
+
+![Restricting the Server Room ahead of the actor — access-control checkpoint in the inspector](screenshots/release-restrict-en.png)
+
+![Session-specific debrief after a delayed outcome](screenshots/release-debrief-en.png)
+
+![Level 2 after static batching — appearance unchanged](screenshots/release-floor2-en.png)
+
+

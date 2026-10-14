@@ -42,8 +42,10 @@ aStor (3), AICP (3), and NDR (5), spending all 22 initial credits. Select recove
 
 Compare the traffic-surge and host-failure effects with an unprepared run. SASE rejects
 the unauthorized remote session but does not make the actor disappear. Continue watching
-the alternate route and the ransomware attempt. Recovery restores services; targeted
-room restriction or an accurately protected endpoint is still needed for containment.
+the alternate route and the ransomware attempt. Recovery restores services; isolating the
+exact endpoint, or locking down the room the actor is in, is still what actually contains
+them. Restricting the Server Room ahead of the actor delays the ransomware — useful time to
+confirm and respond, but not a substitute for containment.
 
 This loadout prioritizes infrastructure and recovery over early endpoint response.
 Income during the incident offers a limited second chance to improve coverage. Letting
@@ -53,10 +55,16 @@ and uptime remain healthy.
 ## Controls and review
 
 - Drag: orbit. Scroll: zoom. Floor buttons or 1/2: switch floors. H: overview.
-- Escape: cancel placement. Space: pause/resume a live incident when no control has focus.
+- Keyboard: `[` / `]` cycle room inspection on the active floor; Enter begins the day in setup.
+- Escape: cancel placement, or clear the current inspection. Space: pause/resume a live incident when no control has focus.
 - Sound is optional and muted initially; it uses locally synthesized ambience.
 - Click a signal to inspect its location. XDR needs at least two evidence types.
-- Restricting an area disrupts uptime; the wrong area costs more than targeted containment.
+- Restricting an area the actor is in cuts them off (containment). Restricting an area **ahead**
+  of the actor is an access-control checkpoint: it slows them the first time they pass through
+  (buying time), at the cost of disrupting that area — but it never contains them on its own.
+  Restricting an area the actor never reaches is a wasted disruption.
+- Trying to buy a capability you already have, or isolate/restore without its prerequisite,
+  now explains why at the point of action rather than failing silently.
 - Save the JSON session report for the deployment, operational and response record.
 - English and Chinese can be switched during selection, setup, play and review.
 

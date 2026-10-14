@@ -45,6 +45,8 @@ export class Engine {
     this._mdrAssisted = false;
 
     this.lockedRooms = new Set();
+    this.restrictedRooms = new Set();   // access-controlled areas that slow the actor en route
+    this._restrictUsed = new Set();     // each restriction slows the actor once
     this.recoveryJobs = new Map();
     this.helperSuppressed = new Set();
     this.planHistory = [];
@@ -87,10 +89,11 @@ export class Engine {
       const [room, endpoint] = parts;
       const r = this.sc.LAYOUT.rooms.find(r => r.id === room);
       const valid = parts.length === 2 && r && ((r.desks && /^[1-9]\d*$/.test(endpoint) && Number(endpoint) <= r.desks) || (['server', 'vault'].includes(room) && endpoint === 'core'));
-      if (!valid || this.edrDesks.has(target)) return { ok: false };
+      if (!valid) return { ok: false };
+      if (this.edrDesks.has(target)) { this.emit('toast', { kind: 'warn', key: 'resp.alreadyProtected' }); return { ok: false }; }
       this.edrDesks.add(target);
     } else {
-      if (this.bySlot.has(productId)) return { ok: false };
+      if (this.bySlot.has(productId)) { this.emit('toast', { kind: 'warn', key: 'resp.alreadyDeployed' }); return { ok: false }; }
       this.bySlot.set(productId, true);
       if (productId === 'ASTOR' && this.phase === 'prep') this.astorReady = true; // prepared before the attack
     }
@@ -197,6 +200,16 @@ export class Engine {
       if (this.intruder.contained || this.intruder.failed) break;
       const b = beats[this.beatIndex];
       if (this.time < b.t + this.delay) break;
+      // Access control: a restricted area slows the actor the first time they reach it.
+      // This delays this beat and every beat after it — distinct from prevention or containment.
+      if (b.room && this.restrictedRooms.has(b.room) && !this._restrictUsed.has(b.room)) {
+        this._restrictUsed.add(b.room);
+        this.delay += 12;
+        this.log.push({ t: this.time, kind: 'restrict-delay', room: b.room });
+        this.emit('toast', { kind: 'good', key: 'resp.restrictDelay' });
+        this.sophia('restrictDelay');
+        break;   // re-evaluate next tick with the actor held back at the checkpoint
+      }
       this.beatIndex++;
       this._beat(b);
     }
@@ -319,14 +332,20 @@ export class Engine {
   lockdownRoom(roomId) {
     if (this.phase !== 'incident' || this.ended || !this.sc.LAYOUT.rooms.some(r => r.id === roomId)) return { ok: false };
     this.emit('cage-room', { room: roomId });
+    // Actor is here → access control cuts them off: containment.
     if (this.intruder.room === roomId && !this.intruder.contained && !this.intruder.failed) {
-      this.uptime = Math.max(0, this.uptime - 6);   // access control disrupts that area's work
+      this.uptime = Math.max(0, this.uptime - 6);   // access control disrupts that area's legit work
       this._contain('lockdown', null, roomId);
       return { ok: true, contained: true };
     }
-    this.uptime = Math.max(0, this.uptime - 10);     // blunt lockdown of the wrong area hurts more
-    this.log.push({ t: this.time, kind: 'respond', action: 'lockdown', room: roomId, result: 'wrong' });
-    this.emit('toast', { kind: 'bad', key: 'resp.wrongArea' });
+    // Actor is elsewhere → the restriction stands as a checkpoint ahead of them. It slows the
+    // actor the first time they try to move through this area (see _advance), at the cost of
+    // disrupting that area's work. Restricting an area the actor never reaches is a wasted cost.
+    if (this.restrictedRooms.has(roomId)) { this.emit('toast', { kind: 'warn', key: 'resp.alreadyRestricted' }); return { ok: true, contained: false }; }
+    this.restrictedRooms.add(roomId);
+    this.uptime = Math.max(0, this.uptime - 6);
+    this.log.push({ t: this.time, kind: 'respond', action: 'restrict', room: roomId });
+    this.emit('toast', { kind: 'info', key: 'resp.restricted' });
     this.changed();
     return { ok: true, contained: false };
   }

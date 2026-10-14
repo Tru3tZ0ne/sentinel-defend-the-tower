@@ -10,9 +10,11 @@ only *see* what their tools let them see.
 > asset provenance: [`assets/brand/ASSETS.md`](./assets/brand/ASSETS.md)
 
 Current development: three assignments, three difficulty levels, playable infrastructure
-preparation, a local helper-rule workflow, bilingual session review and JSON report export.
-The current visual pass uses daylight and restrained workspace panels. Realistic close-up
-characters and interiors remain an asset-production milestone; current figures are placeholders.
+preparation, a local helper-rule workflow, a reference-led dark command interface, bilingual
+session review and JSON report export. Response choices have consequences — isolate the exact
+device, lock down the room the actor is in, or restrict an area ahead of them to slow their
+advance. Static scene detail is batched per floor for performance. Realistic close-up characters
+and interiors remain an asset-production milestone; current figures are procedural placeholders.
 
 Developer records: [development log](docs/DEVELOPMENT_LOG.md),
 [Claude Code continuation prompt](docs/CLAUDE_HANDOFF.md),
@@ -57,7 +59,7 @@ src/
     icons.js            original SVG icon set
     audio.js            opt-in, locally synthesized office ambience
   style/main.css        core UI layout
-  style/workspace.css   current daylight workspace presentation
+  style/workspace.css   dark command-interface presentation skin
   vendor/three/         vendored Three.js r160 + OrbitControls (local, offline-friendly)
 assets/brand/           official logo images and recorded sources
 tools/                  static server, engine tests and browser tests
@@ -86,9 +88,11 @@ into the configured Pages source branch.
 ## Controls
 
 Drag to orbit, scroll to zoom, and use the floor buttons or **1 / 2** to switch floors.
-**H** returns to the floor overview, **Escape** cancels placement, and **Space** pauses
-or resumes a live incident. Sound starts muted and can be enabled in the top bar.
-Choose the assignment and difficulty before entering setup; setup has no time limit.
+**H** returns to the floor overview, **`[` / `]`** cycle room inspection on the active floor,
+**Enter** begins the day in setup, **Escape** cancels placement (or clears the current
+inspection), and **Space** pauses or resumes a live incident. Sound starts muted and can be
+enabled in the top bar. Choose the assignment and difficulty before entering setup; setup has
+no time limit.
 
 ## Localization
 

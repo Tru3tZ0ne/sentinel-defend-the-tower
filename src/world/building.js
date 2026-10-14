@@ -3,7 +3,14 @@
 // (the floor selector in main.js toggles level groups + moves the camera), so fog-of-war now
 // has a spatial dimension: the intruder can slip to a floor you're not watching.
 // Exposes: rooms, desks, pickables, anchors, nav graph, lights, signs, floors, levels.
+//
+// Performance: static, non-interactive detail (walls, trims, racks, LEDs, legs, drawers,
+// chairs, plant pots/stems) shares cached materials and is merged per level into a few
+// batched meshes (one draw call per material/shadow-flag bucket). Pickable and runtime-mutated
+// meshes (room pads, desk tops, server/vault cores, desk screens) keep their own materials and
+// are never merged, so picking, highlighting and the EDR "guarded screen" tint stay per-object.
 import { loc } from '../i18n.js';
+import { mergeGeometries } from '../vendor/three/BufferGeometryUtils.js';
 
 const P = {
   floor: 0xaaa69a, floorLine: 0xa8865a, corridor: 0xa3acb0, rug: { office: 0x65717a, meeting: 0x7e8783, lobby: 0xaaa391, command: 0x586b79, server: 0x79858a, vault: 0x7c898e, egress: 0x8b9087 },
@@ -23,9 +30,26 @@ export function buildBuilding(THREE, LAYOUT) {
   const FW = B.x1 - B.x0, FD = B.z1 - B.z0, MX = (B.x0 + B.x1) / 2, MZ = (B.z0 + B.z1) / 2;
   const EXT = WH + 0.55, exitDoorX = -11;
 
-  const matMk = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0.0, ...o });
+  // Cache identical static materials so repeated detail can share one material and merge.
+  // Skip caching when options carry a non-serializable value (e.g. a texture map): those
+  // materials (textured floors/rugs) are few and large, not the draw-call problem.
+  const matCache = new Map();
+  const serializable = o => Object.values(o).every(v => v == null || typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string');
+  const matMk = (color, o = {}) => {
+    if (!serializable(o)) return new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0.0, ...o });
+    const key = 'm|' + color + '|' + JSON.stringify(o);
+    let m = matCache.get(key);
+    if (!m) { m = new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0.0, ...o }); matCache.set(key, m); }
+    return m;
+  };
   const glassMat = () => new THREE.MeshStandardMaterial({ color: P.glass, transparent: true, opacity: 0.2, roughness: 0.08, metalness: 0.1 });
-  const emis = (color, i = 0.9, o = {}) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: i, roughness: 0.5, ...o });
+  const emis = (color, i = 0.9, o = {}) => {
+    if (o && !serializable(o)) return new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: i, roughness: 0.5, ...o });
+    const key = 'e|' + color + '|' + i + '|' + JSON.stringify(o || {});
+    let m = matCache.get(key);
+    if (!m) { m = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: i, roughness: 0.5, ...(o || {}) }); matCache.set(key, m); }
+    return m;
+  };
   const mesh = (g, m, cast = true, recv = true) => { const x = new THREE.Mesh(g, m.isMaterial ? m : matMk(m)); x.castShadow = cast; x.receiveShadow = recv; return x; };
   const box = (w, h, d, m, cast, recv) => mesh(new THREE.BoxGeometry(w, h, d), m, cast, recv);
   const cyl = (rt, rb, h, m, seg = 12, cast = true) => { const x = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m.isMaterial ? m : matMk(m)); x.castShadow = cast; x.receiveShadow = true; return x; };
@@ -106,10 +130,12 @@ export function buildBuilding(THREE, LAYOUT) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = facing; curGroup.add(g);
     const top = mesh(new THREE.BoxGeometry(1.15, 0.07, 0.68), mat(P.deskTop)); top.position.y = 0.5;
     top.userData = { kind: 'desk', deskId: id, roomId }; g.add(top); pickables.push(top);
+    top.material = top.material.clone();   // pickable: unique material so the placement highlight is per-desk
     for (const sx of [-0.5, 0.5]) for (const sz of [-0.26, 0.26]) { const l = box(0.06, 0.5, 0.06, mat(P.deskLeg)); l.position.set(sx, 0.25, sz); g.add(l); }
     g.add(place(box(0.07, 0.17, 0.07, mat(P.metal)), 0, 0.6, -0.18));
     g.add(place(box(0.66, 0.42, 0.05, mat(P.monitor)), 0, 0.84, -0.2));
     const screen = place(box(0.58, 0.34, 0.02, emis(P.screenOn, 0.55), false), 0, 0.84, -0.17); g.add(screen);
+    screen.material = screen.material.clone();   // mutated by EDR deploy (guarded tint) — keep per-desk
     g.add(place(box(0.44, 0.03, 0.17, mat(P.metal)), 0, 0.545, 0.05));
     g.add(place(box(.14,.025,.19,mat(0x253441)),.39,.55,.08));
     g.add(place(box(.2,.012,.27,mat(0xd7d5cf)), -.4,.55,.12));
@@ -173,7 +199,7 @@ export function buildBuilding(THREE, LAYOUT) {
       add(box(rw - 1.2, 0.03, rd - 1.4, mat(0x7e8b8f, { roughness: 0.72 }), false), cx, 0.07, cz);
       let first = null;
       for (let k = 0; k < 5; k++) {
-        const rack = box(0.6, 1.5, 0.8, mat(P.rack, { metalness: 0.3, roughness: 0.5 })); add(rack, r.rect.x0 + 1.0 + k * 0.95, 0.75, r.rect.z0 + 1.1); if (!first) first = rack;
+        const rack = box(0.6, 1.5, 0.8, mat(P.rack, { metalness: 0.3, roughness: 0.5 })); add(rack, r.rect.x0 + 1.0 + k * 0.95, 0.75, r.rect.z0 + 1.1); if (!first) { first = rack; first.material = first.material.clone(); } // pickable core: unique material
         const rx = r.rect.x0 + 1.0 + k * .95, rz = r.rect.z0 + 1.51;
         for (let L=0;L<8;L++) {
           add(box(.5,.115,.03,mat(0x1c2933,{metalness:.5})),rx,.14+L*.17,rz);
@@ -190,6 +216,7 @@ export function buildBuilding(THREE, LAYOUT) {
       // Protected business records live in recognizable storage cabinets.
       const core = box(0.85, 1.8, 1.0, mat(0x303b42, { metalness: 0.45, roughness: 0.4 }));
       add(core, cx - 0.55, 0.9, cz); core.userData = { kind: 'desk', deskId: 'vault#core', roomId: 'vault' }; pickables.push(core);
+      core.material = core.material.clone();   // pickable core: unique material
       add(box(0.85, 1.8, 1.0, mat(0x303b42, { metalness: 0.45, roughness: 0.4 })), cx + 0.55, 0.9, cz);
       for (const dx of [-0.55, 0.55]) for (let row = 0; row < 8; row++) {
         add(box(0.7, 0.15, 0.035, mat(0x55616a, { metalness: 0.5 })), cx + dx, 0.2 + row * 0.2, cz + 0.52);
@@ -264,12 +291,49 @@ export function buildBuilding(THREE, LAYOUT) {
     for (const dx of doorXs) (anchors.NDR ||= []).push(V(dx, 0.5 + level.y, 0));
   }
 
+  // ---------- static batching ----------
+  // Merge a level's static, opaque, non-interactive meshes into one mesh per
+  // (material, shadow-flags) bucket. Pickables, runtime-mutated meshes, textured/transparent
+  // materials, instanced meshes and the basic-material signs/logos are left untouched.
+  function mergeLevelStatics(lg) {
+    lg.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(lg.matrixWorld).invert();
+    const pickSet = new Set(pickables);
+    const screenSet = new Set([...desks.values()].map(d => d.screen).filter(Boolean));
+    const buckets = new Map();
+    lg.traverse(o => {
+      if (!o.isMesh || o.isInstancedMesh) return;
+      if (pickSet.has(o) || screenSet.has(o)) return;
+      if (o.userData && o.userData.kind) return;                 // any tagged entity stays pickable/separate
+      const m = o.material;
+      if (!m || Array.isArray(m) || !m.isMeshStandardMaterial || m.transparent) return;  // skip basic/textured/glass
+      const g = o.geometry;
+      if (!g || !g.isBufferGeometry || !g.index || !g.getAttribute('uv') || !g.getAttribute('normal')) return;
+      const key = m.uuid + '|' + (o.castShadow ? 1 : 0) + '|' + (o.receiveShadow ? 1 : 0);
+      let b = buckets.get(key);
+      if (!b) { b = { material: m, cast: o.castShadow, recv: o.receiveShadow, items: [] }; buckets.set(key, b); }
+      b.items.push(o);
+    });
+    for (const b of buckets.values()) {
+      if (b.items.length < 2) continue;                          // a lone mesh is already one draw call
+      const geoms = b.items.map(o => { const cg = o.geometry.clone(); cg.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)); return cg; });
+      const merged = mergeGeometries(geoms, false);
+      geoms.forEach(g => g.dispose());
+      if (!merged) continue;
+      const mm = new THREE.Mesh(merged, b.material);
+      mm.castShadow = b.cast; mm.receiveShadow = b.recv; mm.userData.staticBatch = true;
+      lg.add(mm);
+      for (const o of b.items) { o.removeFromParent(); o.geometry.dispose(); }
+    }
+  }
+
   // ---------- build all levels ----------
   for (const level of LAYOUT.levels) {
     curLevel = level.id; curY = level.y;
     const lg = new THREE.Group(); lg.position.y = level.y; group.add(lg); curGroup = lg;
     floors.push({ id: level.id, y: level.y, group: lg, name: level.name });
     buildLevelGeometry(level);
+    mergeLevelStatics(lg);
   }
   curGroup = group; curY = 0; curLevel = LAYOUT.defaultLevel;
 

@@ -29,6 +29,10 @@ records, comments and continuation prompts use English.
   Source URLs and MDR extraction details are in `assets/brand/ASSETS.md`. Internal `sophia` identifiers
   are legacy names; the visible guide is Solvia. Preserve original image proportions.
 - Procedural tile/carpet/wood maps, glass mullions, rack details and instanced foliage.
+- Static scene detail is batched per floor (shared cached materials + merged geometry) so draw
+  calls stay low (~343 at the fixed-camera L3 setup vs ~1,112 before); pickables/screens stay
+  per-object. Room restriction ahead of the actor is an access-control checkpoint that delays
+  them (distinct from containment). Duplicate-buy / missing-prereq actions explain themselves.
 
 ## Architecture and invariants
 
@@ -55,11 +59,13 @@ picking targets and material/animation QA. Do not just flip `USE_GLB_CHARACTERS`
 
 ## Validation and deployment status
 
-Latest `npm test` passed all 15 engine groups, three smoke outcomes and the full
-browser UI suite, including all 11 official product images. (The 2026-10-13 gameplay-polish
-pass added two engine groups — demonstrated viable winning strategies for every
-mission/difficulty, and infrastructure-operation relevance — and made the Playwright click
-helper robust to software-WebGL.) Current English captures are in
+Latest `npm test` passed all 18 engine groups, three smoke outcomes and the full
+browser UI suite, including all 11 official product images. (The 2026-10-14 performance +
+gameplay release pass added static per-floor geometry batching, the room-restriction delay
+consequence, duplicate-action feedback, session-specific debrief and keyboard room inspection,
+with three new engine regression groups; the earlier polish pass added winnability and
+operation-relevance groups and made the Playwright click helper robust to software-WebGL.)
+Current English captures are in
 `docs/screenshots/command-live-en.png`, `product-marks-en.png` and `product-cloud-en.png`.
 PR #1 is the review location. GitHub Pages serves `main`, so the feature branch is not yet
 the public live version.
@@ -73,11 +79,10 @@ the public live version.
 3. Accessibility: keyboard inspection/deployment, focus routing and touch-device testing.
 4. Realistic office characters/furniture with coherent materials and proper animation once
    the separate asset-production brief resumes. Current assets are not photorealistic.
-5. Performance: scene cost is measured (backend-independent) in `docs/DEVELOPMENT_LOG.md`
-   (≈1,100 draw calls / ~130k triangles at the live mission camera). The next lever is merging
-   static per-room detail into shared geometry/materials and trimming active lights to cut draw
-   calls without changing the visual direction — validate before/after on hardware GL (not
-   SwiftShader), and re-verify picking/coverage/floor-visibility. Keep browser suites sequential.
+5. Performance: static per-floor batching is now implemented (draw calls ~1,112 → ~343 at the
+   fixed-camera L3 setup; see `docs/DEVELOPMENT_LOG.md`). Remaining levers if needed: trim active
+   light count and evaluate pixel-ratio/shadow-map cost — validate before/after on hardware GL
+   (not SwiftShader) and re-verify picking/coverage/floor-visibility. Keep browser suites sequential.
 
 Paid asset generation is deferred; do not reconnect or spend service credits without a
 new asset brief. Never commit credentials, signed URLs or account history. No live Solvia
