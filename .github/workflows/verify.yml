@@ -11,7 +11,9 @@ permissions:
 jobs:
   game:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # The full suite now runs engine + smoke + UI + character-lifecycle + deployment-entity
+    # browser tests sequentially under software WebGL (slow by design), ~10 min; 20 gives headroom.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
