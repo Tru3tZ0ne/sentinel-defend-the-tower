@@ -1,4 +1,5 @@
-Continue Sentinel: Defend the Tower from the office-character integration changes.
+Continue Sentinel: Defend the Tower from the office-character and deployment changes.
+Published implementation baseline: c743a51, including animated staff commit 898ddb6.
 Fetch origin and inspect git status/log before editing. Base new work on the latest
 main containing these changes, or feat/mixamo-office-characters if main has not yet
 received them. Do not restore an older architectural branch over the current game.

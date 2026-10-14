@@ -556,6 +556,21 @@ as verified there. Hardware visual review confirmed the compact card/inspector f
 `docs/screenshots/product-deployment-en.png` records a paid five-capability plan.
 No browser page errors were observed. `git diff --check` passed.
 
-Publication status is recorded separately from local verification.
+Implementation commit `c743a51` was pushed to `feat/mixamo-office-characters` and
+fast-forwarded onto `main`, including the earlier character commit `898ddb6`.
+No force push or older-branch replacement was used. GitHub Pages build/deployment
+[38586052812](https://github.com/Tru3tZ0ne/sentinel-defend-the-tower/actions/runs/38586052812)
+completed successfully. Public `src/main.js` and `src/world/deployment-assets.js`
+matched the committed Git blobs byte-for-byte; both public character GLBs matched
+the local assets. Source-file comparisons use committed blobs because working-copy
+CRLF conversion can differ from published bytes.
+
+An actual public-site browser check loaded both character rigs, clicked the AF card
+and a reception target on the canvas, and confirmed the new scene entity, prepared
+inspector state and correct default-budget change from 15 to 11. No page errors were
+observed. This verifies the public release rather than assuming a push means delivery.
+The independent Linux verification run is tracked at
+[38586055140](https://github.com/Tru3tZ0ne/sentinel-defend-the-tower/actions/runs/38586055140).
+Documentation-only follow-up commits do not alter the validated runtime files.
 The paste-ready continuation prompt is `docs/CHARACTER_HANDOFF.txt`; it documents the
 compact deployment architecture and remaining realistic furniture/interior work.
