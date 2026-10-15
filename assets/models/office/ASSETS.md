@@ -1,8 +1,29 @@
-# Office character assets
+# Office assets
 
 These files are game-ready derivatives for Sentinel, not an independently licensed
 stock asset pack. The characters and motion capture remain Adobe/Mixamo assets.
 Do not extract or redistribute them as a general-purpose character library.
+
+## Props
+
+| Runtime file | Source | License | Geometry | Textures | File size |
+| --- | --- | --- | --- | --- | --- |
+| `plant01.glb` | [Poly Haven — Potted Plant 01](https://polyhaven.com/a/potted_plant_01) | CC0 (public domain) | 10,911 triangles, 2 meshes | 512 px WebP | 591,772 bytes |
+
+`plant01.glb` is a web-optimized derivative of Poly Haven's 1k glTF export
+(originally ~176k triangles, 6.33 MB). Processing (no login or service needed):
+
+```
+npx @gltf-transform/cli@4 optimize potted_plant_01_1k.gltf plant01.glb \
+  --simplify-error 0.006 --texture-compress webp --texture-size 512 --no-compress
+```
+
+Mesh compression (meshopt/Draco) is deliberately avoided so the vendored
+`GLTFLoader` loads it with no extra decoder; WebP textures decode natively in
+modern browsers. Poly Haven assets are CC0 / public domain — no attribution
+required, but credited here as a courtesy. Retrieved 2026-10-14.
+
+# Office character assets
 
 Source: [Adobe Mixamo](https://www.mixamo.com/).
 Usage guidance: [Adobe Mixamo FAQ](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html).

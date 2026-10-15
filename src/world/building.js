@@ -80,7 +80,9 @@ export function buildBuilding(THREE, LAYOUT) {
   const leafInstances = [];
   const _leafQ = new THREE.Quaternion(), _leafE = new THREE.Euler(), _leafP = new THREE.Vector3(), _leafS = new THREE.Vector3();
   const jit = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
-  function collectCanopy(x, z, baseY, rad, n, height) {
+  // Build canopy leaf instances around (x,z); returns {matrix,color} entries (level-local Y).
+  function canopyInstances(x, z, baseY, rad, n, height) {
+    const out = [];
     for (let i = 0; i < n; i++) {
       const a = i * 2.3999, t = n > 1 ? i / (n - 1) : 0;
       const r = rad * (0.35 + 0.65 * Math.sin((1 - t) * Math.PI * 0.5)) * (0.8 + 0.4 * jit(i + x));
@@ -88,9 +90,13 @@ export function buildBuilding(THREE, LAYOUT) {
       _leafP.set(x + Math.cos(a) * r, y, z + Math.sin(a) * r);   // level-local; the level group applies curY
       _leafE.set(0.25 + (jit(i + 1.7) - 0.5) * 0.7, a, 0.35 + (jit(i + 4.2) - 0.5) * 0.5); _leafQ.setFromEuler(_leafE);
       const s = rad * (0.5 + 0.35 * jit(i * 2.0 + x)); _leafS.set(s, s * 0.32, s);
-      const m = new THREE.Matrix4().compose(_leafP, _leafQ, _leafS);
-      leafInstances.push({ matrix: m, color: new THREE.Color(i % 2 ? 0x3f734e : 0x57814d).offsetHSL(0, (jit(i) - 0.5) * 0.08, (jit(i + 9) - 0.5) * 0.08) });
+      out.push({ matrix: new THREE.Matrix4().compose(_leafP, _leafQ, _leafS),
+        color: new THREE.Color(i % 2 ? 0x3f734e : 0x57814d).offsetHSL(0, (jit(i) - 0.5) * 0.08, (jit(i + 9) - 0.5) * 0.08) });
     }
+    return out;
+  }
+  function collectCanopy(x, z, baseY, rad, n, height) {
+    for (const inst of canopyInstances(x, z, baseY, rad, n, height)) leafInstances.push(inst);
   }
 
   const logoTex = new THREE.TextureLoader().load('assets/brand/sangfor-logo-white.png');
@@ -98,6 +104,11 @@ export function buildBuilding(THREE, LAYOUT) {
 
   const rooms = new Map(), desks = new Map(), pickables = [], anchors = {}, lights = [], signs = [], floors = [];
   const nav = { nodes: new Map(), adj: new Map() };
+  // Hero plant spots: large floor plants become realistic GLB props when main.js finishes
+  // loading the model. Each is a self-contained procedural group (own canopy), built after
+  // static merging so it can be hidden wholesale; propAnchors lets the loader swap in the model.
+  const pendingHero = [];              // {x,z} collected during the current level's geometry pass
+  const propAnchors = [];              // {kind, group, lg, x, z} exposed for the async model swap-in
 
   // ---- level context (mutated per level) ----
   let curGroup = group, curY = 0, curLevel = 'L3';
@@ -166,13 +177,32 @@ export function buildBuilding(THREE, LAYOUT) {
     chair(seat.x, seat.z, facing + Math.PI);
   }
   function plant(x, z, big = false) {
+    // Large floor plants are the hero greenery: defer them so a realistic model can replace
+    // the procedural version once loaded. Small plants stay procedural (shared instanced canopy).
+    if (big) { pendingHero.push({ x, z }); return; }
     const g = new THREE.Group(); g.position.set(x, 0, z); curGroup.add(g);
-    const pr = big ? 0.24 : 0.17, ph = big ? 0.4 : 0.3;
+    const pr = 0.17, ph = 0.3;
     g.add(place(cyl(pr, pr * 1.18, ph, mat(P.pot), 12), 0, ph / 2, 0));          // tapered planter
     g.add(place(cyl(pr * 0.92, pr * 0.92, 0.03, mat(0x2d2419), 12), 0, ph - 0.01, 0)); // soil
-    const tH = big ? 0.42 : 0.3;
+    const tH = 0.3;
     g.add(place(cyl(.028, .045, tH, mat(0x5c4a32), 7), 0, ph + tH / 2, 0));       // short stem
-    collectCanopy(x, z, ph + tH - 0.05, big ? 0.42 : 0.3, big ? 24 : 15, big ? 0.52 : 0.4);
+    collectCanopy(x, z, ph + tH - 0.05, 0.3, 15, 0.4);
+  }
+  // A self-contained big floor plant in its own group (own small canopy instance, not the shared
+  // one), added after static merging so the loader can hide it and drop in the realistic model.
+  function buildHeroPlant(lg, x, z) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); lg.add(g);
+    const pr = 0.24, ph = 0.4, tH = 0.42;
+    g.add(place(cyl(pr, pr * 1.18, ph, mat(P.pot), 12), 0, ph / 2, 0));
+    g.add(place(cyl(pr * 0.92, pr * 0.92, 0.03, mat(0x2d2419), 12), 0, ph - 0.01, 0));
+    g.add(place(cyl(.028, .045, tH, mat(0x5c4a32), 7), 0, ph + tH / 2, 0));
+    const inst = canopyInstances(0, z, ph + tH - 0.05, 0.42, 24, 0.52);
+    const canopy = new THREE.InstancedMesh(foliageGeometry, foliageMaterial, inst.length);
+    canopy.castShadow = true; canopy.receiveShadow = false;
+    for (let i = 0; i < inst.length; i++) { canopy.setMatrixAt(i, inst[i].matrix); canopy.setColorAt(i, inst[i].color); }
+    canopy.instanceMatrix.needsUpdate = true; if (canopy.instanceColor) canopy.instanceColor.needsUpdate = true;
+    g.add(canopy);
+    propAnchors.push({ kind: 'plant', group: g, lg, x, z });
   }
   // A proper indoor tree: planter, trunk and a full rounded canopy.
   function tree(x, z) {
@@ -365,6 +395,9 @@ export function buildBuilding(THREE, LAYOUT) {
       lg.add(foliage); leafInstances.length = 0;
     }
     mergeLevelStatics(lg);
+    // Hero plants are built after merging so they stay whole, hideable groups for the model swap.
+    for (const h of pendingHero) buildHeroPlant(lg, h.x, h.z);
+    pendingHero.length = 0;
   }
   curGroup = group; curY = 0; curLevel = LAYOUT.defaultLevel;
 
@@ -384,7 +417,7 @@ export function buildBuilding(THREE, LAYOUT) {
 
   function refreshSigns() { for (const s of signs) drawSign(s.canvas, loc(s.r.name), s.r.type === 'server' ? '#39c0ff' : s.r.type === 'vault' ? '#ffcf6e' : '#' + P.brand.toString(16).padStart(6, '0')), s.tex.needsUpdate = true; }
 
-  return { group, rooms, desks, pickables, anchors, nav, lights, signs, refreshSigns, floors, levels: LAYOUT.levels, dims: { W: FW, D: FD, WH, bounds: B, MX, MZ } };
+  return { group, rooms, desks, pickables, anchors, nav, lights, signs, refreshSigns, floors, propAnchors, levels: LAYOUT.levels, dims: { W: FW, D: FD, WH, bounds: B, MX, MZ } };
 }
 
 // BFS pathfinding over the nav graph; returns array of Vector3 waypoints (inclusive).
