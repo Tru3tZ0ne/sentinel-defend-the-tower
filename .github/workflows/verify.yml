@@ -14,7 +14,9 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The deployment suite exercises all 11 capabilities with render settles and is the slowest
+    # (~16 min under software WebGL); the others finish in 2-11 min. Jobs run in parallel.
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:

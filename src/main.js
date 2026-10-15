@@ -73,10 +73,11 @@ function overviewAll() {
   if (!building) return;
   for (const f of building.floors) f.group.visible = true;
   const ys = LAYOUT.levels.map(l => l.y);
-  const midY = (Math.max(...ys) + Math.min(...ys)) / 2 + 0.2;
-  world.camera.position.set(2, 5.5, 40);   // low, front-on angle so both floors' open fronts are seen
-  world.controls.target.set(-0.5, midY, -2.2);
-  world.controls.update();
+  const midY = (Math.max(...ys) + Math.min(...ys)) / 2 + 0.4;
+  const span = Math.max(...ys) - Math.min(...ys);               // taller tower → pull the camera back
+  const dist = Math.min(world.controls.maxDistance, 36 + span * 2.5);
+  // low, front-on angle so every floor's open front is seen; cancels any in-progress focus glide
+  world.setView(new THREE.Vector3(3, 4 + span * 0.7, dist), new THREE.Vector3(-0.5, midY, -2.2));
   if (overlay) overlay.renderFloors(building.floors, activeLevel);
 }
 function updatePeopleFloorVis() {
@@ -530,7 +531,8 @@ overlay = createOverlay(overlayRoot, {
   },
   onOverview: () => overviewAll(),
   onCloseView: () => {
-    const point = entityFloorPoint(inspectTarget) || building.rooms.get(activeLevel === 'L2' ? 'l2-work' : 'office').center;
+    const rep = LAYOUT.rooms.find(r => r.level === activeLevel && r.type === 'office') || LAYOUT.rooms.find(r => r.level === activeLevel);
+    const point = entityFloorPoint(inspectTarget) || building.rooms.get(rep.id).center;
     world.focusOn(point.clone().setY(point.y + 1), 9);
   },
   onChangeAssignment: () => {
@@ -612,8 +614,9 @@ window.addEventListener('keydown', ev => {
   if (ev.code === 'Space' && engine?.phase === 'incident') { ev.preventDefault(); engine._paused = !engine._paused; overlay.renderHud(engine); }
   if (ev.code === 'Enter' && engine?.phase === 'prep') { ev.preventDefault(); beginDay(); }
   if (engine && ['prep', 'incident'].includes(engine.phase)) {
-    if (ev.code === 'Digit1') setActiveLevel('L3');
     if (ev.code === 'Digit2') setActiveLevel('L2');
+    if (ev.code === 'Digit3') setActiveLevel('L3');
+    if (ev.code === 'Digit4') setActiveLevel('L4');
     if (ev.code === 'KeyH') overviewAll();
     if (ev.code === 'BracketLeft') { ev.preventDefault(); kbCycleRoom(-1); }
     if (ev.code === 'BracketRight') { ev.preventDefault(); kbCycleRoom(1); }

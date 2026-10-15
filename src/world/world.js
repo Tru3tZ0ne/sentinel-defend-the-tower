@@ -49,7 +49,7 @@ export function createWorld(canvas) {
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.minDistance = 5;
-  controls.maxDistance = 58;
+  controls.maxDistance = 74;   // room to frame the full three-floor tower
   controls.maxPolarAngle = Math.PI * 0.47;
   controls.minPolarAngle = Math.PI * 0.08;
   controls.minAzimuthAngle = -Math.PI * 0.40; // keep the open front toward us
@@ -88,6 +88,8 @@ export function createWorld(canvas) {
     _toPos.copy(point).add(_dir);
     tween = { fromT: controls.target.clone(), toT: point.clone(), fromP: camera.position.clone(), toP: _toPos.clone(), t: 0, dur: 0.75 };
   }
+  // Snap the camera to an explicit position/target, cancelling any in-progress focus glide.
+  function setView(pos, target) { tween = null; camera.position.copy(pos); controls.target.copy(target); controls.update(); }
   function stepTween(dt) {
     if (!tween) return;
     tween.t = Math.min(1, tween.t + dt / tween.dur);
@@ -131,5 +133,5 @@ export function createWorld(canvas) {
 
   window.addEventListener('resize', resize);
   resize();
-  return { THREE, scene, camera, renderer, controls, render, resize, pick, focusOn };
+  return { THREE, scene, camera, renderer, controls, render, resize, pick, focusOn, setView };
 }

@@ -57,7 +57,7 @@ export const SESSION_COPY = {
   'audio.on': { en: 'Sound on', zh: '声音开' },
   'audio.off': { en: 'Sound off', zh: '声音关' },
   'camera.focus': { en: 'Close view', zh: '近景' },
-  'camera.help': { en: 'Drag to orbit · Scroll to zoom · [ ] inspect rooms · 1/2 floors · Enter begins the day · Space to pause · Esc to cancel', zh: '拖动旋转 · 滚轮缩放 · [ ] 查看房间 · 1/2 切换楼层 · Enter 开始这一天 · 空格暂停 · Esc 取消' },
+  'camera.help': { en: 'Drag to orbit · Scroll to zoom · [ ] inspect rooms · 2/3/4 floors · Enter begins the day · Space to pause · Esc to cancel', zh: '拖动旋转 · 滚轮缩放 · [ ] 查看房间 · 2/3/4 切换楼层 · Enter 开始这一天 · 空格暂停 · Esc 取消' },
   'review.lessons': { en: 'Operator debrief', zh: '运营复盘' },
   'review.noSensors': { en: 'Add sensors before the incident. Without coverage, attacks leave no visible clues.', zh: '在事件前部署传感器。没有覆盖，攻击行为就不会产生可见线索。' },
   'review.noXdr': { en: 'Combine XDR with different sensor types to connect weak signals.', zh: '将 XDR 与不同类型的传感器组合，把弱信号连接起来。' },

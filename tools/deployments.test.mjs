@@ -48,7 +48,7 @@ try {
     assert.equal(result.level, id === 'SASE' ? 'L2' : 'L3');
     const card = page.locator(`[data-act="locateDeployment"][data-id="${id}"]`);
     await card.waitFor();
-    await card.first().evaluate(el => { if (!el.disabled) el.click(); });
+    await clickSel(`[data-act="locateDeployment"][data-id="${id}"]`);
     await page.waitForTimeout(850);
     assert.ok(await page.locator('#inspect .deployment-state').isVisible());
     assert.equal(await page.locator('#inspect [data-product-mark]').getAttribute('data-product-mark'), id);
@@ -63,7 +63,7 @@ try {
     assert.equal(focus.floorPressed, 'true');
     if (id === 'AF') {
       // Close/reopen via the actual cabinet body, not only the product card.
-      await page.locator('[data-act="closeInspect"]').first().evaluate(el => { if (!el.disabled) el.click(); });
+      await clickSel('[data-act="closeInspect"]');
       const point = await page.evaluate(() => {
         const s = window.__sentinel;
         const p = s.deployments.get('AF').position.clone().add(new s.world.THREE.Vector3(0, .6, .52));
@@ -74,10 +74,10 @@ try {
       await page.waitForFunction(() => document.querySelector('#inspect .deployment-state'));
       assert.equal(await page.locator('#inspect [data-product-mark]').getAttribute('data-product-mark'), 'AF');
     }
-    await page.locator('[data-act="undoSetup"]').first().evaluate(el => { if (!el.disabled) el.click(); });
+    await clickSel('[data-act="undoSetup"]');
     await page.waitForFunction(() => window.__sentinel.deployments.entries.size === 0 && !document.querySelector('#dock [data-act="locateDeployment"]'));
     assert.equal(await page.evaluate(() => window.__sentinel.deployments.pickables.length), 0);
-    assert.ok(await page.locator('#inspect').evaluate(el => el.classList.contains('hidden')));
+    assert.ok(await page.evaluate(() => document.querySelector('#inspect').classList.contains('hidden')));
     console.log(id + ': purchase, locate and removal passed');
   }
 
@@ -89,28 +89,28 @@ try {
     s.engine.deploy('EDR', 'l2-finance#1');
     s.engine.deployOperation('SASE');
   });
-  await page.locator('[data-act="tab"][data-tab="defense"]').first().evaluate(el => { if (!el.disabled) el.click(); });
+  await clickSel('[data-act="tab"][data-tab="defense"]');
   const edrLocate = page.locator('[data-act="locateDeployment"][data-id="EDR"]');
-  await edrLocate.first().evaluate(el => { if (!el.disabled) el.click(); });
+  await clickSel('[data-act="locateDeployment"][data-id="EDR"]');
   assert.equal(await page.locator('[data-act="deploymentEndpoint"]').getAttribute('data-target'), 'office#2');
-  await edrLocate.first().evaluate(el => { if (!el.disabled) el.click(); });
+  await clickSel('[data-act="locateDeployment"][data-id="EDR"]');
   assert.equal(await page.locator('[data-act="deploymentEndpoint"]').getAttribute('data-target'), 'l2-finance#1');
   assert.ok(await page.locator('[data-act="pick"][data-id="EDR"]').isEnabled(), 'locating existing agents must retain placement');
-  await page.locator('[data-act="pick"][data-id="EDR"]').first().evaluate(el => { if (!el.disabled) el.click(); });
+  await clickSel('[data-act="pick"][data-id="EDR"]');
   await page.locator('.deck-place').waitFor();
-  await page.locator('[data-act="cancel"]').first().evaluate(el => { if (!el.disabled) el.click(); });
-  await page.locator('[data-act="deploymentEndpoint"]').first().evaluate(el => { if (!el.disabled) el.click(); });
-  assert.match(await page.locator('#inspect').innerText(), /Finance.*l2-finance#1/i);
-  await page.locator('[data-act="lang"]').first().evaluate(el => { if (!el.disabled) el.click(); });
-  await edrLocate.first().evaluate(el => { if (!el.disabled) el.click(); });
-  assert.equal(await page.locator('#inspect .deployment-state').innerText(), '代理已安装在此终端');
+  await clickSel('[data-act="cancel"]');
+  await clickSel('[data-act="deploymentEndpoint"]');
+  assert.match(await page.evaluate(() => document.querySelector('#inspect').innerText), /Finance.*l2-finance#1/i);
+  await clickSel('[data-act="lang"]');
+  await clickSel('[data-act="locateDeployment"][data-id="EDR"]');
+  assert.equal(await page.evaluate(() => document.querySelector('#inspect .deployment-state').innerText), '代理已安装在此终端');
   assert.equal(await page.locator('.deployment-inventory').count(), 0, 'no duplicate deployment strip');
   await page.setViewportSize({ width: 390, height: 844 });
   await edrLocate.scrollIntoViewIfNeeded();
-  await edrLocate.first().evaluate(el => { if (!el.disabled) el.click(); });
+  await clickSel('[data-act="locateDeployment"][data-id="EDR"]');
   assert.ok(await page.locator('#inspect .deployment-state').isVisible());
-  assert.ok(await page.locator('.deck').evaluate(el => el.scrollWidth > el.clientWidth));
-  await page.locator('[data-act="resetSetup"]').first().evaluate(el => { if (!el.disabled) el.click(); });
+  assert.ok(await page.evaluate(() => { const d = document.querySelector('.deck'); return d.scrollWidth > d.clientWidth; }));
+  await clickSel('[data-act="resetSetup"]');
   await page.waitForFunction(() => window.__sentinel.deployments.entries.size === 0);
   assert.equal(await page.evaluate(() => window.__sentinel.engine.budget), 22);
   assert.deepEqual(errors, []);

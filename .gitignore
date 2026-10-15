@@ -36,3 +36,7 @@ tools/_pickcheck.mjs
 tools/_livecheck.mjs
 tools/_bootprobe.mjs
 tools/_heistshot.mjs
+tools/_livecheck2.mjs
+tools/_liveshot.mjs
+tools/_tower3.mjs
+tools/_perf3.mjs

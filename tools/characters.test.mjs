@@ -14,11 +14,19 @@ await page.route('**/assets/models/office/*.glb', async route => {
   await assetGate;
   await route.continue();
 });
+// Click synchronously inside the page so the heavier 3-floor scene's slow software-WebGL frames
+// don't race a pixel click against a panel re-paint (resolves the current attached element and
+// fires the real delegated handler); state is still asserted after.
+const click = async selector => {
+  await page.locator(selector).filter({ visible: true }).first().waitFor({ state: 'visible', timeout: 30000 });
+  const ok = await page.evaluate(sel => { const el = document.querySelector(sel); if (!el || el.disabled) return false; el.click(); return true; }, selector);
+  if (!ok) throw new Error('click: no enabled element for ' + selector);
+};
 
 try {
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__sentinel);
-  await page.locator('[data-act="start"]').click();
+  await click('[data-act="start"]');
   const before = await page.evaluate(() => {
     const s = window.__sentinel;
     s.engine.deploy('EDR', 'office#2');
@@ -105,7 +113,7 @@ try {
         materials.every((m, i) => m === originalMaterials[i]) };
   });
   assert.deepEqual(restart, { rigged: true, sharedDisposed: 0, shared: true });
-  await page.locator('[data-act="lang"]').click();
+  await click('[data-act="lang"]');
   assert.equal(await page.locator('html').getAttribute('lang'), 'zh-CN');
   assert.ok(await page.evaluate(() => window.__sentinel.people.list.every(p => p.fig.isGLB)));
 
@@ -114,7 +122,7 @@ try {
   await page.route('**/assets/models/office/*.glb', route => route.abort());
   await page.reload({ waitUntil: 'networkidle' });
   assert.deepEqual(await page.evaluate(() => window.__sentinel.charactersReady), []);
-  await page.locator('[data-act="start"]').click();
+  await click('[data-act="start"]');
   assert.ok(await page.evaluate(() => window.__sentinel.people.list.every(p => !p.fig.isGLB)));
   await page.unroute('**/assets/models/office/*.glb');
   await page.route('**/assets/models/office/martha.glb', route => route.abort());

@@ -1,13 +1,18 @@
-// Scenario data — a two-level sample of Meridian Tower. Level 3 holds the crown-jewel Data
-// Room; Level 2 (below, via the internal stairwell) holds Finance. The incident spans both
-// floors, so the player must watch where the intruder goes. Geometry is generated per level
+// Scenario data — a three-level cutaway of Meridian Tower. Level 4 (top) is the executive
+// floor; Level 3 holds the crown-jewel Data Room; Level 2 (bottom, via the internal stairwell)
+// holds Finance. The incident currently spans L3 and L2, so the player must watch where the
+// intruder goes; L4 is populated and available for future incident beats. Geometry is per level
 // by src/world/building.js; the incident is driven by engine.js. Room ids are globally unique
 // (so the shared nav graph needs no per-level prefixing except corridor/stair nodes).
 
 export const LAYOUT = {
+  // A taller cutaway tower: three stacked floors with breathing room between them so each
+  // floor reads clearly. Level 4 (top) is the executive floor; Level 3 holds the Data Room;
+  // Level 2 (bottom) holds Finance. The incident currently spans L3 and L2.
   levels: [
+    { id: 'L4', y: 3.8,  name: { en: 'Level 4', zh: '四层' } },
     { id: 'L3', y: 0,    name: { en: 'Level 3', zh: '三层' } },
-    { id: 'L2', y: -3.0, name: { en: 'Level 2', zh: '二层' } },   // stacked snugly so the whole tower reads as one cutaway building
+    { id: 'L2', y: -3.8, name: { en: 'Level 2', zh: '二层' } },
   ],
   defaultLevel: 'L3',
   bounds: { x0: -14, x1: 14, z0: -8.5, z1: 8.5 },
@@ -31,6 +36,14 @@ export const LAYOUT = {
     { id: 'l2-store',  level: 'L2', type: 'server',  name: { en: 'Storage',        zh: '存储间' },     rect: { x0: -8,  x1: -2, z0: -8.5, z1: -1.5 }, door: { x: -5, side: 'front' } },
     { id: 'l2-finance', level: 'L2', type: 'office', name: { en: 'Finance',        zh: '财务部' },     rect: { x0: -2,  x1: 5,  z0: -8.5, z1: -1.5 }, desks: 3, door: { x: 1.5, side: 'front' } },
     { id: 'l2-conf',   level: 'L2', type: 'meeting', name: { en: 'Conference',     zh: '会议室' },     rect: { x0: 5,   x1: 14, z0: -8.5, z1: -1.5 }, door: { x: 9.5, side: 'front' } },
+    // ---- Level 4 (top; executive floor) ----
+    { id: 'l4-exec',   level: 'L4', type: 'command', name: { en: 'Executive Office', zh: '行政办公室' }, rect: { x0: -14, x1: -7, z0: 1.5, z1: 8.5 }, door: { x: -10.5, side: 'back' } },
+    { id: 'l4-mgmt',   level: 'L4', type: 'office',  name: { en: 'Management',       zh: '管理部' },     rect: { x0: -7,  x1: 6,  z0: 1.5, z1: 8.5 }, desks: 4, door: { x: -0.5, side: 'back' } },
+    { id: 'l4-lobby',  level: 'L4', type: 'lobby',   name: { en: 'Sky Lobby',        zh: '空中大堂' },   rect: { x0: 6,   x1: 14, z0: 1.5, z1: 8.5 }, door: { x: 10, side: 'back' } },
+    { id: 'l4-fac',    level: 'L4', type: 'egress',  name: { en: 'Facilities',       zh: '设施间' },     rect: { x0: -14, x1: -8, z0: -8.5, z1: -1.5 }, door: { x: -11, side: 'front' } },
+    { id: 'l4-comms',  level: 'L4', type: 'server',  name: { en: 'Comms Room',       zh: '通信机房' },   rect: { x0: -8,  x1: -2, z0: -8.5, z1: -1.5 }, door: { x: -5, side: 'front' } },
+    { id: 'l4-records', level: 'L4', type: 'vault',  name: { en: 'Records',          zh: '档案室' },     rect: { x0: -2,  x1: 5,  z0: -8.5, z1: -1.5 }, door: { x: 1.5, side: 'front' } },
+    { id: 'l4-board',  level: 'L4', type: 'meeting', name: { en: 'Boardroom',        zh: '董事会议室' }, rect: { x0: 5,   x1: 14, z0: -8.5, z1: -1.5 }, door: { x: 9.5, side: 'front' } },
   ],
   slots: {
     AF:    { room: 'reception', kind: 'entrance' },
@@ -51,6 +64,8 @@ export const EMPLOYEES = [
   { id: 'e5', home: 'reception', name: { en: 'Lena (Front desk)', zh: 'Lena（前台）' } },
   { id: 'e6', home: 'l2-work',   name: { en: 'Ivan (IT)',         zh: 'Ivan（IT）' } },
   { id: 'e7', home: 'l2-work',   name: { en: 'Sara (Ops)',        zh: 'Sara（运营）' } },
+  { id: 'e8', home: 'l4-mgmt',   name: { en: 'Grace (Director)',  zh: 'Grace（总监）' } },
+  { id: 'e9', home: 'l4-board',  name: { en: 'Leo (Executive)',   zh: 'Leo（高管）' } },
 ];
 
 // The incident, spanning both floors.

@@ -656,3 +656,41 @@ remain winnable within budget; an undefended run still loses. The foothold varia
 a new test across four seeds (desk-agnostic detection still wins), and the clean-endpoint cost by a
 dedicated test. Remaining: deeper realistic-furniture art and a full in-scene placement preview are
 substantial follow-ups, not completed here.
+
+
+## Larger-scale tower + operator-console chrome — 2026-10-14
+
+Driven by play-test feedback that the interface "looks like a 2D design forced into 3D space,"
+with requests for more floors, more spacing between them, and a more believable command view.
+
+### A taller three-floor cutaway
+Added Level 4 (top; executive floor: Executive Office, Management, Sky Lobby, Facilities, Comms,
+Records, Boardroom) and increased the inter-floor spacing so each floor reads clearly (L4 +3.8 /
+L3 0 / L2 -3.8). Two more staff populate L4. The generator and shared nav graph are level-generic,
+so the stairwell links all three floors and picking/camera stay floor-aware. The incident still
+spans L3 and L2; L4 is populated and available for future beats. The overview camera and max orbit
+distance now scale to frame the whole tower; floor keys are 2/3/4; `setView` cancels any in-progress
+focus glide so the overview snaps cleanly.
+
+### Operator-console chrome depth (CSS only, no layout change)
+The 3D scene reads as the main display set into a station (soft inset frame + faint corner ticks),
+and the flat panels gained physical materiality: a lit HUD header, side cards as instrument modules
+with an accent rail and raised depth, the capability deck as a console with a recessed deck tray,
+and pressable beveled capability keys and floor keys. Restrained, not neon.
+
+### Performance (measured, software WebGL — not representative of hardware FPS)
+3-floor overview with a 5-purchase plan: ~647 draw calls / ~388k triangles (focused on one floor:
+~577 / ~359k). This is a real regression from the 2-floor scene (hardware reference ~282-450 calls),
+driven by the extra floor's geometry and the triangle-heavy office characters. It should still run
+well on modern hardware; on weak devices it may dip. Reducing it — trimming active lights, not
+shadow-casting distant floors, or rendering fewer floors when zoomed — is the immediate perf
+follow-up before adding more furniture/art detail. Hardware FPS was not measured (no GPU here).
+
+### Validation
+`npm test` green with three floors (engine 20, smoke, UI, characters, deployments). The character
+and deployment suites' remaining raw Playwright clicks/state-reads were converted to in-page
+`querySelector().click()` / `page.evaluate` reads, since the heavier 3-floor scene saturates the
+software renderer enough to flake pixel-level clicks on re-painting panels. CI job timeout raised to
+25 min (the deployment suite is the slowest; matrix jobs run in parallel). Realistic-furniture art
+and a scene-led placement preview remain the larger follow-ups; this pass did not make the art
+photorealistic.
