@@ -15,6 +15,9 @@ export function createDeploymentAssets(scene, building) {
     if (id === 'EDR') return d?.pos.clone() || null;
     const r = building.rooms.get(DEPLOYMENT_VISUALS[id]?.room);
     if (!r) return null;
+    // Theme hook: a building may place devices itself (e.g. the circular cyber layout, whose
+    // rooms are not on the office grid the fixed slots below assume). Office defines no hook.
+    if (building.deploySlot) { const p = building.deploySlot(id, r, target); if (p) return p; }
     const y = r.center.y + .04;
     // Dedicated slots keep purchased devices out of desk seats and walking paths.
     const slots = {
