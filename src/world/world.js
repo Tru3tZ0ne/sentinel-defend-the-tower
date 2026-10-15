@@ -8,7 +8,7 @@ export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.98;
+  renderer.toneMappingExposure = 1.04;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -17,7 +17,7 @@ export function createWorld(canvas) {
   // image-based lighting for realistic reflections on metal/glass/screens
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.7;
+  scene.environmentIntensity = 0.32;   // keep reflections on metal/glass without flat-filling form
   // Neutral daylight backdrop keeps floor materials and close views legible.
   const bg = document.createElement('canvas'); bg.width = 16; bg.height = 256;
   const bgx = bg.getContext('2d'); const grd = bgx.createLinearGradient(0, 0, 0, 256);
@@ -57,19 +57,20 @@ export function createWorld(canvas) {
   controls.enablePan = false;
   controls.update();
 
-  // Warm daylight key, soft shadows and neutral fill; room lights remain subtle.
-  scene.add(new THREE.HemisphereLight(0xb7d5ed, 0x595249, 0.95));
-  scene.add(new THREE.AmbientLight(0xbdcddd, 0.25));
-  const key = new THREE.DirectionalLight(0xffe8c6, 2.2);
-  key.position.set(16, 30, 16); key.castShadow = true;
+  // Strong directional key with real shadows gives every object a clear light-to-shade gradient
+  // (that is what makes 3D form read as 3D); fill/ambient/IBL are kept low so shadows stay legible.
+  scene.add(new THREE.HemisphereLight(0xb7d5ed, 0x4a4438, 0.4));
+  scene.add(new THREE.AmbientLight(0xbdcddd, 0.08));
+  const key = new THREE.DirectionalLight(0xfff0d2, 3.2);
+  key.position.set(18, 34, 15); key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
-  key.shadow.camera.near = 1; key.shadow.camera.far = 90;
-  key.shadow.camera.left = -22; key.shadow.camera.right = 22;
-  key.shadow.camera.top = 22; key.shadow.camera.bottom = -22;
-  key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+  key.shadow.camera.near = 1; key.shadow.camera.far = 100;
+  key.shadow.camera.left = -24; key.shadow.camera.right = 24;
+  key.shadow.camera.top = 24; key.shadow.camera.bottom = -24;
+  key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02; key.shadow.radius = 2.4;
   scene.add(key); scene.add(key.target); key.target.position.set(0, 0, 0);
-  const fill = new THREE.DirectionalLight(0x7db0d5, 0.75); fill.position.set(-14, 14, 18); scene.add(fill);
-  const rim = new THREE.DirectionalLight(0x74bbdd, 0.6); rim.position.set(-12, 8, -18); scene.add(rim);
+  const fill = new THREE.DirectionalLight(0x6fa6cf, 0.38); fill.position.set(-15, 13, 18); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0x79c0e2, 0.6); rim.position.set(-12, 8, -18); scene.add(rim);
 
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
