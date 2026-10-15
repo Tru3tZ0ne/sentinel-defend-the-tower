@@ -15,14 +15,14 @@ import { buildBuilding } from './world/building.js';
 import { createFx } from './world/fx.js';
 import { createPeople } from './world/people.js';
 import { loadOfficeCharacters } from './world/character-visuals.js';
-import { loadPlantModel, applyPlantModel } from './world/office-props.js';
+import { loadOfficeModels, applyOfficeModels } from './world/office-props.js';
 import { Engine } from './game/engine.js';
 import { getHint } from './game/sophia.js';
 import { icon } from './ui/icons.js';
 import { createOverlay } from './ui/overlay.js';
 
 let characterTemplates = [];
-let plantTemplate = null;   // realistic floor-plant model, swapped in over procedural plants once loaded
+let officeModels = null;   // realistic prop models (plant, chair), swapped in over procedural fallbacks once loaded
 
 const canvas = document.getElementById('scene');
 const overlayRoot = document.getElementById('overlay');
@@ -114,7 +114,7 @@ function initStage() {
   }
   stage = new THREE.Group(); world.scene.add(stage);
   building = buildBuilding(THREE, LAYOUT); stage.add(building.group);
-  if (plantTemplate) applyPlantModel(plantTemplate, building.propAnchors);   // upgrade hero plants if the model is ready
+  if (officeModels) applyOfficeModels(officeModels, building.propAnchors);   // upgrade props if models are ready
   for (const floor of building.floors) floor.group.visible = true;   // whole-tower cutaway: all floors on screen
   fx = createFx(stage, building);
   people = createPeople(stage, building, publicByLevel[LAYOUT.defaultLevel], characterTemplates);
@@ -648,11 +648,11 @@ const charactersReady = loadOfficeCharacters().then(templates => {
   return templates.map(template => template.id);
 });
 
-// Realistic floor plants: swap in over the procedural hero plants once the model loads. If the
-// load fails the procedural greenery simply stays, so the scene never regresses.
-const propsReady = loadPlantModel().then(template => {
-  plantTemplate = template;
-  const applied = building ? applyPlantModel(template, building.propAnchors) : 0;
+// Realistic office props (plants, chairs): swap in over the procedural fallbacks once the models
+// load. If a load fails that prop's procedural version simply stays, so the scene never regresses.
+const propsReady = loadOfficeModels().then(models => {
+  officeModels = models;
+  const applied = building ? applyOfficeModels(models, building.propAnchors) : 0;
   return applied;
 }).catch(() => 0);
 

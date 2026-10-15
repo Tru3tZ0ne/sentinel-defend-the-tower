@@ -107,8 +107,9 @@ export function buildBuilding(THREE, LAYOUT) {
   // Hero plant spots: large floor plants become realistic GLB props when main.js finishes
   // loading the model. Each is a self-contained procedural group (own canopy), built after
   // static merging so it can be hidden wholesale; propAnchors lets the loader swap in the model.
-  const pendingHero = [];              // {x,z} collected during the current level's geometry pass
-  const propAnchors = [];              // {kind, group, lg, x, z} exposed for the async model swap-in
+  const pendingHero = [];              // {x,z} plant spots collected during the current level's geometry pass
+  const pendingChairs = [];            // {x,z,facing} chair spots collected during the current level's geometry pass
+  const propAnchors = [];              // {kind, group, lg, x, z, facing} exposed for the async model swap-in
 
   // ---- level context (mutated per level) ----
   let curGroup = group, curY = 0, curLevel = 'L3';
@@ -146,13 +147,17 @@ export function buildBuilding(THREE, LAYOUT) {
 
   // ---------- furniture kit (uses curGroup/curY via add/node) ----------
   const place = (m, x, y, z) => { m.position.set(x, y, z); return m; };
-  function chair(x, z, facing) {
+  // Chairs become realistic GLB props once loaded; defer them so each is a self-contained,
+  // hideable fallback group that the loader can swap (same pattern as the hero plants).
+  function chair(x, z, facing) { pendingChairs.push({ x, z, facing }); }
+  function buildHeroChair(lg, x, z, facing) {
     const g = new THREE.Group();
     g.add(mesh(new THREE.BoxGeometry(0.44, 0.09, 0.44), mat(P.chair)));
     const b = box(0.44, 0.46, 0.09, mat(P.chair)); b.position.set(0, 0.26, -0.18); g.add(b);
     const post = cyl(0.045, 0.05, 0.3, mat(P.deskLeg)); post.position.y = -0.17; g.add(post);
     const base = cyl(0.19, 0.19, 0.04, mat(P.deskLeg)); base.position.y = -0.32; g.add(base);
-    g.position.set(x, 0.42, z); g.rotation.y = facing; curGroup.add(g); return g;
+    g.position.set(x, 0.42, z); g.rotation.y = facing; lg.add(g);
+    propAnchors.push({ kind: 'chair', group: g, lg, x, z, facing });
   }
   function workstation(x, z, id, roomId, facing = 0) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = facing; curGroup.add(g);
@@ -160,11 +165,13 @@ export function buildBuilding(THREE, LAYOUT) {
     top.userData = { kind: 'desk', deskId: id, roomId }; g.add(top); pickables.push(top);
     top.material = top.material.clone();   // pickable: unique material so the placement highlight is per-desk
     for (const sx of [-0.5, 0.5]) for (const sz of [-0.26, 0.26]) { const l = box(0.06, 0.5, 0.06, mat(P.deskLeg)); l.position.set(sx, 0.25, sz); g.add(l); }
-    // monitor: a thin flat panel on a slim stand with a weighted base
-    g.add(place(cyl(0.1, 0.115, 0.016, mat(0x2b303a), 14), 0, 0.545, -0.17));       // stand base
-    g.add(place(cyl(0.02, 0.024, 0.15, mat(0x3a414c), 8), 0, 0.62, -0.17));          // stand neck
-    g.add(place(box(0.62, 0.38, 0.022, mat(P.monitor)), 0, 0.87, -0.2));             // thin bezel
-    const screen = place(box(0.57, 0.33, 0.008, emis(P.screenOn, 0.55), false), 0, 0.87, -0.187); g.add(screen);
+    // monitor: a modern slim flat-panel — weighted base, cable-slim neck, a shallow rear housing
+    // for real depth, a thin dark bezel and a slightly glassy emissive screen (the EDR tint target).
+    g.add(place(cyl(0.11, 0.13, 0.018, mat(0x242a33, { metalness: 0.35, roughness: 0.5 }), 20), 0, 0.544, -0.17)); // base
+    g.add(place(box(0.03, 0.17, 0.028, mat(0x3a414c, { metalness: 0.4, roughness: 0.45 })), 0, 0.63, -0.185));     // slim neck
+    g.add(place(box(0.5, 0.3, 0.035, mat(0x2a303a, { metalness: 0.3, roughness: 0.6 })), 0, 0.87, -0.212));        // rear housing (depth)
+    g.add(place(box(0.64, 0.4, 0.02, mat(P.monitor, { roughness: 0.5 })), 0, 0.87, -0.198));                       // thin bezel frame
+    const screen = place(box(0.6, 0.36, 0.006, emis(P.screenOn, 0.5, { metalness: 0.2, roughness: 0.18 }), false), 0, 0.87, -0.186); g.add(screen);
     screen.material = screen.material.clone();   // mutated by EDR deploy (guarded tint) — keep per-desk
     g.add(place(box(0.44, 0.018, 0.15, mat(0x2b313b)), 0, 0.548, 0.06));             // keyboard
     g.add(place(box(0.05, 0.024, 0.08, mat(0x2b313b)), 0.31, 0.549, 0.085));         // mouse
@@ -395,9 +402,11 @@ export function buildBuilding(THREE, LAYOUT) {
       lg.add(foliage); leafInstances.length = 0;
     }
     mergeLevelStatics(lg);
-    // Hero plants are built after merging so they stay whole, hideable groups for the model swap.
+    // Hero plants/chairs are built after merging so they stay whole, hideable groups for the swap.
     for (const h of pendingHero) buildHeroPlant(lg, h.x, h.z);
     pendingHero.length = 0;
+    for (const c of pendingChairs) buildHeroChair(lg, c.x, c.z, c.facing);
+    pendingChairs.length = 0;
   }
   curGroup = group; curY = 0; curLevel = LAYOUT.defaultLevel;
 

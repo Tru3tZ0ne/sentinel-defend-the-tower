@@ -9,13 +9,18 @@ Do not extract or redistribute them as a general-purpose character library.
 | Runtime file | Source | License | Geometry | Textures | File size |
 | --- | --- | --- | --- | --- | --- |
 | `plant01.glb` | [Poly Haven — Potted Plant 01](https://polyhaven.com/a/potted_plant_01) | CC0 (public domain) | 10,911 triangles, 2 meshes | 512 px WebP | 591,772 bytes |
+| `chair01.glb` | [Poly Haven — Modern Arm Chair 01](https://polyhaven.com/a/modern_arm_chair_01) | CC0 (public domain) | 1,579 triangles, 2 materials | 512 px WebP | 136,436 bytes |
 
-`plant01.glb` is a web-optimized derivative of Poly Haven's 1k glTF export
-(originally ~176k triangles, 6.33 MB). Processing (no login or service needed):
+These are web-optimized derivatives of Poly Haven's 1k glTF exports (plant01: originally
+~176k triangles, 6.33 MB; chair01: ~8.9k triangles, 2.7 MB). Processing (no login/service):
 
 ```
+# plant
 npx @gltf-transform/cli@4 optimize potted_plant_01_1k.gltf plant01.glb \
   --simplify-error 0.006 --texture-compress webp --texture-size 512 --no-compress
+# chair
+npx @gltf-transform/cli@4 optimize modern_arm_chair_01_1k.gltf chair01.glb \
+  --simplify-error 0.002 --texture-compress webp --texture-size 512 --no-compress
 ```
 
 Mesh compression (meshopt/Draco) is deliberately avoided so the vendored
