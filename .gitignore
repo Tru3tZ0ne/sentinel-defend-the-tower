@@ -44,3 +44,5 @@ tools/_live3.mjs
 tools/_isolate.mjs
 tools/_liveiso.mjs
 tools/_plantcheck.mjs
+tools/_cybercheck.mjs
+tools/_cyberdeploy.mjs

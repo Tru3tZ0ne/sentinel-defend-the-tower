@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sentinel · Cyber Fortress — a Sangfor security experience</title>
+  <meta name="description" content="A neon cyber-fortress rendering of Sentinel: deploy Sangfor cybersecurity, cloud, and AI capabilities to see and stop a quiet intruder." />
+  <link rel="stylesheet" href="./src/style/main.css" />
+  <link rel="stylesheet" href="./src/style/workspace.css" />
+  <!-- Vendored Three.js (local, offline-friendly). Relative paths → GitHub Pages ready. -->
+  <script type="importmap">
+  { "imports": { "three": "./src/vendor/three/three.module.js" } }
+  </script>
+  <!-- Select the circular neon "cyber fortress" building + world theme. Runs before the module. -->
+  <script>window.__SENTINEL_THEME = 'cyber';</script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="overlay"></div>
+  <noscript>This experience needs JavaScript and WebGL enabled.</noscript>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

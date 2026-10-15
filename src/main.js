@@ -24,9 +24,16 @@ import { createOverlay } from './ui/overlay.js';
 let characterTemplates = [];
 let officeModels = null;   // realistic prop models (plant, chair), swapped in over procedural fallbacks once loaded
 
+// Visual theme: 'office' (default, realistic cutaway tower) or 'cyber' (circular neon fortress).
+// The cyber entry page sets window.__SENTINEL_THEME before this module runs. Gameplay is identical
+// across themes — only the building generator and world styling differ.
+const THEME = (typeof window !== 'undefined' && window.__SENTINEL_THEME) === 'cyber' ? 'cyber' : 'office';
+// The cyber building generator is loaded on demand so the office build pulls in none of it.
+const buildBuildingFn = THEME === 'cyber' ? (await import('./world/building-cyber.js')).buildBuilding : buildBuilding;
+
 const canvas = document.getElementById('scene');
 const overlayRoot = document.getElementById('overlay');
-const world = createWorld(canvas);
+const world = createWorld(canvas, THEME);
 const ambience = createAmbience();
 
 let stage, building, fx, people, engine, overlay;
@@ -113,7 +120,7 @@ function initStage() {
     world.scene.remove(stage);
   }
   stage = new THREE.Group(); world.scene.add(stage);
-  building = buildBuilding(THREE, LAYOUT); stage.add(building.group);
+  building = buildBuildingFn(THREE, LAYOUT); stage.add(building.group);
   if (officeModels) applyOfficeModels(officeModels, building.propAnchors);   // upgrade props if models are ready
   for (const floor of building.floors) floor.group.visible = true;   // whole-tower cutaway: all floors on screen
   fx = createFx(stage, building);
