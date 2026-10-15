@@ -65,17 +65,19 @@ export function createWorld(canvas, theme = 'office') {
   controls.maxDistance = 74;   // room to frame the full three-floor tower
   controls.maxPolarAngle = Math.PI * 0.47;
   controls.minPolarAngle = Math.PI * 0.08;
-  controls.minAzimuthAngle = -Math.PI * 0.40; // keep the open front toward us
-  controls.maxAzimuthAngle =  Math.PI * 0.40;
+  if (!cyber) {
+    controls.minAzimuthAngle = -Math.PI * 0.40; // office: keep the open front toward us
+    controls.maxAzimuthAngle =  Math.PI * 0.40;
+  } // cyber: the tower is circular, so allow a full 360° orbit
   controls.enablePan = false;
   controls.update();
 
   if (cyber) {
     // Holographic mood: let the tower's own neon emissives + traces carry the image. A dim cool
     // ambient + a soft blue key keep characters and surfaces readable without killing the glow.
-    scene.add(new THREE.HemisphereLight(0x25456b, 0x050a14, 0.5));
-    scene.add(new THREE.AmbientLight(0x4a6da0, 0.22));
-    const key = new THREE.DirectionalLight(0x9fd0ff, 1.1);
+    scene.add(new THREE.HemisphereLight(0x3a6690, 0x070d18, 0.62));
+    scene.add(new THREE.AmbientLight(0x5a7fb0, 0.34));
+    const key = new THREE.DirectionalLight(0xbfe2ff, 1.35);
     key.position.set(14, 30, 16); key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
     key.shadow.camera.near = 1; key.shadow.camera.far = 120;
@@ -83,6 +85,8 @@ export function createWorld(canvas, theme = 'office') {
     key.shadow.camera.top = 30; key.shadow.camera.bottom = -30;
     key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02; key.shadow.radius = 3;
     scene.add(key); scene.add(key.target); key.target.position.set(0, 0, 0);
+    // A soft cool front fill so staff and the intruder read as solid forms against the neon.
+    const fill = new THREE.DirectionalLight(0x8fb8e8, 0.7); fill.position.set(-8, 14, 22); scene.add(fill);
     const under = new THREE.PointLight(0x2b8bff, 40, 60, 2); under.position.set(0, -2, 0); scene.add(under); // base-platform uplight
   } else {
     // Strong directional key with real shadows gives every object a clear light-to-shade gradient
@@ -110,7 +114,7 @@ export function createWorld(canvas, theme = 'office') {
   if (cyber) {
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.9, 0.6, 0.2); // strength, radius, threshold
+    bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.72, 0.5, 0.26); // strength, radius, threshold — crisp neon, deep blacks
     composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
   }

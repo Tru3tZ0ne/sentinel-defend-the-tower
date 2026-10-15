@@ -76,7 +76,10 @@ function setActiveLevel(id, moveCamera = true) {
   activeLevel = id; towerOverview = false;
   for (const f of building.floors) f.group.visible = (f.id === id);
   const y = (LAYOUT.levels.find(l => l.id === id)?.y) || 0;
-  if (moveCamera && world.setView) world.setView(new THREE.Vector3(2, y + 6, 23), new THREE.Vector3(-0.5, y + 0.45, -2.2));
+  if (moveCamera && world.setView) {
+    if (world.theme === 'cyber') world.setView(new THREE.Vector3(0.5, y + 10, 26), new THREE.Vector3(0, y + 1, 0));
+    else world.setView(new THREE.Vector3(2, y + 6, 23), new THREE.Vector3(-0.5, y + 0.45, -2.2));
+  }
   if (overlay) overlay.renderFloors(building.floors, activeLevel);
 }
 // Frame the entire stacked tower at once (default view) from a front-3/4 angle.
@@ -87,8 +90,14 @@ function overviewAll() {
   const midY = (Math.max(...ys) + Math.min(...ys)) / 2 + 0.4;
   const span = Math.max(...ys) - Math.min(...ys);               // taller tower → pull the camera back
   const dist = Math.min(world.controls.maxDistance, 36 + span * 2.5);
-  // low, front-on angle so every floor's open front is seen; cancels any in-progress focus glide
-  world.setView(new THREE.Vector3(3, 4 + span * 0.7, dist), new THREE.Vector3(-0.5, midY, -2.2));
+  if (world.theme === 'cyber') {
+    // Elevated 3/4 orbit around the centered circular tower so the whole stacked fortress reads
+    // and every tier's pads clear the bottom deck UI (tuned to the fixed cyber tower dimensions).
+    world.setView(new THREE.Vector3(2, midY + 16.6, 38), new THREE.Vector3(0, midY - 1.9, 0));
+  } else {
+    // low, front-on angle so every floor's open front is seen; cancels any in-progress focus glide
+    world.setView(new THREE.Vector3(3, 4 + span * 0.7, dist), new THREE.Vector3(-0.5, midY, -2.2));
+  }
   if (overlay) overlay.renderFloors(building.floors, activeLevel);
 }
 function updatePeopleFloorVis() {

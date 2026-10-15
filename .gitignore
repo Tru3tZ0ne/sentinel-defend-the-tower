@@ -46,3 +46,7 @@ tools/_liveiso.mjs
 tools/_plantcheck.mjs
 tools/_cybercheck.mjs
 tools/_cyberdeploy.mjs
+tools/_livecyber.mjs
+tools/_cyberdbg.mjs
+tools/_cyberplay.mjs
+tools/_officeplay.mjs
