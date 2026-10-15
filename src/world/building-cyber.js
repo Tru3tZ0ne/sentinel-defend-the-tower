@@ -34,7 +34,7 @@ export function buildBuilding(THREE, LAYOUT) {
     if (!m) { m = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: i, roughness: 0.4, metalness: 0.2, ...o }); matCache.set(key, m); }
     return m;
   };
-  const glass = (color) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5, transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0.3, side: THREE.DoubleSide });
+  const glass = (color) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3, transparent: true, opacity: 0.2, roughness: 0.1, metalness: 0.3, side: THREE.DoubleSide });
 
   const rooms = new Map(), desks = new Map(), pickables = [], anchors = {}, lights = [], signs = [], floors = [];
   const nav = { nodes: new Map(), adj: new Map() };
@@ -52,7 +52,9 @@ export function buildBuilding(THREE, LAYOUT) {
     const c = document.createElement('canvas'); c.width = 256; c.height = 64;
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.5), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
-    pl.position.copy(pos); pl.userData.billboard = true; parent.add(pl);
+    pl.position.copy(pos); pl.renderOrder = 2;
+    pl.onBeforeRender = (r, s, cam) => pl.quaternion.copy(cam.quaternion);   // billboard: always face the camera
+    parent.add(pl);
     const sign = { room, canvas: c, tex, color: '#' + (ROOM_NEON[room.type] || RIM).toString(16).padStart(6, '0') };
     signs.push(sign); drawSign(sign); return pl;
   }
@@ -73,23 +75,31 @@ export function buildBuilding(THREE, LAYOUT) {
     return [];
   }
 
-  // A cluster of glowing server-rack monoliths on a pad, tinted to the room's neon.
+  // A cluster of glowing server-rack "data-towers" on a pad, tinted to the room's neon: tall dark
+  // monoliths with glowing front strips, bright top caps and lit vertical edges (bloom carries it).
   function rackCluster(group, neon, n, roomType) {
-    const bodyMat = mat(0x10161f, { metalness: 0.6, roughness: 0.45 });
-    const bodies = [], lines = [];
+    const bodyMat = mat(0x0b1019, { metalness: 0.62, roughness: 0.4 });
+    const bodies = [], strips = [], caps = [];
     const seedR = (i) => { const v = Math.sin(i * 51.7 + 3.1) * 43758.5453; return v - Math.floor(v); };
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + 0.4, r = 0.55 + seedR(i) * 0.3;
-      const w = 0.34 + seedR(i + 9) * 0.12, h = 0.7 + seedR(i + 3) * 1.1, d = 0.34;
+      const a = (i / n) * Math.PI * 2 + 0.4, r = 0.5 + seedR(i) * 0.34;
+      const w = 0.38 + seedR(i + 9) * 0.16, h = 1.05 + seedR(i + 3) * 1.45, d = 0.38;
       const x = Math.cos(a) * r, z = Math.sin(a) * r;
       bodies.push(new THREE.BoxGeometry(w, h, d).translate(x, h / 2, z));
-      // glowing front strips
-      for (let s = 0; s < Math.max(2, Math.floor(h / 0.22)); s++) {
-        lines.push(new THREE.BoxGeometry(w * 0.72, 0.03, 0.02).translate(x, 0.12 + s * 0.2, z + d / 2 + 0.005));
+      // glowing front strips up the face
+      for (let s = 0; s < Math.max(3, Math.floor(h / 0.2)); s++) {
+        strips.push(new THREE.BoxGeometry(w * 0.68, 0.035, 0.02).translate(x, 0.14 + s * 0.2, z + d / 2 + 0.006));
       }
+      // bright top cap + two lit vertical edges
+      caps.push(new THREE.BoxGeometry(w * 1.02, 0.05, d * 1.02).translate(x, h + 0.01, z));
+      caps.push(new THREE.BoxGeometry(0.025, h, 0.025).translate(x - w / 2, h / 2, z + d / 2));
+      caps.push(new THREE.BoxGeometry(0.025, h, 0.025).translate(x + w / 2, h / 2, z + d / 2));
     }
-    if (bodies.length) { const mb = mergeGeometries(bodies, false); const m = new THREE.Mesh(mb, bodyMat); m.castShadow = true; m.receiveShadow = true; group.add(m); }
-    if (lines.length) { const ml = mergeGeometries(lines, false); group.add(new THREE.Mesh(ml, emis(neon, 1.4))); }
+    let body = null;
+    if (bodies.length) { body = new THREE.Mesh(mergeGeometries(bodies, false), bodyMat); body.castShadow = true; body.receiveShadow = true; group.add(body); }
+    if (strips.length) group.add(new THREE.Mesh(mergeGeometries(strips, false), emis(neon, 1.5)));
+    if (caps.length) group.add(new THREE.Mesh(mergeGeometries(caps, false), emis(neon, 1.9)));
+    return body;
   }
 
   // ---- anchors for deployed devices (placed near their room on the tier) ----
@@ -104,17 +114,17 @@ export function buildBuilding(THREE, LAYOUT) {
 
     // platform disk + neon rim halo + inner ring
     const plat = disk(RING + 2.0, 0.3, mat(0x060a12, { metalness: 0.5, roughness: 0.6 })); plat.position.y = -0.15; plat.receiveShadow = true; lg.add(plat);
-    const rim = ringMesh(RING + 2.0, 0.09, emis(RIM, 2.2)); rim.position.y = 0.02; lg.add(rim);
-    const rim2 = ringMesh(CORE_R + 0.6, 0.04, emis(CORE, 1.6)); rim2.position.y = 0.04; lg.add(rim2);
+    const rim = ringMesh(RING + 2.0, 0.09, emis(RIM, 1.5)); rim.position.y = 0.02; lg.add(rim);
+    const rim2 = ringMesh(CORE_R + 0.6, 0.04, emis(CORE, 1.1)); rim2.position.y = 0.04; lg.add(rim2);
 
     // central core drum (glowing data cylinder) + cap
     const drum = disk(CORE_R, WH, glass(CORE)); drum.position.y = WH / 2; lg.add(drum);
     const cap = disk(CORE_R + 0.18, 0.16, mat(0x0a1018, { metalness: 0.7, roughness: 0.3 })); cap.position.y = WH + 0.08; lg.add(cap);
-    const capGlow = ringMesh(CORE_R, 0.05, emis(CORE, 1.8)); capGlow.position.y = WH + 0.16; lg.add(capGlow);
+    const capGlow = ringMesh(CORE_R, 0.05, emis(CORE, 1.3)); capGlow.position.y = WH + 0.16; lg.add(capGlow);
     // inner data columns inside the drum
     const colGeos = [];
     for (let i = 0; i < 26; i++) { const a = (i / 26) * Math.PI * 2, r = CORE_R * (0.4 + 0.5 * ((Math.sin(i * 7.1) + 1) / 2)); colGeos.push(new THREE.BoxGeometry(0.06, WH * (0.4 + 0.5 * ((Math.sin(i * 3.3) + 1) / 2)), 0.06).translate(Math.cos(a) * r, WH / 2, Math.sin(a) * r)); }
-    lg.add(new THREE.Mesh(mergeGeometries(colGeos, false), emis(CORE, 1.1)));
+    lg.add(new THREE.Mesh(mergeGeometries(colGeos, false), emis(CORE, 0.8)));
     const hubPos = V(0, level.y + 0.12, 0);
     node(`hub:${level.id}`, hubPos);
 
@@ -127,14 +137,16 @@ export function buildBuilding(THREE, LAYOUT) {
       const neon = ROOM_NEON[r.type] || RIM;
       const center = V(px, level.y, pz);
 
-      // pad disk (pickable room) + rim
+      // pad disk (the highlight target via room.pad) + rim
       const pad = disk(PAD_R, 0.14, mat(0x0a111b, { metalness: 0.5, roughness: 0.55 })); pad.position.set(px, 0.0, pz); pad.receiveShadow = true;
       pad.userData = { kind: 'room', roomId: r.id }; pad.material = pad.material.clone(); lg.add(pad); pickables.push(pad);
       const padRim = ringMesh(PAD_R, 0.04, emis(neon, 1.6)); padRim.position.set(px, 0.09, pz); lg.add(padRim);
 
-      // room structure
+      // room structure — the rack body is also pickable as the room, so a click on the tall
+      // data-towers (which can occlude the thin pad disk from above) still selects the room.
       const rg = new THREE.Group(); rg.position.set(px, 0.07, pz); rg.rotation.y = -a; lg.add(rg);
-      rackCluster(rg, neon, r.type === 'office' ? 6 : r.type === 'server' || r.type === 'vault' ? 5 : 4, r.type);
+      const rackBody = rackCluster(rg, neon, r.type === 'office' ? 6 : r.type === 'server' || r.type === 'vault' ? 5 : 4, r.type);
+      if (rackBody) { rackBody.userData = { kind: 'room', roomId: r.id }; pickables.push(rackBody); }
 
       // per-room light
       const rl = new THREE.PointLight(neon, 6, 7, 2); rl.position.set(px, 1.6, pz); rl.userData.base = 6; rl.userData.target = 6; lights.push(rl); lg.add(rl);
@@ -148,8 +160,7 @@ export function buildBuilding(THREE, LAYOUT) {
       // little node bump where trace meets the ring
       const bump = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), emis(neon, 1.8)); bump.position.set(Math.cos(a) * innerR, 0.06, Math.sin(a) * innerR); lg.add(bump);
 
-      // floating label above the pad
-      labelSign(r, V(px, 2.1, pz), lg);
+      // (Room names are shown by the shared DOM placards, as in the office build — no 3D sign.)
 
       // register room + nav
       const room = { id: r.id, type: r.type, name: r.name, level: r.level, center, width: PAD_R * 2, depth: PAD_R * 2, pad, light: rl, angle: a };
@@ -191,7 +202,7 @@ export function buildBuilding(THREE, LAYOUT) {
 
   // central spine mesh connecting the tiers
   const ys = LAYOUT.levels.map(l => l.y); const yTop = Math.max(...ys) + WH, yBot = Math.min(...ys);
-  const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, yTop - yBot + 0.5, 20), emis(CORE, 0.8, { transparent: true, opacity: 0.5 }));
+  const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, yTop - yBot + 0.5, 20), emis(CORE, 0.45, { transparent: true, opacity: 0.4 }));
   spine.position.y = (yTop + yBot) / 2; group.add(spine);
   for (let i = 0; i < LAYOUT.levels.length - 1; i++) link(`stair:${LAYOUT.levels[i].id}`, `stair:${LAYOUT.levels[i + 1].id}`);
 
