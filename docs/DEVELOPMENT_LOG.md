@@ -694,3 +694,31 @@ software renderer enough to flake pixel-level clicks on re-painting panels. CI j
 25 min (the deployment suite is the slowest; matrix jobs run in parallel). Realistic-furniture art
 and a scene-led placement preview remain the larger follow-ups; this pass did not make the art
 photorealistic.
+
+
+## Richer 3D objects + go-into-a-floor navigation — 2026-10-14
+
+Play-test feedback: the world objects looked blocky ("2D forced into 3D"); wanted real walls,
+computers, plants, trees; and wanted clicking a floor to take you INTO just that level.
+
+### Better 3D objects (plants, trees, computers)
+- Plants rebuilt lusher (tapered planter, soil, stem, a full organic canopy) and new indoor
+  **trees** stand in the lobbies. All plant/tree foliage is collected and drawn as ONE instanced
+  mesh per floor — so greenery is richer yet costs *fewer* draw calls, not more.
+- Workstation monitors are now thin panels on a slim weighted stand with a keyboard and mouse,
+  instead of chunky boxes.
+- Measured (software WebGL, 3-floor overview, 5 deploys): ~647 → **~527 draw calls** (the foliage
+  consolidation more than paid for the extra geometry); triangles ~388k → ~437k (cheap on GPU).
+
+### Go-into-a-floor navigation
+The whole-tower overview remains the default and the Overview control returns to it, but clicking a
+floor (or 2/3/4) now **isolates** that level — the other floors (and their staff and foliage, now
+per-floor) are hidden and the camera drops onto that floor for focused work. Picking and people
+visibility follow the mode; a focus action keeps the tower when in overview and switches isolation
+when already in a single floor.
+
+### Validation
+`npm test` green with all three floors (engine 20, smoke, UI, characters, deployments); the UI suite
+now asserts isolate-on-click (only the chosen floor visible) and that Overview restores the tower.
+Still a follow-up: realistic wall finishes/baseboards and a scene-led placement preview; the art is
+not photorealistic.

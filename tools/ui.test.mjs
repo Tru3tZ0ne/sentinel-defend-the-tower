@@ -106,9 +106,14 @@ try {
       l2Effects: s.world.scene.getObjectByName('effects:L2').visible,
       pickedRoom: hiddenPick?.entity.roomId };
   });
-  // Whole-tower cutaway: every floor (and its effects) stays visible; the active floor is a camera focus.
-  assert.equal(levelState.l2, true); assert.equal(levelState.l3, true);
-  assert.equal(levelState.l2Effects, true); assert.equal(levelState.l3Effects, true);
+  // Clicking a floor goes INTO just that level: only it (and its effects) stays visible.
+  assert.equal(levelState.l2, true); assert.equal(levelState.l3, false);
+  assert.equal(levelState.l2Effects, true); assert.equal(levelState.l3Effects, false);
+  // The overview control restores the whole tower.
+  await click('[data-act="overview"]');
+  await settleCamera();
+  const towerState = await page.evaluate(() => { const vis = id => window.__sentinel.building.floors.find(f => f.id === id).group.visible; return { l2: vis('L2'), l3: vis('L3'), l4: vis('L4') }; });
+  assert.ok(towerState.l2 && towerState.l3 && towerState.l4, 'overview shows the whole tower');
   await page.screenshot({ path: 'tools/shots/session-floor2-en.png' });
   await click('[data-act="begin"]');
   await page.evaluate(() => { window.__sentinel.engine._paused = true; document.activeElement.blur(); });

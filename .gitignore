@@ -40,3 +40,5 @@ tools/_livecheck2.mjs
 tools/_liveshot.mjs
 tools/_tower3.mjs
 tools/_perf3.mjs
+tools/_live3.mjs
+tools/_isolate.mjs

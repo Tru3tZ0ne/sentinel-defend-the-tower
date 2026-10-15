@@ -74,7 +74,24 @@ export function buildBuilding(THREE, LAYOUT) {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(repeatX,repeatY); tex.anisotropy = 8; return tex;
   }
   const tileMap = surface('tile', FW / 1.3, FD / 1.3), carpetMap = surface('carpet',4,3), woodMap = surface('wood',3,1);
-  const foliageGeometry = new THREE.SphereGeometry(1,8,5), foliageMaterial = mat(0xffffff);
+  // All plant/tree foliage is collected and drawn as ONE instanced mesh (lusher greenery for
+  // fewer draw calls, not more). Leaves are small flattened spheres tinted per instance.
+  const foliageGeometry = new THREE.SphereGeometry(0.5, 7, 5), foliageMaterial = mat(0xffffff, { roughness: 0.85 });
+  const leafInstances = [];
+  const _leafQ = new THREE.Quaternion(), _leafE = new THREE.Euler(), _leafP = new THREE.Vector3(), _leafS = new THREE.Vector3();
+  const jit = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+  function collectCanopy(x, z, baseY, rad, n, height) {
+    for (let i = 0; i < n; i++) {
+      const a = i * 2.3999, t = n > 1 ? i / (n - 1) : 0;
+      const r = rad * (0.35 + 0.65 * Math.sin((1 - t) * Math.PI * 0.5)) * (0.8 + 0.4 * jit(i + x));
+      const y = baseY + t * height + (jit(i * 3.1 + z) - 0.5) * height * 0.12;
+      _leafP.set(x + Math.cos(a) * r, y, z + Math.sin(a) * r);   // level-local; the level group applies curY
+      _leafE.set(0.25 + (jit(i + 1.7) - 0.5) * 0.7, a, 0.35 + (jit(i + 4.2) - 0.5) * 0.5); _leafQ.setFromEuler(_leafE);
+      const s = rad * (0.5 + 0.35 * jit(i * 2.0 + x)); _leafS.set(s, s * 0.32, s);
+      const m = new THREE.Matrix4().compose(_leafP, _leafQ, _leafS);
+      leafInstances.push({ matrix: m, color: new THREE.Color(i % 2 ? 0x3f734e : 0x57814d).offsetHSL(0, (jit(i) - 0.5) * 0.08, (jit(i + 9) - 0.5) * 0.08) });
+    }
+  }
 
   const logoTex = new THREE.TextureLoader().load('assets/brand/sangfor-logo-white.png');
   logoTex.colorSpace = THREE.SRGBColorSpace; logoTex.anisotropy = 8;
@@ -132,12 +149,14 @@ export function buildBuilding(THREE, LAYOUT) {
     top.userData = { kind: 'desk', deskId: id, roomId }; g.add(top); pickables.push(top);
     top.material = top.material.clone();   // pickable: unique material so the placement highlight is per-desk
     for (const sx of [-0.5, 0.5]) for (const sz of [-0.26, 0.26]) { const l = box(0.06, 0.5, 0.06, mat(P.deskLeg)); l.position.set(sx, 0.25, sz); g.add(l); }
-    g.add(place(box(0.07, 0.17, 0.07, mat(P.metal)), 0, 0.6, -0.18));
-    g.add(place(box(0.66, 0.42, 0.05, mat(P.monitor)), 0, 0.84, -0.2));
-    const screen = place(box(0.58, 0.34, 0.02, emis(P.screenOn, 0.55), false), 0, 0.84, -0.17); g.add(screen);
+    // monitor: a thin flat panel on a slim stand with a weighted base
+    g.add(place(cyl(0.1, 0.115, 0.016, mat(0x2b303a), 14), 0, 0.545, -0.17));       // stand base
+    g.add(place(cyl(0.02, 0.024, 0.15, mat(0x3a414c), 8), 0, 0.62, -0.17));          // stand neck
+    g.add(place(box(0.62, 0.38, 0.022, mat(P.monitor)), 0, 0.87, -0.2));             // thin bezel
+    const screen = place(box(0.57, 0.33, 0.008, emis(P.screenOn, 0.55), false), 0, 0.87, -0.187); g.add(screen);
     screen.material = screen.material.clone();   // mutated by EDR deploy (guarded tint) — keep per-desk
-    g.add(place(box(0.44, 0.03, 0.17, mat(P.metal)), 0, 0.545, 0.05));
-    g.add(place(box(.14,.025,.19,mat(0x253441)),.39,.55,.08));
+    g.add(place(box(0.44, 0.018, 0.15, mat(0x2b313b)), 0, 0.548, 0.06));             // keyboard
+    g.add(place(box(0.05, 0.024, 0.08, mat(0x2b313b)), 0.31, 0.549, 0.085));         // mouse
     g.add(place(box(.2,.012,.27,mat(0xd7d5cf)), -.4,.55,.12));
     const mug = cyl(.055,.05,.13,mat(0xc7b496),12); mug.position.set(.44,.6,-.16); g.add(mug);
     const divider = box(1.12,.28,.025,mat(0x5b6d78)); divider.position.set(0,.66,-.34); g.add(divider);
@@ -148,18 +167,21 @@ export function buildBuilding(THREE, LAYOUT) {
   }
   function plant(x, z, big = false) {
     const g = new THREE.Group(); g.position.set(x, 0, z); curGroup.add(g);
-    g.add(place(cyl(big ? 0.22 : 0.16, big ? 0.26 : 0.2, big ? 0.4 : 0.3, mat(P.pot)), 0, big ? 0.2 : 0.15, 0));
-    const height = big ? 1.1 : .78;
-    g.add(place(cyl(.025,.035,height,mat(0x534c38),7),0,height/2+.22,0));
-    const leaves = new THREE.InstancedMesh(foliageGeometry,foliageMaterial,11); leaves.castShadow = true;
-    const leaf = new THREE.Object3D();
-    for (let i=0;i<11;i++) {
-      const a=i*2.4, y=.4+i*height/13, spread=.2+(i%3)*.06;
-      leaf.scale.set(big ? .13:.09,.035,big ? .35:.25); leaf.rotation.set(.25,a,.4);
-      leaf.position.set(Math.sin(a)*spread,y,Math.cos(a)*spread); leaf.updateMatrix();
-      leaves.setMatrixAt(i,leaf.matrix); leaves.setColorAt(i,new THREE.Color(i%2 ? 0x3e704d : 0x597c4f));
-    }
-    g.add(leaves);
+    const pr = big ? 0.24 : 0.17, ph = big ? 0.4 : 0.3;
+    g.add(place(cyl(pr, pr * 1.18, ph, mat(P.pot), 12), 0, ph / 2, 0));          // tapered planter
+    g.add(place(cyl(pr * 0.92, pr * 0.92, 0.03, mat(0x2d2419), 12), 0, ph - 0.01, 0)); // soil
+    const tH = big ? 0.42 : 0.3;
+    g.add(place(cyl(.028, .045, tH, mat(0x5c4a32), 7), 0, ph + tH / 2, 0));       // short stem
+    collectCanopy(x, z, ph + tH - 0.05, big ? 0.42 : 0.3, big ? 24 : 15, big ? 0.52 : 0.4);
+  }
+  // A proper indoor tree: planter, trunk and a full rounded canopy.
+  function tree(x, z) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); curGroup.add(g);
+    g.add(place(cyl(0.34, 0.4, 0.52, mat(P.pot), 14), 0, 0.26, 0));
+    g.add(place(cyl(0.3, 0.3, 0.03, mat(0x2d2419), 14), 0, 0.51, 0));
+    const tH = 1.15;
+    g.add(place(cyl(.07, .11, tH, mat(0x5a4731), 8), 0, 0.52 + tH / 2, 0));
+    collectCanopy(x, z, 0.52 + tH - 0.15, 0.78, 54, 0.95);
   }
   function ceilingStrips(cx, cz, rw) {
     const wallZ = cz < 0 ? B.z0 + .16 : B.z1 - .16;
@@ -188,7 +210,7 @@ export function buildBuilding(THREE, LAYOUT) {
       chair(cx, r.rect.z0 + 2.0, 0);
       add(box(2.0, 0.42, 0.7, mat(P.sofa)), cx + 1.4, 0.3, r.rect.z1 - 1.4); add(box(2.0, 0.5, 0.18, mat(P.sofa)), cx + 1.4, 0.5, r.rect.z1 - 1.1);
       add(box(0.9, 0.32, 0.6, mat(P.wood)), cx + 1.4, 0.2, r.rect.z1 - 2.3);
-      plant(r.rect.x0 + 0.8, r.rect.z1 - 1.0, true); plant(r.rect.x1 - 0.8, r.rect.z0 + 1.0);
+      tree(r.rect.x0 + 1.1, r.rect.z1 - 1.3); plant(r.rect.x1 - 0.8, r.rect.z0 + 1.0, true);
     } else if (r.type === 'command') {
       add(box(2.4, 0.78, 0.7, mat(P.deskTop)), cx, 0.39, r.rect.z0 + 1.0);
       chair(cx, r.rect.z0 + 1.9, 0);
@@ -333,6 +355,15 @@ export function buildBuilding(THREE, LAYOUT) {
     const lg = new THREE.Group(); lg.position.y = level.y; group.add(lg); curGroup = lg;
     floors.push({ id: level.id, y: level.y, group: lg, name: level.name });
     buildLevelGeometry(level);
+    // This level's plant/tree foliage → one instanced mesh in the level group, so it hides
+    // with the floor when a single level is isolated (lush greenery, one draw call per floor).
+    if (leafInstances.length) {
+      const foliage = new THREE.InstancedMesh(foliageGeometry, foliageMaterial, leafInstances.length);
+      foliage.castShadow = true; foliage.receiveShadow = false;
+      for (let i = 0; i < leafInstances.length; i++) { foliage.setMatrixAt(i, leafInstances[i].matrix); foliage.setColorAt(i, leafInstances[i].color); }
+      foliage.instanceMatrix.needsUpdate = true; if (foliage.instanceColor) foliage.instanceColor.needsUpdate = true;
+      lg.add(foliage); leafInstances.length = 0;
+    }
     mergeLevelStatics(lg);
   }
   curGroup = group; curY = 0; curLevel = LAYOUT.defaultLevel;

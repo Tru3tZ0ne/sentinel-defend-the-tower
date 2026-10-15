@@ -60,17 +60,19 @@ function activePickables() {
 }
 // The whole tower is always visible (a cutaway dollhouse). The "active" level is just which
 // floor the camera is focused on and which floor keyboard room-cycling / the floor buttons target.
+let towerOverview = true;   // true = whole tower shown; false = a single floor isolated
+// Click a floor → go INTO just that level: hide the others and drop the camera onto it.
 function setActiveLevel(id, moveCamera = true) {
   if (!building || !building.floors.some(f => f.id === id)) return;
-  activeLevel = id;
-  for (const f of building.floors) f.group.visible = true;   // keep every floor on screen
-  const lvl = LAYOUT.levels.find(l => l.id === id);
-  if (moveCamera && world.focusOn) world.focusOn(new THREE.Vector3(-0.5, (lvl?.y || 0) + 0.7, -2.2), 26);
+  activeLevel = id; towerOverview = false;
+  for (const f of building.floors) f.group.visible = (f.id === id);
+  const y = (LAYOUT.levels.find(l => l.id === id)?.y) || 0;
+  if (moveCamera && world.setView) world.setView(new THREE.Vector3(2, y + 6, 23), new THREE.Vector3(-0.5, y + 0.45, -2.2));
   if (overlay) overlay.renderFloors(building.floors, activeLevel);
 }
 // Frame the entire stacked tower at once (default view) from a front-3/4 angle.
 function overviewAll() {
-  if (!building) return;
+  if (!building) return; towerOverview = true;
   for (const f of building.floors) f.group.visible = true;
   const ys = LAYOUT.levels.map(l => l.y);
   const midY = (Math.max(...ys) + Math.min(...ys)) / 2 + 0.4;
@@ -83,8 +85,9 @@ function overviewAll() {
 function updatePeopleFloorVis() {
   if (!people) return;
   for (const p of people.list) {
-    if (p.role === 'intruder') p.group.visible = !!p._entered && !replayHidden();
-    else p.group.visible = true;   // staff on every floor stay visible
+    const vis = towerOverview || personLevel(p) === activeLevel;   // isolated view shows only this floor's people
+    if (p.role === 'intruder') p.group.visible = vis && !!p._entered && !replayHidden();
+    else p.group.visible = vis;
   }
 }
 function replayHidden() { return false; }
@@ -175,7 +178,13 @@ function entityFloorPoint(e) {
   return null;
 }
 
-function ensureLevelFor(roomId) { const lv = roomLevel.get(roomId); if (lv && lv !== activeLevel) setActiveLevel(lv, false); }
+// Retarget to a room's floor for a focus action. In the tower overview, just retarget (keep the
+// whole tower visible and zoom); when a single floor is isolated, switch isolation to that floor.
+function ensureLevelFor(roomId) {
+  const lv = roomLevel.get(roomId); if (!lv || lv === activeLevel) return;
+  if (towerOverview) { activeLevel = lv; if (overlay) overlay.renderFloors(building.floors, activeLevel); }
+  else setActiveLevel(lv, false);
+}
 function focusClue(clueId) {
   const c = engine.clues.find(x => x.id == clueId); if (!c) return;
   inspectTarget = { kind: 'clue', clueId: c.id };
