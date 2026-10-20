@@ -66,9 +66,25 @@ export function createPeople(scene, building, publicNodes, templates = []) {
 
   function deskNodesIn(roomId) { const out = []; for (const d of building.desks.values()) if (d.roomId === roomId && nav.nodes.has('desk:' + d.id)) out.push('desk:' + d.id); return out; }
 
-  function add({ id, startNode, role, visitor, home, allowed }) {
+  // A glowing "threat packet" — used in abstract themes (cyber2) where the intruder is a hostile
+  // data-packet travelling the architecture rather than a human figure.
+  function makeThreatPacket() {
+    const root = new THREE.Group();
+    const Y = 0.95;
+    const coreMat = new THREE.MeshStandardMaterial({ color: 0xff2d6a, emissive: 0xff2d6a, emissiveIntensity: 2.4, roughness: 0.3, metalness: 0.2 });
+    const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0), coreMat); core.position.y = Y; core.castShadow = true; root.add(core);
+    const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 0), new THREE.MeshBasicMaterial({ color: 0xff5a86, wireframe: true, transparent: true, opacity: 0.6 })); shell.position.y = Y; root.add(shell);
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.03, 8, 32), new THREE.MeshBasicMaterial({ color: 0xff6a90 })); halo.position.y = Y; halo.rotation.x = Math.PI / 2; root.add(halo);
+    // a tall threat beacon so the actor is easy to spot among the dense buildings (a "you are here")
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.14, 6, 12), new THREE.MeshBasicMaterial({ color: 0xff3a6a, transparent: true, opacity: 0.28, depthWrite: false })); beam.position.y = Y + 3.0; root.add(beam);
+    const glow = new THREE.PointLight(0xff3a6a, 7, 9, 2); glow.position.y = Y; root.add(glow);
+    return { root, isGLB: false, isPacket: true, packet: { core, shell, halo, beam } };
+  }
+
+  function add({ id, startNode, role, visitor, home, allowed, avatar }) {
     const seed = list.length + (role === 'intruder' ? 4 : 0);
-    const fig = characterTemplates.length ? createCharacterVisual(characterTemplates[seed % characterTemplates.length], seed) : makeFigure(seed, visitor);
+    const fig = avatar === 'threat' ? makeThreatPacket()
+      : characterTemplates.length ? createCharacterVisual(characterTemplates[seed % characterTemplates.length], seed) : makeFigure(seed, visitor);
     const start = nav.nodes.get(startNode) || nav.nodes.get('room:' + home) || [...nav.nodes.values()][0];
     fig.root.position.copy(start.pos);
     fig.root.userData = { kind: 'person', personId: id };
@@ -130,8 +146,18 @@ export function createPeople(scene, building, publicNodes, templates = []) {
       // Animation offsets must never feed back into simulation/navigation coordinates.
       p.group.position.copy(p.pos);
       if (p.fig.isGLB) updateCharacterVisual(p.fig, dt, p.pose, p.speed, p.group.visible);
+      else if (p.fig.isPacket) animatePacket(p, dt, tnow);
       else animateProc(p, dt, tnow, moving, working);
     }
+  }
+
+  // Spin + bob the threat packet so it reads as a live, hostile object gliding through the tower.
+  function animatePacket(p, dt, tnow) {
+    const pk = p.fig.packet; if (!pk) return;
+    pk.core.rotation.y += dt * 2.0; pk.core.rotation.x += dt * 1.3;
+    pk.shell.rotation.y -= dt * 1.1; pk.shell.rotation.z += dt * 0.7;
+    pk.halo.rotation.z += dt * 1.6;
+    p.fig.root.position.y = p.pos.y + Math.sin(tnow * 2.2 + p.phase) * 0.06;
   }
 
   function animateProc(p, dt, tnow, moving, working) {
@@ -161,6 +187,7 @@ export function createPeople(scene, building, publicNodes, templates = []) {
     if (!templates.length) return;
     characterTemplates = templates;
     for (const p of list) {
+      if (p.fig.isPacket) continue;   // abstract threat packets keep their own visual
       const previous = p.fig;
       const next = createCharacterVisual(templates[p.seed % templates.length], p.seed);
       // Keep the navigation group and any FX references stable during async loading.
@@ -180,6 +207,6 @@ export function createPeople(scene, building, publicNodes, templates = []) {
       p.fig = next;
     }
   }
-  function dispose() { list.forEach(p => disposeCharacterVisual(p.fig)); }
+  function dispose() { list.forEach(p => { if (!p.fig.isPacket) disposeCharacterVisual(p.fig); }); }
   return { list, add, setRoute, update, setTemplates, dispose, get: id => list.find(p => p.id === id) };
 }

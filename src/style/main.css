@@ -221,6 +221,19 @@ svg { width: 1em; height: 1em; display: block; }
 .hero-brief li { color: var(--ink-dim); padding-left: 24px; position: relative; font-size: 14px; }
 .hero-brief li::before { content: "▸"; color: var(--cyan); position: absolute; left: 4px; }
 
+/* plain-language "what is this" onboarding card on the start screen */
+.concept-card { max-width: 620px; margin: 10px auto 22px; padding: 18px 20px; text-align: left;
+  background: linear-gradient(180deg, rgba(30,145,237,.10), rgba(10,16,28,.5)); border: 1px solid var(--line);
+  border-left: 3px solid var(--cyan); border-radius: var(--radius); }
+.concept-title { font-size: 15px; font-weight: 700; letter-spacing: .4px; color: var(--ink); margin: 0 0 8px; }
+.concept-lead { font-size: 14px; line-height: 1.55; color: var(--ink-dim); margin: 0 0 14px; }
+.concept-steps { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 10px; counter-reset: step; }
+.concept-steps li { display: grid; gap: 2px; padding-left: 14px; position: relative; }
+.concept-steps li::before { content: ""; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; border-radius: 3px; background: var(--cyan); opacity: .7; }
+.concept-steps b { color: var(--ink); font-size: 13px; letter-spacing: .3px; }
+.concept-steps span { color: var(--ink-dim); font-size: 13px; line-height: 1.5; }
+.concept-goal { font-size: 13px; color: var(--ink); margin: 0; padding-top: 10px; border-top: 1px solid var(--line); opacity: .95; }
+
 /* ---------- end / replay ---------- */
 .endScreen { position: fixed; inset: 0; z-index: 30; overflow: auto; background: radial-gradient(1200px 700px at 72% -10%, rgba(30,145,237,.12), transparent 60%), rgba(5,7,14,.9); backdrop-filter: blur(5px); transition: .4s; }
 .endScreen.replaying { background: none; backdrop-filter: none; pointer-events: none; }

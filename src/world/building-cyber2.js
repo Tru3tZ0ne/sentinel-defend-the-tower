@@ -126,22 +126,89 @@ export function buildBuilding(THREE, LAYOUT) {
     return body;
   }
 
-  // The hero of each tier: a tall glowing product monolith at the centre, themed to the layer.
+  // deterministic per-index pseudo-random (so the tower is identical every build)
+  const rnd = (i) => { const v = Math.sin(i * 51.7 + 3.1) * 43758.5453; return v - Math.floor(v); };
+  const angDiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+  const WARM = [0xff5a7a, 0xff8a3c, 0xc04bff, 0x37e0c0]; // red / orange / magenta / teal accent lights
+
+  // The glowing server-"city" visible INSIDE a translucent drum (like the reference): many little
+  // towers at varied heights with emissive window grids + a few warm accent beacons.
+  function innerCity(lg, pcolor) {
+    const towers = [], windows = [], accents = [];
+    for (let i = 0; i < 46; i++) {
+      const a = rnd(i) * Math.PI * 2, r = CORE_R * (0.15 + 0.72 * rnd(i + 50));
+      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      const w = 0.1 + rnd(i + 7) * 0.16, h = WH * (0.22 + 0.72 * rnd(i + 3)), d = 0.1 + rnd(i + 11) * 0.16;
+      towers.push(new THREE.BoxGeometry(w, h, d).translate(x, h / 2, z));
+      for (let s = 0; s < Math.max(2, Math.floor(h / 0.26)); s++) windows.push(new THREE.BoxGeometry(w * 0.7, 0.05, 0.012).translate(x, 0.1 + s * 0.24, z + d / 2 + 0.006));
+      if (rnd(i + 23) > 0.86) accents.push(new THREE.SphereGeometry(0.06, 8, 7).translate(x, h + 0.08, z));
+    }
+    lg.add(new THREE.Mesh(mergeGeometries(towers, false), mat(0x0a1220, { metalness: 0.6, roughness: 0.4 })));
+    lg.add(new THREE.Mesh(mergeGeometries(windows, false), emis(pcolor, 1.3)));
+    if (accents.length) lg.add(new THREE.Mesh(mergeGeometries(accents, false), emis(WARM[1], 2.0)));
+  }
+
+  // The hero of each tier: a translucent glass drum holding a glowing server-city, themed to the layer.
   function layerCore(lg, level, pcolor) {
-    // base drum (glassy) + metal cap
+    innerCity(lg, pcolor);
+    // glass drum enclosing the city (double-shell for a richer fresnel-ish rim)
     const drum = disk(CORE_R, WH, glass(pcolor)); drum.position.y = WH / 2; lg.add(drum);
-    const cap = disk(CORE_R + 0.18, 0.16, mat(0x0a1018, { metalness: 0.7, roughness: 0.3 })); cap.position.y = WH + 0.08; lg.add(cap);
-    const capGlow = ringMesh(CORE_R, 0.06, emis(pcolor, 1.6)); capGlow.position.y = WH + 0.16; lg.add(capGlow);
-    // bright inner pillar — the product "spine" of the layer
-    const pillar = disk(0.5, WH * 1.18, emis(pcolor, 1.3, { transparent: true, opacity: 0.85 }), 18); pillar.position.y = WH * 0.59; lg.add(pillar);
-    // data columns inside the drum
-    const colGeos = [];
-    for (let i = 0; i < 26; i++) { const a = (i / 26) * Math.PI * 2, r = CORE_R * (0.4 + 0.5 * ((Math.sin(i * 7.1) + 1) / 2)); colGeos.push(new THREE.BoxGeometry(0.06, WH * (0.4 + 0.5 * ((Math.sin(i * 3.3) + 1) / 2)), 0.06).translate(Math.cos(a) * r, WH / 2, Math.sin(a) * r)); }
-    lg.add(new THREE.Mesh(mergeGeometries(colGeos, false), emis(pcolor, 0.85)));
+    const shell = disk(CORE_R + 0.06, WH * 0.99, new THREE.MeshStandardMaterial({ color: pcolor, emissive: pcolor, emissiveIntensity: 0.12, transparent: true, opacity: 0.08, roughness: 0.05, metalness: 0.4, side: THREE.BackSide })); shell.position.y = WH / 2; lg.add(shell);
+    const cap = disk(CORE_R + 0.2, 0.16, mat(0x0a1018, { metalness: 0.7, roughness: 0.3 })); cap.position.y = WH + 0.08; lg.add(cap);
+    const base = disk(CORE_R + 0.2, 0.14, mat(0x0a1018, { metalness: 0.7, roughness: 0.3 })); base.position.y = 0.0; lg.add(base);
+    const capGlow = ringMesh(CORE_R, 0.06, emis(pcolor, 1.8)); capGlow.position.y = WH + 0.16; lg.add(capGlow);
+    const baseGlow = ringMesh(CORE_R, 0.05, emis(pcolor, 1.5)); baseGlow.position.y = 0.08; lg.add(baseGlow);
     // uplight so the core glows its product colour
-    const cl = new THREE.PointLight(pcolor, 7, 10, 2); cl.position.set(0, WH * 0.6, 0); lg.add(cl);
+    const cl = new THREE.PointLight(pcolor, 8, 11, 2); cl.position.set(0, WH * 0.6, 0); lg.add(cl);
     // the hero billboard above the core: product name + layer name
-    productSign(level, LAYER[level.id].primary, V(0, WH + 1.5, 0), lg, 1.1);
+    productSign(level, LAYER[level.id].primary, V(0, WH + 1.6, 0), lg, 1.15);
+  }
+
+  // Dense ring of decorative "data node" satellite buildings around a tier — the reference's packed
+  // mini high-rises / server cabinets wired to the core. Pure visual density (NOT pickable), placed
+  // in the arcs the gameplay room pads don't occupy so clicks stay clean.
+  function satelliteField(lg, pcolor, occupied) {
+    const pads = [], padRims = [], bodies = [], windows = [], traces = [], bumps = [], accents = [];
+    const innerR = CORE_R + 0.5;
+    const N = 14;
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2 + 0.22;
+      if (occupied.some(oa => Math.abs(angDiff(a, oa)) < 0.52)) continue;   // leave room for gameplay pads
+      const ringR = RING + (rnd(i) > 0.5 ? 1.0 : -0.3);
+      const px = Math.cos(a) * ringR, pz = Math.sin(a) * ringR;
+      pads.push(new THREE.CylinderGeometry(0.74, 0.74, 0.1, 20).translate(px, -0.01, pz));
+      padRims.push(new THREE.TorusGeometry(0.74, 0.03, 8, 28).rotateX(Math.PI / 2).translate(px, 0.06, pz));
+      const m = 2 + Math.floor(rnd(i + 5) * 3);
+      for (let k = 0; k < m; k++) {
+        const aa = (k / m) * Math.PI * 2 + rnd(i + k), rr = 0.16 + rnd(i * 7 + k) * 0.3;
+        const bx = px + Math.cos(aa) * rr, bz = pz + Math.sin(aa) * rr;
+        const w = 0.26 + rnd(i + k) * 0.22, h = 0.55 + rnd(i * 3 + k) * 2.0, d = 0.26 + rnd(i + 2 + k) * 0.18;
+        bodies.push(new THREE.BoxGeometry(w, h, d).translate(bx, h / 2, bz));
+        for (let s = 0; s < Math.max(2, Math.floor(h / 0.24)); s++) windows.push(new THREE.BoxGeometry(w * 0.6, 0.045, 0.014).translate(bx, 0.1 + s * 0.22, bz + d / 2 + 0.008));
+        if (rnd(i * 13 + k) > 0.72) accents.push({ g: new THREE.SphereGeometry(0.07, 8, 7).translate(bx, h + 0.09, bz), c: WARM[(i + k) % WARM.length] });
+      }
+      traces.push(new THREE.BoxGeometry(ringR - innerR, 0.02, 0.04).translate((innerR + ringR) / 2, 0, 0).rotateY(-a).translate(0, 0.05, 0));
+      bumps.push(new THREE.SphereGeometry(0.07, 9, 8).translate(Math.cos(a) * innerR, 0.06, Math.sin(a) * innerR));
+    }
+    if (!bodies.length) return;
+    lg.add(new THREE.Mesh(mergeGeometries(pads, false), mat(0x0a111b, { metalness: 0.5, roughness: 0.55 })));
+    lg.add(new THREE.Mesh(mergeGeometries(padRims, false), emis(pcolor, 1.1)));
+    const bodyMesh = new THREE.Mesh(mergeGeometries(bodies, false), mat(0x0b1019, { metalness: 0.6, roughness: 0.4 })); bodyMesh.castShadow = true; bodyMesh.receiveShadow = true; lg.add(bodyMesh);
+    lg.add(new THREE.Mesh(mergeGeometries(windows, false), emis(pcolor, 1.25)));
+    lg.add(new THREE.Mesh(mergeGeometries(traces, false), emis(TRACE, 1.4)));
+    lg.add(new THREE.Mesh(mergeGeometries(bumps, false), emis(pcolor, 1.7)));
+    // warm accent beacons, grouped by colour so each colour is one emissive mesh
+    const byColor = new Map();
+    for (const ac of accents) { (byColor.get(ac.c) || byColor.set(ac.c, []).get(ac.c)).push(ac.g); }
+    for (const [c, gs] of byColor) lg.add(new THREE.Mesh(mergeGeometries(gs, false), emis(c, 2.2)));
+  }
+
+  // A glowing PCB/topology lattice on a tier's platform: concentric arcs + fine radial spokes.
+  function circuitLattice(lg, pcolor) {
+    const geos = [];
+    for (const rr of [RING - 1.3, RING + 0.4, RING + 1.5]) geos.push(new THREE.TorusGeometry(rr, 0.012, 6, 90).rotateX(Math.PI / 2).translate(0, 0.045, 0));
+    for (let i = 0; i < 24; i++) { const a = (i / 24) * Math.PI * 2; const r0 = CORE_R + 0.6, r1 = RING + 1.6; geos.push(new THREE.BoxGeometry(r1 - r0, 0.008, 0.02).translate((r0 + r1) / 2, 0, 0).rotateY(-a).translate(0, 0.043, 0)); }
+    lg.add(new THREE.Mesh(mergeGeometries(geos, false), emis(pcolor, 0.6, { transparent: true, opacity: 0.55 })));
   }
 
   // ---- build each level as a security-layer tier ----
@@ -168,9 +235,11 @@ export function buildBuilding(THREE, LAYOUT) {
     // rooms of this layer -> pads around the ring
     const levelRooms = LAYOUT.rooms.filter(r => r.level === level.id);
     const base = -Math.PI / 2;
+    const roomAngles = [];
     levelRooms.forEach((r, i) => {
       // spread 1-2 rooms toward the front; more rooms fan around the full ring
       const a = levelRooms.length <= 2 ? base + (i - (levelRooms.length - 1) / 2) * 0.9 : base + (i / levelRooms.length) * Math.PI * 2;
+      roomAngles.push(a);
       const px = Math.cos(a) * RING, pz = Math.sin(a) * RING;
       const neon = ROOM_NEON[r.type] || RIM;
       const center = V(px, level.y, pz);
@@ -224,6 +293,10 @@ export function buildBuilding(THREE, LAYOUT) {
       });
     });
 
+    // decorative density: PCB lattice on the deck + a packed ring of satellite data-buildings
+    circuitLattice(lg, pcolor);
+    satelliteField(lg, pcolor, roomAngles);
+
     // secondary product beacon for layers that host two products (SOC: MDR, EDGE: IAG)
     if (layerInfo.secondary) {
       const sa = base + Math.PI;   // opposite the main room fan
@@ -242,6 +315,16 @@ export function buildBuilding(THREE, LAYOUT) {
   const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, yTop - yBot + 0.5, 20), emis(CORE, 0.45, { transparent: true, opacity: 0.4 }));
   spine.position.y = (yTop + yBot) / 2; group.add(spine);
   for (let i = 0; i < LAYOUT.levels.length - 1; i++) link(`stair:${LAYOUT.levels[i].id}`, `stair:${LAYOUT.levels[i + 1].id}`);
+
+  // Grand base platform with an intense blue halo beneath the whole tower (as in the reference).
+  const baseY = yBot - 1.4, baseR = RING + 5.5;
+  const grand = disk(baseR, 0.5, mat(0x05080f, { metalness: 0.55, roughness: 0.6 }), 72); grand.position.y = baseY; grand.receiveShadow = true; group.add(grand);
+  const grandRim = ringMesh(baseR, 0.16, emis(0x2b8bff, 2.2)); grandRim.position.y = baseY + 0.28; group.add(grandRim);
+  const grandRim2 = ringMesh(baseR - 0.55, 0.05, emis(0x2f8dff, 1.4)); grandRim2.position.y = baseY + 0.3; group.add(grandRim2);
+  // a faint wide glow disk just under the rim to read as a halo bloom on the void
+  const halo = new THREE.Mesh(new THREE.CircleGeometry(baseR + 2.2, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1f6fff, transparent: true, opacity: 0.1, depthWrite: false }));
+  halo.position.y = baseY - 0.22; group.add(halo);
+  const baseUp = new THREE.PointLight(0x2b8bff, 60, 60, 2); baseUp.position.set(0, baseY + 1.2, 0); group.add(baseUp);
 
   // entrance just outside the perimeter gateway pad
   const rec = rooms.get('reception');

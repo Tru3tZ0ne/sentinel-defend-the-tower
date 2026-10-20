@@ -60,3 +60,5 @@ tools/_cyber2dbg.mjs
 tools/_cybercolor.mjs
 tools/_officecheck.mjs
 tools/_livecyber2.mjs
+tools/_cyber2shot.mjs
+tools/_startshot.mjs

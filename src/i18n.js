@@ -18,6 +18,17 @@ const DICT = {
   'start.brief2':  { en: 'Set up calmly first — no clock. Inspect rooms and people, deploy your tools.', zh: '先从容布置——没有计时。查看房间与人物，部署你的工具。' },
   'start.brief3':  { en: 'Then begin the day, read the clues your tools surface, and contain the breach.', zh: '然后开始这一天，解读工具呈现的线索，遏制这场入侵。' },
 
+  // plain-language "what is this" onboarding (for first-time / non-technical players)
+  'concept.title': { en: 'New here? Here\'s the idea', zh: '第一次玩？一句话看懂' },
+  'concept.lead':  { en: 'This is a hands-on demo of how Sangfor protects a company. A hacker will try to break into the building, sneak around, and steal data — your job is to place the right Sangfor products in the right places to catch and stop them.', zh: '这是一个体验式演示，展示深信服如何守护一家企业。黑客会试图闯入大楼、四处潜行并窃取数据——你的任务，是把合适的深信服产品部署到合适的位置，发现并拦住他们。' },
+  'concept.s1title': { en: '1 · Set up', zh: '1 · 布防' },
+  'concept.s1':    { en: 'Place Sangfor products where they defend best — firewall at the door, endpoint protection on PCs, sensors on the network.', zh: '把深信服产品放到最能发挥作用的位置——防火墙守大门、终端防护装在电脑上、探针盯住网络。' },
+  'concept.s2title': { en: '2 · Watch', zh: '2 · 观察' },
+  'concept.s2':    { en: 'Start the day. A hidden intruder tries to get in and move around. You only see where your tools are watching — so coverage matters.', zh: '开始这一天。隐藏的入侵者会尝试进入并四处移动。你只能看到工具覆盖之处——所以布防是否到位很关键。' },
+  'concept.s3title': { en: '3 · Stop it', zh: '3 · 处置' },
+  'concept.s3':    { en: 'Connect the clues to confirm the attack, find the intruder, and shut them down — keeping business online and data safe.', zh: '串联线索确认攻击、找出入侵者并将其拦截——同时保住业务在线、数据安全。' },
+  'concept.goal':  { en: 'Win by keeping Business Uptime and Data Integrity high. Lose them and the company is hit.', zh: '让“业务在线率”和“数据完整性”保持在高位即可取胜；一旦失守，企业就会受损。' },
+
   // phase / hud
   'phase.prep':      { en: 'SETUP', zh: '布置阶段' },
   'phase.incident':  { en: 'LIVE', zh: '进行中' },

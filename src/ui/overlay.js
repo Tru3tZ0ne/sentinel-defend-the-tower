@@ -77,7 +77,16 @@ export function createOverlay(root, h) {
           <div class="hero-eyebrow">${t('game.byline')}</div>
           <h1 class="hero-title">${t('game.title')}<span>${t('game.subtitle')}</span></h1>
           <p class="hero-tagline">${t('start.tagline')}</p>
-          <ul class="hero-brief"><li>${t('start.brief1')}</li><li>${t('start.brief2')}</li><li>${t('start.brief3')}</li></ul>
+          <div class="concept-card">
+            <h2 class="concept-title">${t('concept.title')}</h2>
+            <p class="concept-lead">${t('concept.lead')}</p>
+            <ol class="concept-steps">
+              <li><b>${t('concept.s1title')}</b><span>${t('concept.s1')}</span></li>
+              <li><b>${t('concept.s2title')}</b><span>${t('concept.s2')}</span></li>
+              <li><b>${t('concept.s3title')}</b><span>${t('concept.s3')}</span></li>
+            </ol>
+            <p class="concept-goal">${t('concept.goal')}</p>
+          </div>
           <p class="camera-instructions">${t('camera.help')}</p>
           </div>
           <div class="assignment-picker">

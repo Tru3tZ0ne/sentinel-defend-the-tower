@@ -30,6 +30,7 @@ let officeModels = null;   // realistic prop models (plant, chair), swapped in o
 const _rawTheme = (typeof window !== 'undefined' && window.__SENTINEL_THEME) || '';
 const THEME = _rawTheme === 'cyber2' ? 'cyber2' : _rawTheme === 'cyber' ? 'cyber' : 'office';
 const NEON = THEME === 'cyber' || THEME === 'cyber2';   // shared holographic world styling
+const ABSTRACT = THEME === 'cyber2';   // no human characters — intruder is a glowing threat packet
 // Scenario + building generator are loaded on demand so the office build pulls in none of it.
 const { LAYOUT, EMPLOYEES } = await import(THEME === 'cyber2' ? './data/scenario-cyber2.js' : './data/scenario.js');
 const buildBuildingFn = THEME === 'cyber2' ? (await import('./world/building-cyber2.js')).buildBuilding
@@ -144,9 +145,10 @@ function initStage() {
   fx = createFx(stage, building);
   people = createPeople(stage, building, publicByLevel[LAYOUT.defaultLevel], characterTemplates);
   // Visitor lanyards are worn by a couple of staff too, so the badge never gives the intruder away.
+  // Abstract themes (cyber2) show no staff — the architecture is the subject, not the office.
   const lanyard = new Set(['e1', 'e4']);
-  for (const e of EMPLOYEES) people.add({ id: e.id, startNode: 'room:' + e.home, role: 'employee', home: e.home, visitor: lanyard.has(e.id), allowed: publicByLevel[roomLevel.get(e.home)] });
-  const intr = people.add({ id: 'intruder', startNode: 'entrance', role: 'intruder', visitor: true });
+  if (!ABSTRACT) for (const e of EMPLOYEES) people.add({ id: e.id, startNode: 'room:' + e.home, role: 'employee', home: e.home, visitor: lanyard.has(e.id), allowed: publicByLevel[roomLevel.get(e.home)] });
+  const intr = people.add({ id: 'intruder', startNode: 'entrance', role: 'intruder', visitor: true, avatar: ABSTRACT ? 'threat' : undefined });
   intr.group.visible = false; intr.wander = false; intr._entered = false;
   // Screen-facing architectural placards stay readable at the command-view distance.
   labelEls.clear(); if (overlay?.els?.labels) overlay.els.labels.innerHTML = '';
@@ -673,7 +675,7 @@ overlay.setPhase('start');
 requestAnimationFrame(frame);
 
 // Loading assets never resets the mission or blocks the start controls.
-const charactersReady = loadOfficeCharacters().then(templates => {
+const charactersReady = ABSTRACT ? Promise.resolve([]) : loadOfficeCharacters().then(templates => {
   characterTemplates = templates;
   people.setTemplates(templates);
   return templates.map(template => template.id);
