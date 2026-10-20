@@ -6,12 +6,14 @@
 import { loc } from '../i18n.js';
 import { mergeGeometries } from '../vendor/three/BufferGeometryUtils.js';
 
-// Neon palette keyed to room purpose; everything is emissive so bloom carries the glow.
+// Neon palette keyed to room purpose. The dominant tone is a DEEP electric blue (cyber-defence
+// look); warm/violet accents (egress, vault, command) are kept sparing so they read as security
+// cues against the blue. Everything is emissive so bloom carries the glow.
 const ROOM_NEON = {
-  command: 0x8a7bff, office: 0x39c0ff, lobby: 0x46e0a0, egress: 0xffb454,
-  server: 0x39e0ff, vault: 0xffcf6e, meeting: 0x57d1ff,
+  command: 0x4664ff, office: 0x2a6bff, lobby: 0x1f8fe0, egress: 0xff7a2e,
+  server: 0x2460ff, vault: 0xffbf3a, meeting: 0x3a86ff,
 };
-const BLUE = 0x2b8bff, RIM = 0x38c6ff, TRACE = 0x4fd2ff, CORE = 0x59b7ff;
+const BLUE = 0x1d52ff, RIM = 0x2f7bff, TRACE = 0x2f8dff, CORE = 0x2c6cff;
 
 export function buildBuilding(THREE, LAYOUT) {
   const group = new THREE.Group();
@@ -181,7 +183,7 @@ export function buildBuilding(THREE, LAYOUT) {
         if (spec.kind === 'workstation') {
           const deskMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.4), mat(0x121a24, { metalness: 0.55, roughness: 0.4 }));
           deskMesh.position.set(dx, 0.32, dz); deskMesh.castShadow = true; deskMesh.userData = { kind: 'desk', deskId: spec.id, roomId: r.id }; deskMesh.material = deskMesh.material.clone(); lg.add(deskMesh); pickables.push(deskMesh);
-          const screen = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.26, 0.02), emis(0x6fd6ff, 0.9, { metalness: 0.2, roughness: 0.2 }));
+          const screen = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.26, 0.02), emis(0x3f8cff, 1.0, { metalness: 0.2, roughness: 0.2 }));
           screen.position.set(dx, 0.6, dz + 0.16); screen.material = screen.material.clone(); lg.add(screen);
           desks.set(spec.id, { id: spec.id, roomId: r.id, pos: V(dx, 0.6 + level.y, dz), deskMesh, screen });
         } else {

@@ -13,7 +13,7 @@ export function createWorld(canvas, theme = 'office') {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = cyber ? 1.1 : 1.04;
+  renderer.toneMappingExposure = cyber ? 0.98 : 1.04;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -24,9 +24,9 @@ export function createWorld(canvas, theme = 'office') {
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = cyber ? 0.18 : 0.32;   // keep reflections on metal/glass without flat-filling form
   if (cyber) {
-    // Deep-black holographic void: the tower and its neon traces are the only light sources.
-    scene.background = new THREE.Color(0x02040a);
-    scene.fog = new THREE.FogExp2(0x02040a, 0.013);
+    // Deep blue-black holographic void: the tower and its neon traces are the only light sources.
+    scene.background = new THREE.Color(0x020717);
+    scene.fog = new THREE.FogExp2(0x030a1f, 0.013);
   } else {
     // Neutral daylight backdrop keeps floor materials and close views legible.
     const bg = document.createElement('canvas'); bg.width = 16; bg.height = 256;
@@ -75,9 +75,9 @@ export function createWorld(canvas, theme = 'office') {
   if (cyber) {
     // Holographic mood: let the tower's own neon emissives + traces carry the image. A dim cool
     // ambient + a soft blue key keep characters and surfaces readable without killing the glow.
-    scene.add(new THREE.HemisphereLight(0x3a6690, 0x070d18, 0.62));
-    scene.add(new THREE.AmbientLight(0x5a7fb0, 0.34));
-    const key = new THREE.DirectionalLight(0xbfe2ff, 1.35);
+    scene.add(new THREE.HemisphereLight(0x2a52b8, 0x05091a, 0.6));
+    scene.add(new THREE.AmbientLight(0x3f5fc8, 0.32));
+    const key = new THREE.DirectionalLight(0x9fc0ff, 1.3);
     key.position.set(14, 30, 16); key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
     key.shadow.camera.near = 1; key.shadow.camera.far = 120;
@@ -86,8 +86,8 @@ export function createWorld(canvas, theme = 'office') {
     key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02; key.shadow.radius = 3;
     scene.add(key); scene.add(key.target); key.target.position.set(0, 0, 0);
     // A soft cool front fill so staff and the intruder read as solid forms against the neon.
-    const fill = new THREE.DirectionalLight(0x8fb8e8, 0.7); fill.position.set(-8, 14, 22); scene.add(fill);
-    const under = new THREE.PointLight(0x2b8bff, 40, 60, 2); under.position.set(0, -2, 0); scene.add(under); // base-platform uplight
+    const fill = new THREE.DirectionalLight(0x5f8fff, 0.72); fill.position.set(-8, 14, 22); scene.add(fill);
+    const under = new THREE.PointLight(0x1d5bff, 46, 62, 2); under.position.set(0, -2, 0); scene.add(under); // deep-blue base-platform uplight
   } else {
     // Strong directional key with real shadows gives every object a clear light-to-shade gradient
     // (that is what makes 3D form read as 3D); fill/ambient/IBL are kept low so shadows stay legible.
@@ -114,7 +114,7 @@ export function createWorld(canvas, theme = 'office') {
   if (cyber) {
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.72, 0.5, 0.26); // strength, radius, threshold — crisp neon, deep blacks
+    bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.58, 0.45, 0.34); // strength, radius, threshold — tight glow keeps the blue saturated (not lavender)
     composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
   }

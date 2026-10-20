@@ -50,3 +50,5 @@ tools/_livecyber.mjs
 tools/_cyberdbg.mjs
 tools/_cyberplay.mjs
 tools/_officeplay.mjs
+tools/_livecyberdeploy.mjs
+tools/_cybercolor.mjs
