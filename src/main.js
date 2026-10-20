@@ -3,7 +3,6 @@
 // phase, so the setup phase has no time pressure.
 import * as THREE from 'three';
 import { setLang, getLang, loc, t } from './i18n.js';
-import { LAYOUT, EMPLOYEES } from './data/scenario.js';
 import { DEPLOYMENT_VISUALS } from './data/deployment-visuals.js';
 import { OPERATIONS } from './data/operations.js';
 import { PRODUCTS } from './data/products.js';
@@ -24,12 +23,18 @@ import { createOverlay } from './ui/overlay.js';
 let characterTemplates = [];
 let officeModels = null;   // realistic prop models (plant, chair), swapped in over procedural fallbacks once loaded
 
-// Visual theme: 'office' (default, realistic cutaway tower) or 'cyber' (circular neon fortress).
-// The cyber entry page sets window.__SENTINEL_THEME before this module runs. Gameplay is identical
-// across themes — only the building generator and world styling differ.
-const THEME = (typeof window !== 'undefined' && window.__SENTINEL_THEME) === 'cyber' ? 'cyber' : 'office';
-// The cyber building generator is loaded on demand so the office build pulls in none of it.
-const buildBuildingFn = THEME === 'cyber' ? (await import('./world/building-cyber.js')).buildBuilding : buildBuilding;
+// Visual theme: 'office' (default, realistic cutaway tower), 'cyber' (circular neon fortress), or
+// 'cyber2' (Sangfor defense-in-depth ARCHITECTURE tower — levels are security layers). The entry
+// page sets window.__SENTINEL_THEME before this module runs. Gameplay is identical across themes;
+// cyber2 also swaps in a layer-based scenario so the building is organised by product positioning.
+const _rawTheme = (typeof window !== 'undefined' && window.__SENTINEL_THEME) || '';
+const THEME = _rawTheme === 'cyber2' ? 'cyber2' : _rawTheme === 'cyber' ? 'cyber' : 'office';
+const NEON = THEME === 'cyber' || THEME === 'cyber2';   // shared holographic world styling
+// Scenario + building generator are loaded on demand so the office build pulls in none of it.
+const { LAYOUT, EMPLOYEES } = await import(THEME === 'cyber2' ? './data/scenario-cyber2.js' : './data/scenario.js');
+const buildBuildingFn = THEME === 'cyber2' ? (await import('./world/building-cyber2.js')).buildBuilding
+  : THEME === 'cyber' ? (await import('./world/building-cyber.js')).buildBuilding
+  : buildBuilding;
 
 const canvas = document.getElementById('scene');
 const overlayRoot = document.getElementById('overlay');
@@ -77,7 +82,7 @@ function setActiveLevel(id, moveCamera = true) {
   for (const f of building.floors) f.group.visible = (f.id === id);
   const y = (LAYOUT.levels.find(l => l.id === id)?.y) || 0;
   if (moveCamera && world.setView) {
-    if (world.theme === 'cyber') world.setView(new THREE.Vector3(0.5, y + 10, 26), new THREE.Vector3(0, y + 1, 0));
+    if (NEON) world.setView(new THREE.Vector3(0.5, y + 10, 26), new THREE.Vector3(0, y + 1, 0));
     else world.setView(new THREE.Vector3(2, y + 6, 23), new THREE.Vector3(-0.5, y + 0.45, -2.2));
   }
   if (overlay) overlay.renderFloors(building.floors, activeLevel);
@@ -90,7 +95,11 @@ function overviewAll() {
   const midY = (Math.max(...ys) + Math.min(...ys)) / 2 + 0.4;
   const span = Math.max(...ys) - Math.min(...ys);               // taller tower → pull the camera back
   const dist = Math.min(world.controls.maxDistance, 36 + span * 2.5);
-  if (world.theme === 'cyber') {
+  if (world.theme === 'cyber2') {
+    // The 5-layer architecture tower is taller — pull back and lift so the whole defense-in-depth
+    // stack (SOC crown down to the data core) reads, with every tier clearing the bottom deck UI.
+    world.setView(new THREE.Vector3(2, midY + 15, 50), new THREE.Vector3(0, midY + 1.2, 0));
+  } else if (world.theme === 'cyber') {
     // Elevated 3/4 orbit around the centered circular tower so the whole stacked fortress reads
     // and every tier's pads clear the bottom deck UI (tuned to the fixed cyber tower dimensions).
     world.setView(new THREE.Vector3(2, midY + 16.6, 38), new THREE.Vector3(0, midY - 1.9, 0));
@@ -642,9 +651,15 @@ window.addEventListener('keydown', ev => {
   if (ev.code === 'Space' && engine?.phase === 'incident') { ev.preventDefault(); engine._paused = !engine._paused; overlay.renderHud(engine); }
   if (ev.code === 'Enter' && engine?.phase === 'prep') { ev.preventDefault(); beginDay(); }
   if (engine && ['prep', 'incident'].includes(engine.phase)) {
-    if (ev.code === 'Digit2') setActiveLevel('L2');
-    if (ev.code === 'Digit3') setActiveLevel('L3');
-    if (ev.code === 'Digit4') setActiveLevel('L4');
+    if (THEME === 'cyber2') {
+      // Levels are architecture layers — map number keys 1..N to them top-to-bottom.
+      const m = /^Digit([1-9])$/.exec(ev.code); const lv = m && LAYOUT.levels[+m[1] - 1];
+      if (lv) setActiveLevel(lv.id);
+    } else {
+      if (ev.code === 'Digit2') setActiveLevel('L2');
+      if (ev.code === 'Digit3') setActiveLevel('L3');
+      if (ev.code === 'Digit4') setActiveLevel('L4');
+    }
     if (ev.code === 'KeyH') overviewAll();
     if (ev.code === 'BracketLeft') { ev.preventDefault(); kbCycleRoom(-1); }
     if (ev.code === 'BracketRight') { ev.preventDefault(); kbCycleRoom(1); }

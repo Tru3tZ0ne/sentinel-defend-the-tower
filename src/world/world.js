@@ -9,7 +9,9 @@ import { UnrealBloomPass } from '../vendor/three/postprocessing/UnrealBloomPass.
 import { OutputPass } from '../vendor/three/postprocessing/OutputPass.js';
 
 export function createWorld(canvas, theme = 'office') {
-  const cyber = theme === 'cyber';
+  // 'cyber' (circular neon fortress) and 'cyber2' (defense-in-depth architecture tower) share the
+  // same holographic styling — deep-blue void, cool lights, bloom, full 360° orbit.
+  const cyber = theme === 'cyber' || theme === 'cyber2';
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;

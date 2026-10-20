@@ -52,3 +52,10 @@ tools/_cyberplay.mjs
 tools/_officeplay.mjs
 tools/_livecyberdeploy.mjs
 tools/_cybercolor.mjs
+tools/_cyber2check.mjs
+tools/_cyber2deploy.mjs
+tools/_cyber2run.mjs
+tools/_cyber2pick.mjs
+tools/_cyber2dbg.mjs
+tools/_cybercolor.mjs
+tools/_officecheck.mjs
