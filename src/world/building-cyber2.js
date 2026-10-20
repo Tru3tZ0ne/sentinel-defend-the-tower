@@ -216,6 +216,13 @@ export function buildBuilding(THREE, LAYOUT) {
   const deploySlotMap = new Map();
   function deploySlot(id, r) { return deploySlotMap.get(id)?.clone() || (r ? r.center.clone().setY(r.center.y + 0.04) : null); }
 
+  // ---- animated data-flow pulses: glowing motes that course along the circuit traces (telemetry
+  // converging on the core) and up the central spine (to the SOC crown). Purely visual — makes the
+  // tower feel alive, like the reference, and the motion reads as "the network is working."
+  const pulses = [];
+  const pulseGeo = new THREE.SphereGeometry(0.085, 8, 7);
+  const addPulse = (parent, color, cfg) => { const m = new THREE.Mesh(pulseGeo, emis(color, 2.6)); parent.add(m); pulses.push({ m, t: Math.random(), ...cfg }); };
+
   for (const level of LAYOUT.levels) {
     const lg = new THREE.Group(); lg.position.y = level.y; group.add(lg);
     floors.push({ id: level.id, y: level.y, group: lg, name: level.name });
@@ -297,6 +304,14 @@ export function buildBuilding(THREE, LAYOUT) {
     circuitLattice(lg, pcolor);
     satelliteField(lg, pcolor, roomAngles);
 
+    // data-flow motes converging from the ring onto this tier's core (telemetry to the product)
+    const innerR = CORE_R + 0.6, outerR = RING + 1.4;
+    const flowAngles = roomAngles.length ? roomAngles : [base];
+    for (let k = 0; k < 6; k++) {
+      const a = flowAngles[k % flowAngles.length] + (k >= flowAngles.length ? 0.9 : 0);
+      addPulse(lg, TRACE, { kind: 'radial', a, innerR, outerR, y: 0.09, speed: 0.5 + rnd(k + level.y) * 0.4 });
+    }
+
     // secondary product beacon for layers that host two products (SOC: MDR, EDGE: IAG)
     if (layerInfo.secondary) {
       const sa = base + Math.PI;   // opposite the main room fan
@@ -315,6 +330,17 @@ export function buildBuilding(THREE, LAYOUT) {
   const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, yTop - yBot + 0.5, 20), emis(CORE, 0.45, { transparent: true, opacity: 0.4 }));
   spine.position.y = (yTop + yBot) / 2; group.add(spine);
   for (let i = 0; i < LAYOUT.levels.length - 1; i++) link(`stair:${LAYOUT.levels[i].id}`, `stair:${LAYOUT.levels[i + 1].id}`);
+  // motes rising up the spine toward the SOC crown (data climbing the stack)
+  for (let k = 0; k < 6; k++) addPulse(group, 0x5ea8ff, { kind: 'spine', x: (k % 2 ? 0.14 : -0.14), z: (k % 3 ? 0.1 : -0.12), y0: yBot, y1: yTop, speed: 0.32 + (k * 0.05) });
+
+  // advance the pulses (called from the main render loop via building.update)
+  function update(dt) {
+    for (const p of pulses) {
+      p.t += dt * p.speed; if (p.t > 1) p.t -= 1;
+      if (p.kind === 'radial') { const r = p.outerR + (p.innerR - p.outerR) * p.t; p.m.position.set(Math.cos(p.a) * r, p.y, Math.sin(p.a) * r); }
+      else { p.m.position.set(p.x, p.y0 + (p.y1 - p.y0) * p.t, p.z); }
+    }
+  }
 
   // Grand base platform with an intense blue halo beneath the whole tower (as in the reference).
   const baseY = yBot - 1.4, baseR = RING + 5.5;
@@ -340,6 +366,6 @@ export function buildBuilding(THREE, LAYOUT) {
   anchors.NDR = LAYOUT.levels.map(l => V(0, l.y + 0.5, 0));
 
   const B = { x0: -(RING + 2), x1: RING + 2, z0: -(RING + 2), z1: RING + 2 };
-  return { group, rooms, desks, pickables, anchors, nav, lights, signs, refreshSigns, floors, propAnchors, deploySlot,
+  return { group, rooms, desks, pickables, anchors, nav, lights, signs, refreshSigns, floors, propAnchors, deploySlot, update,
     levels: LAYOUT.levels, dims: { W: (RING + 2) * 2, D: (RING + 2) * 2, WH, bounds: B, MX: 0, MZ: 0 } };
 }

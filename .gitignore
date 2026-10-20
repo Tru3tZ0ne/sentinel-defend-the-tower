@@ -62,3 +62,5 @@ tools/_officecheck.mjs
 tools/_livecyber2.mjs
 tools/_cyber2shot.mjs
 tools/_startshot.mjs
+tools/_cyber2perf.mjs
+tools/_cyber2flow.mjs

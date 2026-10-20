@@ -619,6 +619,7 @@ function frame(now) {
   if (incidentRunning) engine.tick(dt * engine.speed);
   if (replay) stepReplay(dt);
   if (fx) fx.update(dt);
+  if (building?.update) building.update(dt);   // animated data-flow (cyber2 tower); no-op elsewhere
   // Pulse the "place here" highlight so valid deploy targets are obvious.
   if (placing && highlighted.length) { const p = 0.55 + (Math.sin(now * 0.006) + 1) * 0.4; for (const h of highlighted) h.mesh.material.emissiveIntensity = h.setInten * p; }
   if (people && building) updatePeopleFloorVis();
