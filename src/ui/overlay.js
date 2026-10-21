@@ -30,7 +30,9 @@ export function createOverlay(root, h) {
     <div id="ticker" class="ticker hidden"></div>
     <div id="toasts" class="toasts"></div>
     <div id="startScreen"></div>
-    <div id="endScreen" class="endScreen hidden"></div>`;
+    <div id="endScreen" class="endScreen hidden"></div>
+    <button id="helpFab" class="help-fab hidden" data-act="openGuide" aria-label="${t('howto.title')}" title="${t('howto.title')}"><span>?</span></button>
+    <div id="guideModal" class="guide-modal hidden"></div>`;
 
   const $ = s => root.querySelector(s);
   const els = {
@@ -38,6 +40,7 @@ export function createOverlay(root, h) {
     inspect: $('#inspect'), sophia: $('#sophiaCard'), dock: $('#dock'), ticker: $('#ticker'),
     toasts: $('#toasts'), start: $('#startScreen'), end: $('#endScreen'),
     dockNav: $('#dockNav'), dockPlan: $('#dockPlan'), dockNote: $('#dockNote'), deck: $('#deck'),
+    helpFab: $('#helpFab'), guide: $('#guideModal'),
   };
   new ResizeObserver(() => document.documentElement.style.setProperty('--dock-clearance', `${els.dock.offsetHeight + 62}px`)).observe(els.dock);
   let tab = 'defense';
@@ -94,12 +97,35 @@ export function createOverlay(root, h) {
             <div class="mission-options">${Object.entries(MISSIONS).map(([id, m], i) => `<button class="mission-option ${assignment === id ? 'selected' : ''}" data-act="mission" data-id="${id}" aria-pressed="${assignment === id}"><span class="mission-number">0${i + 1}</span><b>${esc(loc(m.name))}</b><span>${esc(loc(m.brief))}</span></button>`).join('')}</div>
             <div class="difficulty-options" role="group" aria-label="${t('mission.difficulty')}"><span>${t('mission.difficulty')}</span>${Object.keys(DIFFICULTIES).map(id => `<button class="chip ${difficulty === id ? 'on' : ''}" data-act="difficulty" data-id="${id}" aria-pressed="${difficulty === id}">${t('difficulty.' + id)}</button>`).join('')}</div>
             <p class="assignment-resources">${t('mission.resources', { budget: DIFFICULTIES[difficulty].budget, seconds: Math.round(missionFor(assignment, difficulty).duration) })}</p>
-          <button class="btn primary big" data-act="start">${t('start.play')} →</button>
+          <div class="start-actions">
+            <button class="btn primary big" data-act="start">${t('start.play')} →</button>
+            <button class="btn ghost big" data-act="openGuide">${icon('help') || '?'} ${t('howto.open')}</button>
+          </div>
           </div>
         </div>
       </div>`;
   }
   function hideStart() { els.start.className = 'hidden'; els.start.innerHTML = ''; }
+
+  // ---------- how-to-play guide (shared by all themes; opened from start + the in-game "?" button) ----------
+  function guideHtml() {
+    const steps = [1, 2, 3].map(n => `
+      <li class="guide-step">
+        <span class="guide-step-num">${n}</span>
+        <div class="guide-step-text"><b>${t('howto.step' + n + '.title')}</b><span>${t('howto.step' + n + '.body')}</span></div>
+      </li>`).join('');
+    return `<div class="guide-box" role="dialog" aria-modal="true" aria-label="${t('howto.title')}">
+        <button class="guide-x" data-act="closeGuide" aria-label="${t('howto.close')}">✕</button>
+        <h2 class="guide-title">${t('howto.title')}</h2>
+        <p class="guide-sub">${t('howto.subtitle')}</p>
+        <ol class="guide-steps">${steps}</ol>
+        <div class="guide-controls"><b>${t('howto.controls.title')}</b><span>${t('camera.help')}</span></div>
+        <p class="guide-tip">${t('howto.tip')}</p>
+        <button class="btn primary big guide-go" data-act="closeGuide">${t('howto.close')}</button>
+      </div>`;
+  }
+  function openGuide() { els.guide.innerHTML = guideHtml(); els.guide.className = 'guide-modal'; }
+  function closeGuide() { els.guide.className = 'guide-modal hidden'; els.guide.innerHTML = ''; }
 
   // ---------- phase visibility ----------
   function setPhase(phase) {
@@ -111,6 +137,7 @@ export function createOverlay(root, h) {
     els.rightcol.classList.toggle('hidden', !inGame);
     els.dock.classList.toggle('hidden', !inGame);
     els.ticker.classList.toggle('hidden', !inGame);
+    els.helpFab.classList.toggle('hidden', !inGame);
     els.hud.classList.toggle('prep', phase === 'prep');
     $('#sceneCaption').classList.toggle('hidden', !inGame);
     $('.scene-caption-text').textContent = t('command.live');
@@ -360,6 +387,13 @@ export function createOverlay(root, h) {
   function highlightStep(i) { els.end.querySelectorAll('.tl-row').forEach(r => r.classList.toggle('active', +r.dataset.step === i)); }
 
   // ---------- event delegation ----------
+  // Close the guide when its backdrop (outside the box) is clicked.
+  if (els.guide) els.guide.addEventListener('click', ev => { if (ev.target === els.guide) closeGuide(); });
+  // Esc closes the guide first (before it reaches the scene's cancel-placing handler).
+  document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && !els.guide.classList.contains('hidden')) { ev.stopPropagation(); closeGuide(); }
+  }, true);
+
   root.addEventListener('click', ev => {
     const el = ev.target.closest('[data-act]'); if (!el) return;
     const a = el.dataset.act;
@@ -373,6 +407,8 @@ export function createOverlay(root, h) {
       overview: h.onOverview, closeView: h.onCloseView, changeAssignment: h.onChangeAssignment, exportReport: h.onExportReport,
     };
     if (el.disabled) return;
+    if (a === 'openGuide') return openGuide();
+    if (a === 'closeGuide') return closeGuide();
     if (a === 'mission') { assignment = el.dataset.id; return showStart(); }
     if (a === 'difficulty') { difficulty = el.dataset.id; return showStart(); }
     if (a === 'start') { tab = 'defense'; return h.onStart(assignment, difficulty); }

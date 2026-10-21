@@ -42,6 +42,9 @@ export const ICONS = {
   network: svg('<circle cx="5" cy="12" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="19" cy="18" r="1.8"/><path d="M6.6 11 17.4 6.6M6.6 13l10.8 4.4"/>'),
   exfil: svg('<path d="M4 12h12M12 8l4 4-4 4"/><path d="M19 4v16"/>'),
 
+  // Help — circled question mark, for the beginner's guide button.
+  help: svg('<circle cx="12" cy="12" r="9"/><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.8-2.7 2.3-2.7 4"/><circle cx="12" cy="17.2" r="0.6" fill="currentColor" stroke="none"/>'),
+
   lock: svg('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
   check: svg('<path d="M4 12.5 9 17.5 20 6.5"/>'),
 };

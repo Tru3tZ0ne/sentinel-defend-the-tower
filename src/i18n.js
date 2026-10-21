@@ -29,6 +29,20 @@ const DICT = {
   'concept.s3':    { en: 'Connect the clues to confirm the attack, find the intruder, and shut them down — keeping business online and data safe.', zh: '串联线索确认攻击、找出入侵者并将其拦截——同时保住业务在线、数据安全。' },
   'concept.goal':  { en: 'Win by keeping Business Uptime and Data Integrity high. Lose them and the company is hit.', zh: '让“业务在线率”和“数据完整性”保持在高位即可取胜；一旦失守，企业就会受损。' },
 
+  // step-by-step beginner's guide (shared by all three versions; opened from the start screen and the in-game "?" button)
+  'howto.open':    { en: 'How to play', zh: '怎么玩' },
+  'howto.title':   { en: 'How to play', zh: '游戏玩法' },
+  'howto.subtitle':{ en: 'Three steps, start to finish — the same for every version of the game.', zh: '从头到尾三步走——每个版本的玩法都一样。' },
+  'howto.step1.title': { en: '1 · Build your defenses', zh: '1 · 部署你的防线' },
+  'howto.step1.body':  { en: 'Click a product card in the deck at the bottom of the screen, then click a glowing green spot in the 3D scene to install it there. Firewall guards the entrance, endpoint protection goes on the PCs, network sensors watch the floor. Use your budget before you begin.', zh: '点击屏幕底部工具架中的产品卡片，然后点击 3D 场景里发光的绿色位置完成部署。防火墙守在入口，终端防护装在电脑上，网络探针盯住楼层。开始之前把预算用好。' },
+  'howto.step2.title': { en: '2 · Begin the day & watch', zh: '2 · 开始这一天并观察' },
+  'howto.step2.body':  { en: 'Press "Begin the day". The clock starts and a hidden intruder makes their move. Alerts appear in the timeline on the right — but only where your tools are watching, so coverage matters. Click an alert to jump to it and take a closer look.', zh: '点击“开始这一天”。开始计时，隐藏的入侵者随之行动。警报会出现在右侧时间线中——但只在你的工具覆盖之处可见，所以布防是否到位很关键。点击某条警报即可跳转查看。' },
+  'howto.step3.title': { en: '3 · Confirm & contain', zh: '3 · 确认并处置' },
+  'howto.step3.body':  { en: 'Connect the clues, use XDR to confirm the real attack, then isolate the intruder — before Business Uptime or Data Integrity drop. Keep both meters high and you win.', zh: '串联线索，用 XDR 确认真正的攻击，然后在“业务在线率”或“数据完整性”下降之前隔离入侵者。让两项指标都保持在高位，你就赢了。' },
+  'howto.controls.title': { en: 'Getting around', zh: '视角与操作' },
+  'howto.tip':     { en: 'Tip: setup is never timed — take your time placing products. The clock only starts when you press "Begin the day".', zh: '提示：布置阶段从不计时——慢慢部署就好。只有点击“开始这一天”后才开始计时。' },
+  'howto.close':   { en: 'Got it — let\'s play', zh: '明白了，开始吧' },
+
   // phase / hud
   'phase.prep':      { en: 'SETUP', zh: '布置阶段' },
   'phase.incident':  { en: 'LIVE', zh: '进行中' },

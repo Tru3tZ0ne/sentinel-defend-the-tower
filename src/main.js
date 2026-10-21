@@ -44,6 +44,33 @@ const ambience = createAmbience();
 
 let stage, building, fx, people, engine, overlay;
 let placing = null, dirty = false, inspectTarget = null;
+
+// Prominent custom cursor while placing a product: a bright green aiming reticle
+// (hollow when hovering empty space, brighter + bracketed when over a valid "drop here" target),
+// so it's obvious the next click installs the chosen product. Falls back to crosshair/pointer.
+function reticleSvg(ready) {
+  const g = ready ? '#6cffb9' : '#39e08a';
+  const halo = ready ? 'rgba(108,255,185,.5)' : 'rgba(57,224,138,.34)';
+  const lines = 'M27 2v12 M27 40v12 M2 27h12 M40 27h12';
+  const ring = '<circle cx="27" cy="27" r="13"/>';
+  const fill = ready ? '<circle cx="27" cy="27" r="12.5" fill="rgba(57,224,138,.2)"/>' : '';
+  const brackets = ready ? `<g fill="none" stroke="${g}" stroke-width="3" stroke-linecap="round"><path d="M14 10h-4v4M40 10h4v4M14 44h-4v-4M40 44h4v-4"/></g>` : '';
+  return `<svg xmlns='http://www.w3.org/2000/svg' width='54' height='54' viewBox='0 0 54 54'>`
+    + `<g fill='none' stroke='#05070e' stroke-width='6' stroke-linecap='round'>${ring}<path d='${lines}'/></g>`
+    + `<g fill='none' stroke='${halo}' stroke-width='5.5' stroke-linecap='round'>${ring}<path d='${lines}'/></g>`
+    + fill
+    + `<g fill='none' stroke='${g}' stroke-width='2.6' stroke-linecap='round'>${ring}<path d='${lines}'/></g>`
+    + brackets
+    + `<circle cx='27' cy='27' r='2.6' fill='${g}'/></svg>`;
+}
+const CUR_PLACE = `url("data:image/svg+xml,${encodeURIComponent(reticleSvg(false))}") 27 27, crosshair`;
+const CUR_READY = `url("data:image/svg+xml,${encodeURIComponent(reticleSvg(true))}") 27 27, crosshair`;
+let _cursorState = '';
+function setCursor(state) {
+  if (state === _cursorState) return;
+  _cursorState = state;
+  canvas.style.cursor = state === 'place' ? CUR_PLACE : state === 'ready' ? CUR_READY : state === 'pointer' ? 'pointer' : 'grab';
+}
 let sophiaState = { id: null, expanded: false };
 const highlighted = [];
 const labelEls = new Map();
@@ -231,12 +258,12 @@ function tryDeploy(entity) {
   else { if (entity) ok = true; }  // network / offsite — any click inside the building confirms
   if (!ok) { overlay.toast({ kind: 'warn', key: 'tray.clickWorld' }); return; }
   const res = engine.deploy(prod, target);
-  if (res.ok) { placing = null; clearHighlight(); overlay.renderTray(engine, placing); locateDeployment(prod, target); }
+  if (res.ok) { placing = null; clearHighlight(); setCursor('grab'); overlay.renderTray(engine, placing); locateDeployment(prod, target); }
 }
 
 function onPointerMove(ev) {
   const hit = world.pick(ev.clientX, ev.clientY, activePickables());
-  canvas.style.cursor = hit ? 'pointer' : (placing ? 'crosshair' : 'grab');
+  setCursor(placing ? (hit ? 'ready' : 'place') : (hit ? 'pointer' : 'grab'));
   if (fx) {
     const pt = hit ? entityFloorPoint(hit.entity) : null;
     fx.setHover(pt && !placing ? pt : null);
@@ -543,9 +570,10 @@ overlay = createOverlay(overlayRoot, {
       if (elig.room) { const lv = roomLevel.get(elig.room); if (lv && lv !== activeLevel) setActiveLevel(lv, true); }
       highlightPlacement(id);
     } else clearHighlight();
+    setCursor(placing ? 'place' : 'grab');
     overlay.renderTray(engine, placing);
   },
-  onCancelPlacing: () => { placing = null; clearHighlight(); overlay.renderTray(engine, placing); },
+  onCancelPlacing: () => { placing = null; clearHighlight(); setCursor('grab'); overlay.renderTray(engine, placing); },
   onPauseToggle: () => { engine._paused = !engine._paused; overlay.renderHud(engine); },
   onSpeed: s => { engine.speed = s; overlay.renderHud(engine); },
   onLang: () => { setLang(getLang() === 'en' ? 'zh' : 'en'); refreshAll(); },
@@ -650,7 +678,7 @@ function kbCycleRoom(dir) {
 }
 window.addEventListener('keydown', ev => {
   if (ev.target.closest('input, textarea, select, button, [contenteditable=true]') || ev.ctrlKey || ev.metaKey || ev.altKey) return;
-  if (ev.code === 'Escape') { if (placing) { placing = null; clearHighlight(); overlay.renderTray(engine, placing); } else if (inspectTarget) { inspectTarget = null; overlay.clearInspect(); fx.clearSelection(); } }
+  if (ev.code === 'Escape') { if (placing) { placing = null; clearHighlight(); setCursor('grab'); overlay.renderTray(engine, placing); } else if (inspectTarget) { inspectTarget = null; overlay.clearInspect(); fx.clearSelection(); } }
   if (ev.code === 'Space' && engine?.phase === 'incident') { ev.preventDefault(); engine._paused = !engine._paused; overlay.renderHud(engine); }
   if (ev.code === 'Enter' && engine?.phase === 'prep') { ev.preventDefault(); beginDay(); }
   if (engine && ['prep', 'incident'].includes(engine.phase)) {
