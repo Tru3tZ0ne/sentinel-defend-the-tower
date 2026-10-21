@@ -67,3 +67,4 @@ tools/_cyber2flow.mjs
 tools/_guidecursor.mjs
 tools/_guideshot.mjs
 tools/_probeclick.mjs
+tools/_guidelive.mjs
