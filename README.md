@@ -21,6 +21,26 @@ Developer records: [development log](docs/DEVELOPMENT_LOG.md),
 [Claude Code continuation prompt](docs/CLAUDE_HANDOFF.md),
 [facilitator guide](docs/FACILITATOR_GUIDE.md).
 
+## Game modes
+
+Several self-contained experiences share the brand, i18n and assets:
+
+| Page | Mode | Engine |
+| --- | --- | --- |
+| `index.html` | **Defend the Tower** — office floors, detect→correlate→contain | detection engine (`src/game/`) |
+| `cyber.html` | **Cyber Fortress** — circular neon rendering, same gameplay | detection engine |
+| `cyber2.html` | **Defense-in-Depth** — Sangfor architecture tower, levels = layers | detection engine |
+| `td.html` | **Kill Chain** — tower defense on a neon kill-chain lane | TD engine (`src/td/`) |
+| `rush.html` | **Breach Rush** — fast radial-triage arcade with a **world ranking** | arcade engine (`src/rush/`) |
+
+**Breach Rush** is a score-chasing arcade: threats race inward toward your data core,
+you tap hostiles before they land and spare the legitimate traffic, chain combos, and
+spend Sangfor powers (XDR / EDR / NDR). Enter a call sign and climb the leaderboard.
+It ships with a local (per-device) ranking that works on static hosting out of the box;
+for a true global board, deploy [`tools/leaderboard-worker.js`](tools/leaderboard-worker.js)
+(a free Cloudflare Worker — deploy notes are in the file) and set `window.__RUSH_API`
+in `rush.html`. No API keys live in the client.
+
 ## Run it locally
 
 No build step. Any static server works:

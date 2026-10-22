@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Sentinel · Breach Rush — a Sangfor security arcade</title>
+  <meta name="description" content="Breach Rush: a fast Sangfor security arcade. Threats race your data core along a neon grid — neutralise them before they land, spare the clean traffic, and climb the world ranking." />
+  <meta name="theme-color" content="#05070e" />
+  <link rel="stylesheet" href="./src/style/main.css" />
+  <link rel="stylesheet" href="./src/rush/rush.css" />
+  <!--
+    World ranking: this page runs a local leaderboard out of the box. For a shared
+    global board, deploy tools/leaderboard-worker.js and set the URL below.
+    e.g. window.__RUSH_API = 'https://sentinel-rush.your-name.workers.dev';
+  -->
+  <script>/* window.__RUSH_API = ''; */</script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="overlay"></div>
+  <noscript>This game needs JavaScript enabled.</noscript>
+  <script type="module" src="./src/rush/main-rush.js"></script>
+</body>
+</html>
