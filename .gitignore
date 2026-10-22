@@ -71,3 +71,4 @@ tools/_guidelive.mjs
 tools/_tdsmoke.mjs
 tools/_tdshot.mjs
 tools/_loadcheck.mjs
+tools/_tdlive.mjs
