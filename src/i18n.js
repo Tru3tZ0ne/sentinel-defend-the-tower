@@ -227,6 +227,63 @@ Object.assign(DICT, {
   'deployment.endpoint': { en: 'Inspect workstation', zh: '检查工作站' },
 });
 
+// ---- Tower-defense version (td.html): "Sentinel — Kill Chain" ----
+Object.assign(DICT, {
+  'td.title':      { en: 'Kill Chain', zh: '攻击链' },
+  'td.subtitle':   { en: 'Stop the attack on its way in', zh: '在入侵的路上将其拦下' },
+  'td.byline':     { en: 'A Sangfor tower-defense drill', zh: '深信服塔防演练' },
+  'td.tagline':    { en: 'An attack marches from the internet toward your data. Line the path with Sangfor products and shut it down before it lands.', zh: '一波攻击正从互联网涌向你的数据。沿途布下深信服产品，在它得手之前将其阻断。' },
+  'td.play':       { en: 'Start the drill', zh: '开始演练' },
+  'td.c1title':    { en: '1 · Line the path', zh: '1 · 沿路布防' },
+  'td.c1':         { en: 'Pick a Sangfor product, then click a glowing tower pad beside the attack path to deploy it. Each product defends a different stage of the attack.', zh: '选择一个深信服产品，然后点击攻击路径旁发光的塔位完成部署。每个产品负责攻击的不同阶段。' },
+  'td.c2title':    { en: '2 · Launch the wave', zh: '2 · 放出攻击波' },
+  'td.c2':         { en: 'Press "Launch wave". Threats spawn at the internet and march toward your data core. Your products automatically fire on anything in range.', zh: '点击“放出攻击波”。威胁从互联网出现，向你的数据核心进发。你的产品会自动攻击射程内的目标。' },
+  'td.c3title':    { en: '3 · Don\'t let them land', zh: '3 · 别让它们得手' },
+  'td.controls':   { en: 'Drag to orbit · Scroll to zoom · Space launches or pauses · Esc cancels', zh: '拖动旋转 · 滚轮缩放 · 空格 放出攻击波/暂停 · Esc 取消' },
+  'td.c3':         { en: 'Every threat that reaches the core costs you Business Uptime or Data Integrity. Earn credits for each kill, build and upgrade between waves, and survive every wave to win.', zh: '每有一个威胁抵达核心，就会消耗“业务在线率”或“数据完整性”。每次击杀可获得点数，可在攻击波之间建造与升级；守住每一波即可获胜。' },
+  'td.launch':     { en: 'Launch wave ▶', zh: '放出攻击波 ▶' },
+  'td.launchNext': { en: 'Launch next wave ▶', zh: '放出下一波 ▶' },
+  'td.wave':       { en: 'Wave', zh: '攻击波' },
+  'td.incoming':   { en: 'Incoming', zh: '来袭' },
+  'td.credits':    { en: 'Credits', zh: '点数' },
+  'td.build':      { en: 'Build', zh: '建造' },
+  'td.upgrade':    { en: 'Upgrade', zh: '升级' },
+  'td.sell':       { en: 'Sell', zh: '拆除' },
+  'td.level':      { en: 'Lv', zh: '等级' },
+  'td.maxed':      { en: 'Max level', zh: '已满级' },
+  'td.range':      { en: 'Range', zh: '射程' },
+  'td.damage':     { en: 'Damage', zh: '伤害' },
+  'td.rate':       { en: 'Rate', zh: '射速' },
+  'td.pickPad':    { en: 'click a glowing pad to build it', zh: '点击发光的塔位进行建造' },
+  'td.noPad':      { en: 'Pick a tower pad on the board.', zh: '请在场地上选择一个塔位。' },
+  'td.tooPoor':    { en: 'Not enough credits.', zh: '点数不足。' },
+  'td.selectTower':{ en: 'Select a product, then a pad', zh: '先选产品，再选塔位' },
+  'td.coreLabel':  { en: 'DATA CORE', zh: '数据核心' },
+  'td.startLabel': { en: 'INTERNET', zh: '互联网' },
+  'td.waveClear':  { en: 'Wave cleared', zh: '本波已清除' },
+  'td.allClear':   { en: 'All waves survived — the data held.', zh: '所有攻击波均已守住——数据安然无恙。' },
+  'td.breached':   { en: 'The core was breached.', zh: '核心已被攻陷。' },
+  'td.win':        { en: 'Attack repelled', zh: '攻击已击退' },
+  'td.lose':       { en: 'Core breached', zh: '核心失守' },
+  'td.again':      { en: 'Run it again', zh: '再演练一次' },
+  'td.revealNeeded':{ en: 'Hidden — needs a network sensor to reveal', zh: '隐身——需网络探针揭示' },
+  // enemy / threat names
+  'td.e.recon':    { en: 'Recon scan', zh: '侦察扫描' },
+  'td.e.exploit':  { en: 'Exploit', zh: '漏洞利用' },
+  'td.e.malware':  { en: 'Malware', zh: '恶意软件' },
+  'td.e.lateral':  { en: 'Lateral mover', zh: '横向移动' },
+  'td.e.exfil':    { en: 'Data courier', zh: '数据窃取' },
+  'td.e.ransom':   { en: 'Ransomware', zh: '勒索软件' },
+  // tower roles (short, in the deck)
+  'td.r.AF':       { en: 'Perimeter blocker', zh: '边界拦截' },
+  'td.r.EDR':      { en: 'Endpoint guard', zh: '终端卫士' },
+  'td.r.NDR':      { en: 'Reveals & slows', zh: '揭示并减速' },
+  'td.r.IAG':      { en: 'Stops exfil', zh: '阻断外泄' },
+  'td.r.XDR':      { en: 'Boosts nearby', zh: '增幅周边' },
+  'td.r.MDR':      { en: 'Hits worst threat', zh: '狙击最危威胁' },
+  'td.r.ASTOR':    { en: 'Shields the core', zh: '守护核心' },
+});
+
 Object.assign(DICT, SESSION_COPY);
 let current = 'en';
 export function setLang(l) {

@@ -1,0 +1,59 @@
+/* "Kill Chain" tower-defense HUD — builds on the shared vocabulary in main.css. */
+
+/* toasts must never eat clicks */
+#tdToasts { pointer-events: none; }
+#tdToasts .toast { opacity: 1; transform: none; }
+
+/* right-side panel (incoming wave / selected tower) */
+.td-side { position: fixed; top: 68px; right: 12px; width: 320px; bottom: 150px; z-index: 16;
+  display: flex; flex-direction: column; gap: 10px; overflow: hidden auto; }
+.td-panel h3 { margin: 0 0 10px; font-size: 14px; letter-spacing: .3px; }
+
+/* bottom product deck — leave room for the side panel on the right */
+.td-deck { right: 348px; }
+.td-deck .deck { padding: 12px; }
+.td-card { min-width: 132px; }
+
+/* start-screen roster of towers */
+.td-startcard h2 { margin-top: 0; }
+.td-roster-lead { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--ink-mute); margin: 4px 0 8px; }
+.td-roster { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 20px; }
+.td-roster-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-dim);
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 20px; padding: 4px 10px 4px 7px; }
+.td-roster-chip .pcard-ico { font-size: 14px; color: var(--cyan); }
+
+/* live-wave indicator in the HUD */
+.td-wavelive { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--bad);
+  border: 1px solid rgba(255,90,106,.4); border-radius: 8px; padding: 4px 10px; }
+.td-wavelive i { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); animation: tdPulse 1s infinite; }
+@keyframes tdPulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+/* incoming-wave list */
+.td-incoming { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.td-incoming li { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--ink-dim); }
+.td-incoming li b { margin-left: auto; color: var(--ink); font-variant-numeric: tabular-nums; }
+.td-threat-dot { width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+.td-hint { font-size: 11.5px; color: var(--ink-mute); line-height: 1.5; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line-2); }
+
+/* selected-tower panel */
+.td-tower-head { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
+.td-tower-head .pcard-ico { font-size: 24px; color: var(--cyan); }
+.td-tower-head h3 { margin: 0; font-size: 15px; }
+.td-stats { display: flex; gap: 8px; margin-bottom: 12px; }
+.td-stat { flex: 1; background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; padding: 8px 6px; text-align: center; }
+.td-stat span { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-mute); margin-bottom: 3px; }
+.td-stat b { font-size: 15px; color: var(--cyan); font-variant-numeric: tabular-nums; }
+.deployment-explanation { font-size: 12px; color: var(--ink-dim); line-height: 1.5; margin: 0 0 12px; }
+.td-tower-actions { display: flex; gap: 8px; }
+.td-tower-actions .btn { flex: 1; justify-content: center; }
+
+@media (max-width: 1040px) {
+  .td-side { width: 280px; } .td-deck { right: 304px; }
+}
+@media (max-width: 820px) {
+  .td-side { width: 44vw; } .td-deck { right: calc(44vw + 20px); left: 8px; }
+}
+@media (max-width: 640px) {
+  .td-side { position: fixed; width: auto; left: 8px; right: 8px; top: auto; bottom: 182px; max-height: 32vh; }
+  .td-deck { right: 8px; left: 8px; }
+}

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sentinel · Kill Chain — a Sangfor tower-defense drill</title>
+  <meta name="description" content="A tower-defense version of Sentinel: line the attack path with Sangfor products and stop a kill chain before it reaches the data core." />
+  <link rel="stylesheet" href="./src/style/main.css" />
+  <link rel="stylesheet" href="./src/style/workspace.css" />
+  <link rel="stylesheet" href="./src/td/td.css" />
+  <!-- Vendored Three.js (local, offline-friendly). Relative paths → GitHub Pages ready. -->
+  <script type="importmap">
+  { "imports": { "three": "./src/vendor/three/three.module.js" } }
+  </script>
+  <script>window.__SENTINEL_THEME = 'td';</script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="overlay"></div>
+  <noscript>This experience needs JavaScript and WebGL enabled.</noscript>
+  <script type="module" src="./src/td/main-td.js"></script>
+</body>
+</html>
