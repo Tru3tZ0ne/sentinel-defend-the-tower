@@ -4,8 +4,9 @@
 // renderer + input. Balance/scoring live in rules.js; this file is the machine.
 
 import {
-  TYPES, difficultyAt, threatPool, bossDue, hitScore, comboMult,
-  FALSE_POSITIVE, SERVE_BONUS, START_INTEGRITY, ENERGY_PER_HIT, ENERGY_MAX, ABILITIES,
+  TYPES, difficultyAt, threatPool, bossDue, hitScore, phaseAt,
+  FALSE_POSITIVE, SERVE_BONUS, START_INTEGRITY, START_DATA, IAG_RESTORE,
+  ENERGY_PER_HIT, ENERGY_MAX, ABILITIES, PASSIVES,
 } from './rules.js';
 import { sfx, resumeAudio } from './audio.js';
 
@@ -20,6 +21,7 @@ export function createGame(canvas, opts = {}) {
   const onHud = opts.onHud || (() => {});
   const onToast = opts.onToast || (() => {});
   const onOver = opts.onOver || (() => {});
+  const onPhase = opts.onPhase || (() => {});
 
   // ---- geometry (recomputed on resize) ----
   let W = 0, H = 0, dpr = 1, cx = 0, cy = 0, rimR = 0, coreR = 0;
@@ -38,10 +40,11 @@ export function createGame(canvas, opts = {}) {
   const S = {
     phase: 'idle',            // idle | playing | paused | over
     score: 0, combo: 0, maxCombo: 0, best: readBest(),
-    integrity: START_INTEGRITY, energy: 0, stage: 1,
-    elapsed: 0, neutralised: 0, served: 0,
+    integrity: START_INTEGRITY, data: START_DATA, energy: 0, stage: 1,
+    elapsed: 0, neutralised: 0, served: 0, dataStolen: 0, overReason: 'uptime',
     blips: [], parts: [], texts: [],
-    slowUntil: 0, revealUntil: 0,
+    slowUntil: 0, revealUntil: 0, blockUntil: 0,
+    coreShield: false, shieldAt: 0, mdrAt: 0, phaseIdx: -1,
     lastBossAt: 0, spawnAcc: 0, shake: 0, flash: 0, sweep: 0, t: 0,
   };
   let raf = 0, lastTS = 0, nextId = 1;
@@ -61,6 +64,8 @@ export function createGame(canvas, opts = {}) {
   function autoSpawn(dt) {
     const d = difficultyAt(S.elapsed);
     S.stage = d.stage;
+    // AF perimeter block: the firewall holds the front door — nothing new gets in.
+    if (S.t < S.blockUntil) { S.spawnAcc = 0; return; }
     // boss cadence
     if (bossDue(S.elapsed, S.lastBossAt)) { S.lastBossAt = S.elapsed; spawn('ransom'); }
     S.spawnAcc += dt;
@@ -83,8 +88,10 @@ export function createGame(canvas, opts = {}) {
       S.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, color, r: 1.5 + Math.random() * 2.5 });
     }
   }
-  function floatText(x, y, str, color) { S.texts.push({ x, y, str, color, life: 1 }); }
+  function floatText(x, y, str, color, small) { S.texts.push({ x, y, str, color, life: 1, small: !!small }); }
   function shake(v) { S.shake = Math.min(18, S.shake + v); }
+  const PCOL = { AF: '#ffba45', EDR: '#39c0ff', NDR: '#8fb6ff', IAG: '#2ee6a0', XDR: '#a98bff', ASTOR: '#ffd166' };
+  const pLabel = id => id === 'ASTOR' ? 'aStor' : id;
 
   // ---- outcomes ----
   function neutralise(b, byAbility) {
@@ -96,6 +103,8 @@ export function createGame(canvas, opts = {}) {
     const p = worldPos(b);
     burst(p.x, p.y, b.spec.accent, b.spec.boss ? 26 : 12, b.spec.boss ? 260 : 150);
     floatText(p.x, p.y - 8, '+' + pts, b.spec.accent);
+    // teach the mapping: show which Sangfor product counters this threat (manual kills only)
+    if (!byAbility && b.spec.counter) floatText(p.x, p.y + 11, pLabel(b.spec.counter), PCOL[b.spec.counter] || '#9fb3d6', true);
     b.dead = true;
     if (!byAbility) sfx.hit(S.combo);
   }
@@ -108,12 +117,27 @@ export function createGame(canvas, opts = {}) {
     S.flash = Math.max(S.flash, 0.5); sfx.wrong(); onToast('toast.fp', 'bad');
   }
   function breach(b) {
-    const dmg = b.spec.breach || 1;
-    S.integrity -= dmg; S.combo = 0;
-    shake(b.spec.boss ? 16 : 9); S.flash = 1;
-    sfx.breach(); onToast('toast.breach', 'bad');
-    b.dead = true;
-    if (S.integrity <= 0) gameOver();
+    S.combo = 0; b.dead = true;
+    shake(b.spec.boss ? 16 : 9); S.flash = 1; sfx.breach();
+    const p = worldPos(b);
+    if (b.spec.harms === 'data') {
+      // confidentiality hit — aStor snapshot recovery can absorb it
+      if (S.coreShield) {
+        S.coreShield = false; S.shieldAt = S.t + PASSIVES.ASTOR.regen;
+        floatText(cx, cy - coreR - 10, 'aStor ✓', PCOL.ASTOR); onToast('toast.astor', 'warn');
+      } else {
+        const steal = b.spec.steals || 14;
+        S.data = Math.max(0, S.data - steal); S.dataStolen += steal;
+        floatText(p.x, p.y, '-' + steal + '% DATA', '#c07bff');
+        onToast('toast.exfil', 'bad');
+        if (S.data <= 0) { S.overReason = 'data'; gameOver(); }
+      }
+    } else {
+      // availability hit — costs an Uptime pip
+      S.integrity -= 1;
+      onToast('toast.breach', 'bad');
+      if (S.integrity <= 0) { S.overReason = 'uptime'; gameOver(); }
+    }
   }
 
   // ---- abilities ----
@@ -122,14 +146,23 @@ export function createGame(canvas, opts = {}) {
     const a = ABILITIES[id]; if (!a) return;
     if (S.energy < a.cost) { onToast('toast.nopow', 'warn'); return; }
     S.energy -= a.cost; sfx.ability();
-    if (id === 'purge') {
-      for (const b of S.blips) if (b.spec.threat && !b.dead) neutralise(b, true);
+    const live = S.blips.filter(b => b.spec.threat && !b.dead);
+    if (a.effect === 'endpoint') {               // EDR: remediate malware/phish on screen
+      for (const b of live) if (b.spec.edr) neutralise(b, true);
+    } else if (a.effect === 'inspect') {         // NDR: reveal stealth + flag phish + slow all
+      S.revealUntil = S.t + 7; S.slowUntil = S.t + 6;
+    } else if (a.effect === 'egress') {          // IAG: block exfil + restore Data
+      for (const b of live) if (b.spec.iag) neutralise(b, true);
+      S.data = Math.min(START_DATA, S.data + IAG_RESTORE);
+      floatText(cx, cy - coreR - 10, '+' + IAG_RESTORE + '% DATA', '#2ee6a0');
+    } else if (a.effect === 'perimeter') {       // AF: hold the door + push rim threats back
+      S.blockUntil = S.t + 4;
+      for (const b of live) if (b.rad > rimR * 0.6) b.rad = Math.min(rimR * 1.02, b.rad + rimR * 0.18);
+    } else if (a.effect === 'correlate') {       // XDR: full correlation — neutralise everything
+      for (const b of live) neutralise(b, true);
       S.flash = Math.max(S.flash, 0.4);
-    } else if (id === 'slow') {
-      S.slowUntil = S.t + 5;
-    } else if (id === 'scan') {
-      S.revealUntil = S.t + 7;
     }
+    onToast('toast.fired', 'good', pLabel(a.product));
     pushHud();
   }
 
@@ -165,9 +198,27 @@ export function createGame(canvas, opts = {}) {
     act(ev.clientX - r.left, ev.clientY - r.top);
   }
 
+  // 24/7 managed SOC: neutralise the single most dangerous live threat.
+  function mdrStrike() {
+    let target = null, best = -1;
+    for (const b of S.blips) {
+      if (b.dead || !b.spec.threat) continue;
+      const prox = 1 - (b.rad - coreR) / (rimR - coreR);
+      const v = b.spec.base * (0.5 + Math.max(0, prox));
+      if (v > best) { best = v; target = b; }
+    }
+    if (target) { const p = worldPos(target); floatText(p.x, p.y + 11, 'MDR', '#16ca78', true); neutralise(target, true); }
+  }
+
   // ---- loop ----
   function step(dt) {
     S.t += dt; S.elapsed += dt; S.sweep = (S.sweep + dt * 0.7) % TAU;
+    // kill-chain phase banner as the attack escalates
+    const ph = phaseAt(S.elapsed, S.phaseIdx);
+    if (ph) { S.phaseIdx = ph.idx; onPhase(ph.id, ph.idx + 1); }
+    // passives: aStor snapshot regen + MDR 24/7 auto-response
+    if (!S.coreShield && S.shieldAt && S.t >= S.shieldAt) { S.coreShield = true; S.shieldAt = 0; }
+    if (S.t >= S.mdrAt) { S.mdrAt = S.t + PASSIVES.MDR.interval; mdrStrike(); }
     autoSpawn(dt);
     const slow = S.t < S.slowUntil ? 0.42 : 1;
     const dmul = difficultyAt(S.elapsed).speedMul;
@@ -197,8 +248,9 @@ export function createGame(canvas, opts = {}) {
   function pushHud() {
     onHud({
       score: Math.round(S.score), combo: S.combo, best: Math.max(S.best, S.score),
-      integrity: S.integrity, energy: S.energy, stage: S.stage, elapsed: S.elapsed,
-      slow: S.t < S.slowUntil, reveal: S.t < S.revealUntil,
+      integrity: S.integrity, data: Math.round(S.data), energy: S.energy, stage: S.stage, elapsed: S.elapsed,
+      slow: S.t < S.slowUntil, reveal: S.t < S.revealUntil, block: S.t < S.blockUntil,
+      shield: S.coreShield, phaseIdx: S.phaseIdx,
     });
   }
   function frame(ts) {
@@ -289,8 +341,22 @@ export function createGame(canvas, opts = {}) {
     ctx.fillStyle = grd;
     ctx.beginPath(); ctx.arc(cx, cy, coreR * pulse, 0, TAU); ctx.fill();
     ctx.shadowBlur = 0;
-    // integrity pips
+    // aStor snapshot shield around the core
+    if (S.coreShield) {
+      ctx.strokeStyle = 'rgba(255,209,102,0.85)'; ctx.lineWidth = 3;
+      ctx.shadowColor = '#ffd166'; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.arc(cx, cy, coreR + 7 + Math.sin(S.t * 2) * 1.5, 0, TAU); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
     ctx.restore();
+    // AF perimeter block — a bright held line at the rim
+    if (S.t < S.blockUntil) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = 'rgba(255,186,69,0.6)'; ctx.lineWidth = 4;
+      ctx.shadowColor = '#ffba45'; ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.arc(cx, cy, rimR, 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
   }
 
   function drawBlip(b) {
@@ -352,8 +418,12 @@ export function createGame(canvas, opts = {}) {
   }
   function drawTexts() {
     ctx.save();
-    ctx.font = '700 15px ' + fontStack(); ctx.textAlign = 'center';
-    for (const tx of S.texts) { ctx.globalAlpha = Math.max(0, tx.life); ctx.fillStyle = tx.color; ctx.fillText(tx.str, tx.x, tx.y); }
+    ctx.textAlign = 'center';
+    for (const tx of S.texts) {
+      ctx.globalAlpha = Math.max(0, tx.life); ctx.fillStyle = tx.color;
+      ctx.font = (tx.small ? '800 11px ' : '700 15px ') + fontStack();
+      ctx.fillText(tx.str, tx.x, tx.y);
+    }
     ctx.restore();
   }
   function fontStack() { return '-apple-system, "Segoe UI", Roboto, sans-serif'; }
@@ -361,10 +431,11 @@ export function createGame(canvas, opts = {}) {
   // ---- lifecycle ----
   function start() {
     S.phase = 'playing';
-    S.score = 0; S.combo = 0; S.maxCombo = 0; S.integrity = START_INTEGRITY; S.energy = 0;
-    S.elapsed = 0; S.neutralised = 0; S.served = 0; S.stage = 1;
+    S.score = 0; S.combo = 0; S.maxCombo = 0; S.integrity = START_INTEGRITY; S.data = START_DATA; S.energy = 0;
+    S.elapsed = 0; S.neutralised = 0; S.served = 0; S.stage = 1; S.dataStolen = 0; S.overReason = 'uptime';
     S.blips = []; S.parts = []; S.texts = [];
-    S.slowUntil = 0; S.revealUntil = 0; S.lastBossAt = 0; S.spawnAcc = 0; S.shake = 0; S.flash = 0; S.t = 0;
+    S.slowUntil = 0; S.revealUntil = 0; S.blockUntil = 0; S.lastBossAt = 0; S.spawnAcc = 0; S.shake = 0; S.flash = 0; S.t = 0;
+    S.coreShield = true; S.shieldAt = 0; S.mdrAt = PASSIVES.MDR.interval; S.phaseIdx = 0;  // phase 1 (recon) already shown on HUD
     S.best = readBest();
     resumeAudio(); sfx.start(); pushHud();
   }
@@ -378,7 +449,8 @@ export function createGame(canvas, opts = {}) {
     if (isBest) { S.best = Math.round(S.score); writeBest(S.best); }
     sfx.over();
     onOver({ score: Math.round(S.score), stage: S.stage, elapsed: Math.round(S.elapsed),
-             neutralised: S.neutralised, served: S.served, maxCombo: S.maxCombo, best: S.best, isBest });
+             neutralised: S.neutralised, served: S.served, maxCombo: S.maxCombo, best: S.best, isBest,
+             data: Math.round(S.data), dataStolen: S.dataStolen, reason: S.overReason });
   }
   function toIdle() { S.phase = 'idle'; S.blips = []; S.parts = []; S.texts = []; }
 

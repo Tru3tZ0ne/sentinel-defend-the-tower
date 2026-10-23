@@ -4,7 +4,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   difficultyAt, threatPool, bossDue, comboMult, hitScore, TYPES, THREAT_KEYS,
+  POWERS, ABILITIES, PASSIVES, PHASES, phaseAt,
 } from '../src/rush/rules.js';
+import { PRODUCTS } from '../src/data/products.js';
 import { mergeScores, rankOf, sanitizeName } from '../src/rush/leaderboard.js';
 
 test('difficulty ramps monotonically and stays bounded', () => {
@@ -52,6 +54,47 @@ test('type table is coherent', () => {
   assert.equal(TYPES.ransom.hits, 3);
   assert.equal(TYPES.stealth.hidden, true);
   assert.equal(TYPES.phish.mimic, true);
+});
+
+test('every threat maps to a real Sangfor product and a CIA target', () => {
+  for (const k of THREAT_KEYS) {
+    const spec = TYPES[k];
+    assert.ok(PRODUCTS[spec.counter], `${k} counter ${spec.counter} is a real product`);
+    assert.ok(spec.harms === 'uptime' || spec.harms === 'data', `${k} harms uptime or data`);
+  }
+  // confidentiality threats (exfil/ransom) hit Data; the rest hit availability
+  assert.equal(TYPES.exfil.harms, 'data');
+  assert.equal(TYPES.ransom.harms, 'data');
+  assert.equal(TYPES.malware.harms, 'uptime');
+  assert.equal(TYPES.exfil.counter, 'IAG');
+  assert.equal(TYPES.stealth.counter, 'NDR');
+});
+
+test('the full Sangfor portfolio is represented as powers + passives', () => {
+  assert.deepEqual(POWERS, ['EDR', 'NDR', 'IAG', 'AF', 'XDR']);
+  for (const id of POWERS) {
+    assert.ok(ABILITIES[id], `${id} has an ability`);
+    assert.ok(ABILITIES[id].cost > 0 && ABILITIES[id].effect, `${id} ability is well-formed`);
+    assert.ok(PRODUCTS[id], `${id} is a real product`);
+  }
+  // XDR (full clear) is the most expensive
+  assert.equal(Math.max(...POWERS.map(id => ABILITIES[id].cost)), ABILITIES.XDR.cost);
+  // passives are the managed + storage products
+  assert.ok(PASSIVES.MDR.interval > 0 && PASSIVES.ASTOR.regen > 0);
+  const all = new Set([...POWERS, ...Object.keys(PASSIVES)]);
+  for (const id of ['AF', 'EDR', 'NDR', 'IAG', 'XDR', 'MDR', 'ASTOR']) assert.ok(all.has(id), `${id} is in play`);
+});
+
+test('kill-chain phases advance in order, once each', () => {
+  assert.equal(phaseAt(0, 0), null, 'recon already shown at start');
+  const p1 = phaseAt(12, 0); assert.equal(p1.id, 'delivery'); assert.equal(p1.idx, 1);
+  assert.equal(phaseAt(13, 1), null, 'no repeat once past');
+  assert.equal(phaseAt(24, 1).id, 'exfil');
+  assert.equal(phaseAt(38, 2).id, 'lateral');
+  assert.equal(phaseAt(55, 3).id, 'ransom');
+  // jumping far ahead returns the latest unseen phase, not an early one
+  assert.equal(phaseAt(999, 0).id, 'ransom');
+  assert.equal(PHASES.length, 5);
 });
 
 test('leaderboard merges, dedupes by id, keeps best, sorts desc', () => {
