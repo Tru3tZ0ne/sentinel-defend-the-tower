@@ -80,3 +80,4 @@ tools/_rushux.mjs
 tools/_rushload.mjs
 tools/_rushlive.mjs
 tools/_rushsmoke2.mjs
+tools/_rushlive2.mjs
