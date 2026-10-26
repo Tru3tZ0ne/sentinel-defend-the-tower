@@ -37,6 +37,7 @@ Several self-contained experiences share the brand, i18n and assets:
 | `panic.html` | **Patch Panic** — whack-a-mole endpoint response with an MDR Sweep | `src/panic/` (+ `src/arcade/`) |
 | `soc.html` | **Incident Zero** — live SOC: **XDR correlation** + stage-correct containment | `src/soc/` (+ `src/arcade/`) |
 | `vector.html` | **Threat Vector** — survivor shooter: monsters charge, product **drops** level you up | `src/vector/` (+ `src/arcade/`) |
+| `line.html` | **Breach Line** — a Plants-vs-Zombies lane defense; deploy product **defenders** in a grid | `src/line/` (+ `src/arcade/`) |
 
 The last three are **quick-play arcade games** — pick-up-and-play, instant score, and each maps
 to real Sangfor products. They share a small common layer in `src/arcade/` (bilingual strings,
@@ -54,6 +55,20 @@ movement, IAG at egress, aStor snapshot-restore at ransomware (scarce), MDR as t
 assist. Each product's honest **limitation** (from `src/data/products.js`) is enforced as a
 fail state, so the wrong tool is punished. It is deliberately hard: alert fatigue, decoy IOCs,
 multiple incidents advancing at once. The in-game Field Manual teaches the whole model.
+
+**Breach Line** (`line.html`) is a Plants-vs-Zombies-style lane defense. Threats march
+right-to-left down five straight lanes; you spend **compute** to deploy Sangfor defenders in
+the grid from a 3D-style seed bar carrying each product's logo, and every defender fights the
+way its product really works: **HCI** generates the compute economy (cloud capacity), **NGAF**
+is a lane firewall, **IAG** slows traffic it hits, **Cyber Command (NDR)** fires across three
+lanes at once (network-wide sight), **EDR** devours whatever gets close (endpoint response),
+**aStor** is a self-healing wall (snapshot resilience), and **XDR** calls an instant correlation
+strike whose blast scales with how many sensors (NGAF/NDR/EDR) are on the board. Stealthed
+**APTs** are only half-seen by the perimeter firewall but hit in full by NDR/EDR, and **MDR** is
+your managed last line that saves each lane once. Exaggerated per-product FX (firewall tracers,
+frost slows, tri-lane beams, endpoint shockwaves, an XDR lightning web, an MDR sweep) make each
+capability legible at a glance. The in-game Product Codex pairs every product's real job with its
+on-board role and honest limitation. Pure logic is unit-tested in `tools/arcade-logic.test.mjs`.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Sentinel · Breach Line — a Sangfor lane defense</title>
+  <meta name="description" content="Breach Line: a Plants-vs-Zombies-style lane defense. Threats march down the lanes; spend compute to deploy Sangfor defenders in the grid, each fighting the way its product really works - NGAF screens, IAG slows, NDR hits three lanes, EDR devours, aStor walls, XDR calls a correlation strike. Hold the line and climb the world ranking." />
+  <meta name="theme-color" content="#05070e" />
+  <link rel="stylesheet" href="./src/style/main.css" />
+  <link rel="stylesheet" href="./src/arcade/arcade.css" />
+  <link rel="stylesheet" href="./src/line/line.css" />
+  <!-- World ranking: local by default; set window.__LINE_API to a deployed leaderboard worker for a global board. -->
+  <script>/* window.__LINE_API = ''; */</script>
+</head>
+<body>
+  <div class="wrap" id="app"></div>
+  <noscript>This game needs JavaScript enabled.</noscript>
+  <script type="module" src="./src/line/main-line.js"></script>
+</body>
+</html>

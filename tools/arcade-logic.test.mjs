@@ -222,3 +222,41 @@ test('vector: scoring rewards combo, capped at 6x', () => {
   assert.ok(vec.killScore('ransom', 0) > vec.killScore('recon', 0), 'boss worth more');
   assert.equal(vec.killScore('recon', 100), vec.ENEMIES.recon.score * 6);
 });
+
+// ---------------- Breach Line (PvZ-style lane defense) ----------------
+import * as line from '../src/line/model.js';
+
+test('line: APT is stealthed - perimeter (AF) half-sees it, NDR/EDR hit full', () => {
+  const apt = { type: 'apt' };
+  assert.equal(line.damageFrom('AF', apt, 10), 4, 'AF only 40% vs stealthed APT');
+  assert.equal(line.damageFrom('NDR', apt, 10), 10, 'NDR full');
+  assert.equal(line.damageFrom('EDR', apt, 10), 10, 'EDR full');
+  const mal = { type: 'malware' };
+  assert.equal(line.damageFrom('AF', mal, 10), 10, 'AF full vs non-stealth');
+});
+
+test('line: XDR strike is weak alone, scales with sensors on the board', () => {
+  assert.equal(line.xdrStrikeDamage(0), line.PLANTS.XDR.baseDmg, 'no sensors -> just base');
+  assert.ok(line.xdrStrikeDamage(3) > line.xdrStrikeDamage(1));
+  assert.ok(line.xdrStrikeDamage(1) > line.xdrStrikeDamage(0));
+});
+
+test('line: the sensor plants are AF/NDR/EDR and each defender has a cost', () => {
+  assert.deepEqual(line.SENSOR_PLANTS.slice().sort(), ['AF', 'EDR', 'NDR']);
+  for (const id of line.PLANT_ORDER) assert.ok(line.PLANTS[id].cost > 0, id + ' costs compute');
+  assert.ok(line.PLANTS.HCI.kind === 'eco' && line.PLANTS.NDR.lanes === 3 && line.PLANTS.ASTOR.hp > line.PLANTS.AF.hp);
+});
+
+test('line: difficulty ramps and stays bounded; pools unlock over time', () => {
+  const a = line.difficultyAt(0), b = line.difficultyAt(120);
+  assert.ok(b.spawnGap < a.spawnGap && b.hpMul > a.hpMul && b.cap >= a.cap);
+  assert.ok(line.threatPool(0).length < line.threatPool(100).length);
+  assert.ok(!line.threatPool(0).includes('apt') && line.threatPool(100).includes('apt'));
+});
+
+test('line: scoring rewards combo (cap 6x) and boss > basic', () => {
+  assert.equal(line.comboMult(0), 1);
+  assert.equal(line.comboMult(100), 6);
+  assert.ok(line.killScore('ransom', 0) > line.killScore('recon', 0));
+  assert.equal(line.killScore('recon', 100), line.ZOMBIES.recon.score * 6);
+});
