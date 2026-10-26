@@ -1,0 +1,43 @@
+/* Packet Sort — snap-decision triage. Layers on main.css + arcade.css. */
+
+.so-lives { display: inline-flex; gap: 5px; align-items: center; }
+.so-life { width: 11px; height: 11px; border-radius: 50%; background: var(--good); box-shadow: 0 0 8px rgba(46,230,160,.6); transition: .2s; }
+.so-life.out { background: rgba(92,124,176,.25); box-shadow: none; }
+
+.so-stage { display: flex; flex-direction: column; align-items: center; gap: 18px; width: min(460px, 100%); }
+
+.so-card { position: relative; width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+  box-shadow: var(--shadow); overflow: hidden; transition: border-color .15s, box-shadow .15s; }
+.so-card.ok { border-color: var(--good); box-shadow: 0 0 0 2px rgba(46,230,160,.35), var(--shadow); }
+.so-card.bad { border-color: var(--bad); box-shadow: 0 0 0 2px rgba(255,90,106,.4), var(--shadow); animation: so-shake .3s; }
+@keyframes so-shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+.so-timer { height: 6px; background: rgba(8,14,28,.9); }
+.so-bar { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, var(--brand-2), var(--cyan)); transition: width .06s linear; }
+.so-bar.hot { background: linear-gradient(90deg, var(--warn), var(--bad)); }
+
+.so-body { padding: 20px 20px 22px; }
+.so-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--mono); font-size: 12px; color: var(--ink-dim); }
+.so-proto { font-weight: 800; color: var(--cyan); background: rgba(57,192,255,.12); border: 1px solid rgba(57,192,255,.3); border-radius: 6px; padding: 2px 8px; }
+.so-flow { color: var(--ink); } .so-flow b { color: var(--ink-mute); }
+.so-lvl { margin-left: auto; font-size: 10px; letter-spacing: 1px; color: var(--ink-mute); border: 1px solid var(--line); border-radius: 20px; padding: 2px 9px; }
+.so-q { font-size: 15px; color: var(--ink-mute); margin: 16px 0 12px; letter-spacing: .5px; }
+.so-signals { display: flex; flex-direction: column; gap: 9px; }
+.so-sig { font-size: 15px; font-weight: 600; color: var(--ink); background: rgba(92,124,176,.1); border: 1px solid var(--line);
+  border-left: 3px solid var(--ink-mute); border-radius: 9px; padding: 11px 14px; }
+
+.so-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+.so-btn { font: inherit; font-size: 17px; font-weight: 800; padding: 16px 10px; border-radius: 14px; cursor: pointer; border: 1px solid; transition: .12s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px; }
+.so-btn.block { color: var(--bad); border-color: rgba(255,90,106,.45); background: rgba(255,90,106,.1); }
+.so-btn.block:hover { background: rgba(255,90,106,.2); }
+.so-btn.allow { color: var(--good); border-color: rgba(46,230,160,.45); background: rgba(46,230,160,.1); }
+.so-btn.allow:hover { background: rgba(46,230,160,.2); }
+.so-btn:active { transform: scale(.97); }
+.so-key { font-family: var(--mono); font-size: 13px; opacity: .7; }
+
+@media (max-width: 480px) {
+  .so-body { padding: 16px; }
+  .so-sig { font-size: 13.5px; padding: 10px 12px; }
+  .so-btn { font-size: 15px; padding: 14px 8px; }
+}

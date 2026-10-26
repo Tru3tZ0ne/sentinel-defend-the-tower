@@ -1,0 +1,64 @@
+/* Patch Panic — whack-a-mole over an endpoint grid. Layers on main.css + arcade.css. */
+
+.pp-lives { display: inline-flex; gap: 5px; align-items: center; }
+.pp-life { width: 11px; height: 11px; border-radius: 3px; background: var(--good); box-shadow: 0 0 8px rgba(46,230,160,.55); transition: .2s; }
+.pp-life.out { background: rgba(92,124,176,.25); box-shadow: none; }
+
+.ar-field { padding-bottom: 76px; }  /* clear the fixed MDR Sweep button */
+
+.pp-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: clamp(8px, 2vmin, 14px);
+  width: min(92vw, 60vh, 480px); aspect-ratio: 1 / 1; }
+.pp-cell { position: relative; background: rgba(8,14,28,.55); border: 1px solid var(--line-2); border-radius: 14px;
+  display: grid; place-items: center; overflow: hidden; }
+.pp-cell::after { content: ""; position: absolute; width: 5px; height: 5px; border-radius: 50%; background: rgba(92,124,176,.3); }
+
+/* a pop (threat or user) */
+.pp-pop { position: absolute; inset: 8%; border: none; cursor: pointer; border-radius: 50%; display: grid; place-items: center;
+  font: inherit; color: #04131f; transform: scale(0); transition: transform .12s ease; background: transparent; padding: 0; }
+.pp-pop.in { transform: scale(1); }
+.pp-pop::before { content: ""; position: absolute; inset: 14%; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+.pp-label { position: relative; z-index: 2; font-size: clamp(13px, 3.6vmin, 20px); font-weight: 900; letter-spacing: .5px; }
+.pp-hp { position: absolute; bottom: 12%; z-index: 2; font-size: 9px; letter-spacing: 1px; opacity: .8; }
+
+/* fuse ring */
+.pp-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); z-index: 1; }
+.pp-ring circle { fill: none; stroke-width: 5; stroke-linecap: round; stroke-dashoffset: 0; }
+@keyframes pp-drain { to { stroke-dashoffset: 163.36px; } }
+
+/* type colours */
+.pp-malware::before { background: radial-gradient(circle at 35% 30%, #ff9a8f, #ff6b5e); }
+.pp-malware .pp-ring circle { stroke: #ffd0cb; }
+.pp-exploit::before { background: radial-gradient(circle at 35% 30%, #ffd98a, #ffba45); }
+.pp-exploit .pp-ring circle { stroke: #fff0cf; }
+.pp-ransom::before { background: radial-gradient(circle at 35% 30%, #ff7aa0, #ff3b6b); }
+.pp-ransom .pp-ring circle { stroke: #ffc6d5; }
+.pp-ransom { animation: pp-boss .7s ease-in-out infinite; }
+@keyframes pp-boss { 50% { filter: brightness(1.15); } }
+.pp-user::before { background: radial-gradient(circle at 35% 30%, #7affc9, #16ca78); }
+.pp-user .pp-ring circle { stroke: #bdffe4; }
+.pp-user .pp-label { color: #04210f; }
+
+/* interactions */
+.pp-pop.hit::before { animation: pp-hit .14s ease; }
+@keyframes pp-hit { 50% { transform: scale(.86); } }
+.pp-killed { animation: pp-killed .17s ease forwards; }
+@keyframes pp-killed { to { transform: scale(1.5); opacity: 0; } }
+.pp-breach { animation: pp-breach .17s ease forwards; }
+@keyframes pp-breach { to { transform: scale(.4); opacity: 0; } }
+.pp-false { animation: pp-false .17s ease forwards; }
+@keyframes pp-false { to { transform: scale(1.3) rotate(8deg); opacity: 0; } }
+.pp-leave { animation: pp-leave .18s ease forwards; }
+@keyframes pp-leave { to { transform: scale(0); opacity: 0; } }
+.pp-cell:has(.pp-breach) { animation: pp-cellhit .3s ease; }
+@keyframes pp-cellhit { 0%,100% { background: rgba(8,14,28,.55); } 40% { background: rgba(255,90,106,.25); } }
+
+/* MDR sweep button */
+.pp-sweep { position: relative; overflow: hidden; font: inherit; font-size: 13px; font-weight: 800; color: var(--ink-dim);
+  padding: 11px 22px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); cursor: not-allowed; box-shadow: var(--shadow); }
+.pp-sweep-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, rgba(57,192,255,.35), rgba(46,230,160,.35)); transition: width .12s linear; z-index: 0; }
+.pp-sweep-lbl { position: relative; z-index: 1; }
+.pp-sweep.ready { color: #04131f; cursor: pointer; border-color: transparent; background: linear-gradient(135deg, var(--cyan), var(--good)); animation: pp-pulse 1.1s ease-in-out infinite; }
+.pp-sweep.ready .pp-sweep-fill { display: none; }
+@keyframes pp-pulse { 50% { box-shadow: 0 0 0 4px rgba(46,230,160,.2), var(--shadow); } }
+
+@media (max-width: 480px) { .ar-ctrls { bottom: 10px; } }

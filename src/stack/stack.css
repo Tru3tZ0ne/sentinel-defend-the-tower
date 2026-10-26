@@ -1,0 +1,73 @@
+/* Defense Stack — 2048-style merge board. Layers on main.css + arcade.css. */
+
+.sk-wrap { display: flex; align-items: center; justify-content: center; gap: 22px; width: 100%; }
+
+.sk-board {
+  --gap: clamp(7px, 1.9vmin, 12px);
+  --ts: calc((100% - 5 * var(--gap)) / 4);
+  position: relative;
+  width: min(92vw, 58vh, 460px);
+  aspect-ratio: 1 / 1;
+  background: rgba(8,14,28,.72);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: var(--gap);
+  box-shadow: inset 0 2px 20px rgba(0,0,0,.4), var(--shadow);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: var(--gap);
+  touch-action: none;
+}
+.sk-cell { background: rgba(92,124,176,.08); border-radius: 11px; }
+
+.sk-tile {
+  position: absolute;
+  left: var(--tx); top: var(--ty);
+  width: var(--ts); height: var(--ts);
+  transition: left .12s ease, top .12s ease;
+  border-radius: 11px;
+  display: grid; place-items: center;
+  font-weight: 900; letter-spacing: .3px; color: #04131f;
+  box-shadow: 0 4px 14px rgba(0,0,0,.34);
+  will-change: left, top;
+}
+.sk-short { font-size: clamp(13px, 3.6vmin, 23px); line-height: 1; text-align: center; padding: 0 2px; }
+
+.sk-new { animation: sk-appear .16s ease both; }
+.sk-merge { animation: sk-pop .16s ease; }
+@keyframes sk-appear { from { transform: scale(.2); opacity: .2; } }
+@keyframes sk-pop { 0% { transform: scale(1); } 45% { transform: scale(1.16); } 100% { transform: scale(1); } }
+
+/* tier ramp — cool/low -> brand-green/gold at the top of the Sangfor stack */
+.sk-t1  { background: linear-gradient(135deg,#2a3752,#38496b); color: #c6d6f2; }
+.sk-t2  { background: linear-gradient(135deg,#2f6fd8,#4a8bf0); color: #eaf3ff; }
+.sk-t3  { background: linear-gradient(135deg,#1e91ed,#56b7ff); }
+.sk-t4  { background: linear-gradient(135deg,#17b6c4,#3fe0e0); }
+.sk-t5  { background: linear-gradient(135deg,#6a8bff,#9ab4ff); color: #eaf0ff; }
+.sk-t6  { background: linear-gradient(135deg,#8a6cf0,#b79bff); color: #f3eeff; }
+.sk-t7  { background: linear-gradient(135deg,#16ca78,#39e39a); }
+.sk-t8  { background: linear-gradient(135deg,#2ee6a0,#72ffb8); }
+.sk-t9  { background: linear-gradient(135deg,#72bb38,#a8e05a); }
+.sk-t10 { background: linear-gradient(135deg,#ffb43a,#ffe07a); color: #2a1a00;
+  box-shadow: 0 0 26px rgba(255,200,80,.6), 0 4px 14px rgba(0,0,0,.4); animation: sk-glow 1.6s ease-in-out infinite; }
+@keyframes sk-glow { 50% { box-shadow: 0 0 40px rgba(255,210,90,.85), 0 4px 14px rgba(0,0,0,.4); } }
+
+/* ladder reference (hidden on narrow screens) */
+.sk-ladder { width: 150px; display: flex; flex-direction: column; gap: 4px; }
+.sk-ladder-h { font-size: 9px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 4px; }
+.sk-rung { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 8px; background: rgba(92,124,176,.07); border: 1px solid var(--line-2); }
+.sk-rung-s { font-size: 11px; font-weight: 900; min-width: 46px; }
+.sk-rung-n { font-size: 10px; color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-rung.sk-t1 .sk-rung-s, .sk-rung.sk-t5 .sk-rung-s, .sk-rung.sk-t6 .sk-rung-s { color: #cdd9f0; }
+.sk-rung.sk-t2 .sk-rung-s { color: #7fb0ff; }
+.sk-rung.sk-t3 .sk-rung-s { color: #56b7ff; }
+.sk-rung.sk-t4 .sk-rung-s { color: #3fe0e0; }
+.sk-rung.sk-t7 .sk-rung-s, .sk-rung.sk-t8 .sk-rung-s { color: var(--good); }
+.sk-rung.sk-t9 .sk-rung-s { color: var(--brand); }
+.sk-rung.sk-t10 .sk-rung-s { color: var(--confirmed); }
+.sk-rung { background-clip: padding-box; }
+.sk-rung.sk-t1, .sk-rung.sk-t2, .sk-rung.sk-t3, .sk-rung.sk-t4, .sk-rung.sk-t5,
+.sk-rung.sk-t6, .sk-rung.sk-t7, .sk-rung.sk-t8, .sk-rung.sk-t9, .sk-rung.sk-t10 { color: var(--ink); }
+
+@media (max-width: 760px) { .sk-ladder { display: none; } }

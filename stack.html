@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Sentinel · Defense Stack — a Sangfor merge game</title>
+  <meta name="description" content="Defense Stack: a 2048-style merge game. Slide to combine matching tiles and climb the real Sangfor security ladder from a bare asset to the unified platform. Enter your name and chase the world ranking." />
+  <meta name="theme-color" content="#05070e" />
+  <link rel="stylesheet" href="./src/style/main.css" />
+  <link rel="stylesheet" href="./src/arcade/arcade.css" />
+  <link rel="stylesheet" href="./src/stack/stack.css" />
+  <!--
+    World ranking: local board out of the box. For a shared global board, deploy
+    tools/leaderboard-worker.js and set window.__STACK_API below.
+  -->
+  <script>/* window.__STACK_API = ''; */</script>
+</head>
+<body>
+  <div class="wrap" id="app"></div>
+  <noscript>This game needs JavaScript enabled.</noscript>
+  <script type="module" src="./src/stack/main-stack.js"></script>
+</body>
+</html>

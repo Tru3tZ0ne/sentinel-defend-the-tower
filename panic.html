@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Sentinel · Patch Panic — a Sangfor endpoint game</title>
+  <meta name="description" content="Patch Panic: a whack-a-mole over your endpoint fleet. Tap threats to let Sangfor Endpoint Secure neutralise them before they detonate, spare real users, and fire an MDR Sweep to clear the board. Climb the world ranking." />
+  <meta name="theme-color" content="#05070e" />
+  <link rel="stylesheet" href="./src/style/main.css" />
+  <link rel="stylesheet" href="./src/arcade/arcade.css" />
+  <link rel="stylesheet" href="./src/panic/panic.css" />
+  <!-- World ranking: local by default; set window.__PANIC_API to a deployed leaderboard worker for a global board. -->
+  <script>/* window.__PANIC_API = ''; */</script>
+</head>
+<body>
+  <div class="wrap" id="app"></div>
+  <noscript>This game needs JavaScript enabled.</noscript>
+  <script type="module" src="./src/panic/main-panic.js"></script>
+</body>
+</html>

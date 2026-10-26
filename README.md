@@ -32,6 +32,16 @@ Several self-contained experiences share the brand, i18n and assets:
 | `cyber2.html` | **Defense-in-Depth** — Sangfor architecture tower, levels = layers | detection engine |
 | `td.html` | **Kill Chain** — tower defense on a neon kill-chain lane | TD engine (`src/td/`) |
 | `rush.html` | **Breach Rush** — fast radial-triage arcade with a **world ranking** | arcade engine (`src/rush/`) |
+| `stack.html` | **Defense Stack** — a 2048-style merge up the Sangfor product ladder | `src/stack/` (+ `src/arcade/`) |
+| `sort.html` | **Packet Sort** — snap ALLOW/BLOCK triage against the clock | `src/sort/` (+ `src/arcade/`) |
+| `panic.html` | **Patch Panic** — whack-a-mole endpoint response with an MDR Sweep | `src/panic/` (+ `src/arcade/`) |
+
+The last three are **quick-play arcade games** — pick-up-and-play, instant score, and each maps
+to real Sangfor products. They share a small common layer in `src/arcade/` (bilingual strings,
+the leaderboard factory `board.js`, and UI helpers). Each has its own local-first world ranking,
+upgradable to a global board with the same `tools/leaderboard-worker.js` by setting its
+`window.__STACK_API` / `window.__SORT_API` / `window.__PANIC_API`. Pure logic is unit-tested in
+`tools/arcade-logic.test.mjs` (`node --test`).
 
 **Breach Rush** is a score-chasing arcade: threats race inward toward your data core,
 you tap hostiles before they land and spare the legitimate traffic, chain combos, and
