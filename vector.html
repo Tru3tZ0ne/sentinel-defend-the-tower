@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Sentinel · Threat Vector — a Sangfor survivor shooter</title>
+  <meta name="description" content="Threat Vector: a fast, lively survivor-style arena. Monsters charge you from every side; move to dodge while your defenses auto-fire. Kills drop Sangfor products you grab to level up - each boosts exactly what it really does (HCI = fire rate, XDR = damage x sensors, EDR = a defense aura). Survive and climb the world ranking." />
+  <meta name="theme-color" content="#05070e" />
+  <link rel="stylesheet" href="./src/style/main.css" />
+  <link rel="stylesheet" href="./src/arcade/arcade.css" />
+  <link rel="stylesheet" href="./src/vector/vector.css" />
+  <!-- World ranking: local by default; set window.__VECTOR_API to a deployed leaderboard worker for a global board. -->
+  <script>/* window.__VECTOR_API = ''; */</script>
+</head>
+<body>
+  <div class="wrap" id="app"></div>
+  <noscript>This game needs JavaScript enabled.</noscript>
+  <script type="module" src="./src/vector/main-vector.js"></script>
+</body>
+</html>

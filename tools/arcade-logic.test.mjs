@@ -166,3 +166,59 @@ test('SOC difficulty ramps and stays bounded; scoring rewards early catch + deep
   assert.equal(soc.confirmScore(0, 16), soc.confirmScore(0, 0) * 5, '5x combo cap');
   assert.ok(soc.PENALTY_FALSE_CORR < 0 && soc.PENALTY_WRONG_TOOL < 0);
 });
+
+// ---------------- Threat Vector (survivor shooter) ----------------
+import * as vec from '../src/vector/model.js';
+
+test('vector: HCI is the fire-rate source (not EDR)', () => {
+  const base = vec.deriveStats({});
+  const hci = vec.deriveStats({ HCI: 3 });
+  assert.ok(hci.fireRateMul > base.fireRateMul, 'HCI raises fire rate');
+  const edr = vec.deriveStats({ EDR: 3 });
+  assert.equal(edr.fireRateMul, base.fireRateMul, 'EDR does not touch fire rate');
+});
+
+test('vector: XDR damage multiplies ONLY over owned sensors (its real limitation)', () => {
+  const xdrAlone = vec.deriveStats({ XDR: 4 });
+  assert.equal(xdrAlone.xdrDmgMul, 1, 'XDR with no sensors multiplies nothing');
+  assert.equal(xdrAlone.dmg, xdrAlone.baseDmg, 'so damage is unchanged');
+  const oneSensor = vec.deriveStats({ XDR: 4, EDR: 1 });
+  const twoSensors = vec.deriveStats({ XDR: 4, EDR: 1, NDR: 1 });
+  assert.ok(twoSensors.xdrDmgMul > oneSensor.xdrDmgMul, 'more sensors -> more XDR damage');
+  assert.ok(oneSensor.xdrDmgMul > 1, 'one sensor already helps');
+});
+
+test('vector: sensorCount counts EDR/NDR/AF only', () => {
+  assert.equal(vec.sensorCount({ EDR: 2, NDR: 1, AF: 3 }), 3);
+  assert.equal(vec.sensorCount({ HCI: 5, XDR: 5, MDR: 3 }), 0);
+});
+
+test('vector: each product derives its own system, scaling with level', () => {
+  assert.equal(vec.deriveStats({}).edr, null);
+  assert.ok(vec.deriveStats({ EDR: 1 }).edr.radius < vec.deriveStats({ EDR: 4 }).edr.radius);
+  assert.ok(vec.deriveStats({ ASTOR: 3 }).astor.maxCharges === 3);
+  assert.ok(vec.deriveStats({ NDR: 2 }).ndr.reveal === true);
+  assert.ok(vec.deriveStats({ SASE: 2 }).sase.spawnMul > 1, 'SASE slows spawns');
+  assert.ok(vec.deriveStats({ MDR: 3, EDR: 1, NDR: 1 }).mdr.dmg > vec.deriveStats({ MDR: 3 }).mdr.dmg, 'MDR aims better with sensors');
+});
+
+test('vector: difficulty is monotonic and pickDrop respects caps + is deterministic', () => {
+  const a = vec.difficultyAt(0), b = vec.difficultyAt(60);
+  assert.ok(b.spawnGap < a.spawnGap && b.hpMul > a.hpMul && b.cap >= a.cap);
+  // all maxed -> no cap drop
+  const maxed = {}; for (const id of vec.CAP_ORDER) maxed[id] = vec.CAPS[id].max;
+  assert.equal(vec.pickDrop(maxed, () => 0.5), null);
+  // deterministic given a fixed rng
+  const rng = () => 0.0;
+  assert.equal(vec.pickDrop({}, rng), vec.pickDrop({}, rng));
+  // returns a grantable, non-maxed id
+  const got = vec.pickDrop({ XDR: 1 }, Math.random);
+  assert.ok(vec.CAP_ORDER.includes(got));
+});
+
+test('vector: scoring rewards combo, capped at 6x', () => {
+  assert.equal(vec.comboMult(0), 1);
+  assert.equal(vec.comboMult(100), 6);
+  assert.ok(vec.killScore('ransom', 0) > vec.killScore('recon', 0), 'boss worth more');
+  assert.equal(vec.killScore('recon', 100), vec.ENEMIES.recon.score * 6);
+});

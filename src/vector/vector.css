@@ -1,0 +1,57 @@
+/* Threat Vector — a full-bleed canvas survivor arena. Layers on main.css tokens
+   and the shared arcade.css chrome (top bar, overlays, leaderboard, toasts). */
+
+.ar-field { padding: 0; display: block; overflow: hidden; }
+#vcCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+
+/* ---- hull + snapshot charges (top of the arena) ---- */
+.vc-hud { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 5;
+  display: flex; flex-direction: column; align-items: center; gap: 7px; pointer-events: none; width: min(360px, 76%); }
+.vc-hull { position: relative; width: 100%; height: 13px; border-radius: 20px; overflow: hidden;
+  background: rgba(8,14,28,.8); border: 1px solid var(--line); box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+.vc-hull i { position: absolute; inset: 0; width: 100%; transform-origin: left; border-radius: 20px; transition: width .15s linear, background .2s; }
+.vc-hull i.ok { background: linear-gradient(90deg, #16ca78, #2ee6a0); }
+.vc-hull i.warn { background: linear-gradient(90deg, #d98a1f, #ffba45); }
+.vc-hull i.bad { background: linear-gradient(90deg, #c2384a, #ff5a6a); }
+.vc-hull span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 9px; font-weight: 800;
+  color: #04210f; font-variant-numeric: tabular-nums; text-shadow: 0 1px 0 rgba(255,255,255,.2); }
+.vc-astor { display: flex; gap: 5px; }
+.vc-snap { width: 16px; height: 5px; border-radius: 3px; background: var(--violet); box-shadow: 0 0 8px rgba(169,139,255,.7); }
+.vc-snap.out { background: rgba(169,139,255,.22); box-shadow: none; }
+
+/* ---- loadout strip (bottom of the arena) ---- */
+.vc-loadout { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 5;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 94%; pointer-events: none; }
+.vc-lo { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 20px;
+  background: rgba(8,13,24,.82); border: 1px solid var(--line); backdrop-filter: blur(4px); }
+.vc-lo b { font-family: var(--mono); font-size: 10.5px; font-weight: 800; color: var(--cap, #fff); letter-spacing: .3px; }
+.vc-lo-dots { display: inline-flex; gap: 2.5px; }
+.vc-lo-dots i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.18); }
+.vc-lo-dots i.on { background: var(--cap, #fff); box-shadow: 0 0 6px var(--cap, #fff); }
+.vc-lo.idle { opacity: .55; }
+.vc-lo.idle b::after { content: " !"; color: var(--bad); }
+.vc-lo-empty { font-size: 11px; color: var(--ink-mute); background: rgba(8,13,24,.7); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--line-2); }
+.vc-lo-final { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 10px 0 2px; }
+
+/* per-capability accent (shared by loadout + codex) */
+.cap-HCI { --cap: #39c0ff; } .cap-XDR { --cap: #72bb38; } .cap-EDR { --cap: #ff8a5a; }
+.cap-NDR { --cap: #39c0ff; } .cap-AF { --cap: #2ee6a0; } .cap-IAG { --cap: #ffd166; }
+.cap-ASTOR { --cap: #a98bff; } .cap-MDR { --cap: #16ca78; } .cap-SASE { --cap: #5cc8ff; }
+
+/* ---- codex ---- */
+.ar-card.wide { width: min(560px, 100%); }
+.vc-cx-list { display: grid; gap: 10px; max-height: 56vh; overflow: auto; padding-right: 4px; }
+.vc-cx { border: 1px solid var(--line); border-left: 3px solid var(--cap, var(--brand-2)); border-radius: 12px;
+  padding: 10px 12px; background: rgba(8,13,24,.55); }
+.vc-cx-h { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.vc-cx-h b { font-size: 14px; color: #fff; }
+.vc-cx-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--cap, var(--brand-2)); box-shadow: 0 0 8px var(--cap); }
+.vc-cx-row { display: grid; grid-template-columns: 76px 1fr; gap: 8px; font-size: 11.5px; color: var(--ink-dim); line-height: 1.5; margin-top: 3px; }
+.vc-cx-k { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-mute); padding-top: 2px; }
+.vc-cx-row.boost span:last-child { color: var(--cap, var(--brand-2)); font-weight: 600; }
+.vc-cx-row.lim span:last-child { color: var(--warn); }
+
+@media (max-width: 480px) {
+  .vc-cx-row { grid-template-columns: 60px 1fr; }
+  .vc-loadout { bottom: 8px; }
+}

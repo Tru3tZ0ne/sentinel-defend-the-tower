@@ -36,6 +36,7 @@ Several self-contained experiences share the brand, i18n and assets:
 | `sort.html` | **Packet Sort** — snap ALLOW/BLOCK triage against the clock | `src/sort/` (+ `src/arcade/`) |
 | `panic.html` | **Patch Panic** — whack-a-mole endpoint response with an MDR Sweep | `src/panic/` (+ `src/arcade/`) |
 | `soc.html` | **Incident Zero** — live SOC: **XDR correlation** + stage-correct containment | `src/soc/` (+ `src/arcade/`) |
+| `vector.html` | **Threat Vector** — survivor shooter: monsters charge, product **drops** level you up | `src/vector/` (+ `src/arcade/`) |
 
 The last three are **quick-play arcade games** — pick-up-and-play, instant score, and each maps
 to real Sangfor products. They share a small common layer in `src/arcade/` (bilingual strings,
@@ -53,6 +54,19 @@ movement, IAG at egress, aStor snapshot-restore at ransomware (scarce), MDR as t
 assist. Each product's honest **limitation** (from `src/data/products.js`) is enforced as a
 fail state, so the wrong tool is punished. It is deliberately hard: alert fatigue, decoy IOCs,
 multiple incidents advancing at once. The in-game Field Manual teaches the whole model.
+
+**Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
+arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your
+defenses auto-fire. Killing threats **drops Sangfor products** (gold caches are guaranteed) that
+slot in and level up the instant you touch them, with an on-pickup callout so you *feel* what
+each one does. Crucially, every item boosts exactly what its real function is: **HCI** (cloud
+compute) raises fire rate, **XDR** multiplies damage *only over the sensors feeding it* (grab it
+with no EDR/NDR/AF and it does nothing — its real limitation), **EDR** is a close-range endpoint
+aura, **NDR** reveals cloaked APTs and chains shots, **NGAF** adds perimeter bolts, **IAG** locks
+exfil drones from escaping, **aStor** restores hull from snapshots, **MDR** fields a wingman, and
+**SASE** shrinks the attack surface. The in-game **Product Codex** pairs each product's real job
+with its in-game boost and honest limitation. Pure logic (stat mapping, loot table, difficulty,
+scoring) is unit-tested alongside the others in `tools/arcade-logic.test.mjs`.
 
 **Breach Rush** is a score-chasing arcade: threats race inward toward your data core,
 you tap hostiles before they land and spare the legitimate traffic, chain combos, and
