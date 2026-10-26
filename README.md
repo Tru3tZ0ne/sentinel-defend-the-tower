@@ -35,6 +35,7 @@ Several self-contained experiences share the brand, i18n and assets:
 | `stack.html` | **Defense Stack** — a 2048-style merge up the Sangfor product ladder | `src/stack/` (+ `src/arcade/`) |
 | `sort.html` | **Packet Sort** — snap ALLOW/BLOCK triage against the clock | `src/sort/` (+ `src/arcade/`) |
 | `panic.html` | **Patch Panic** — whack-a-mole endpoint response with an MDR Sweep | `src/panic/` (+ `src/arcade/`) |
+| `soc.html` | **Incident Zero** — live SOC: **XDR correlation** + stage-correct containment | `src/soc/` (+ `src/arcade/`) |
 
 The last three are **quick-play arcade games** — pick-up-and-play, instant score, and each maps
 to real Sangfor products. They share a small common layer in `src/arcade/` (bilingual strings,
@@ -42,6 +43,16 @@ the leaderboard factory `board.js`, and UI helpers). Each has its own local-firs
 upgradable to a global board with the same `tools/leaderboard-worker.js` by setting its
 `window.__STACK_API` / `window.__SORT_API` / `window.__PANIC_API`. Pure logic is unit-tested in
 `tools/arcade-logic.test.mjs` (`node --test`).
+
+**Incident Zero** (`soc.html`) is the deep one: the mechanics *are* the products' real
+functions. Sensors (AF/EDR/NDR/IAG) raise alerts; a lone alert is noise, so you must
+**correlate** cross-sensor alerts that share an IOC to confirm a real incident (XDR). A
+confirmed incident advances along the kill chain and you **contain** it with the one product
+whose real role stops that stage — AF at the perimeter, EDR on the endpoint, NDR on lateral
+movement, IAG at egress, aStor snapshot-restore at ransomware (scarce), MDR as the managed
+assist. Each product's honest **limitation** (from `src/data/products.js`) is enforced as a
+fail state, so the wrong tool is punished. It is deliberately hard: alert fatigue, decoy IOCs,
+multiple incidents advancing at once. The in-game Field Manual teaches the whole model.
 
 **Breach Rush** is a score-chasing arcade: threats race inward toward your data core,
 you tap hostiles before they land and spare the legitimate traffic, chain combos, and

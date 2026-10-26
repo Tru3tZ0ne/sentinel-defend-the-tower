@@ -6,6 +6,7 @@ import { applyMove, canMove, valueOf, TOP_TIER, CELLS } from '../src/stack/tiles
 import { mergeScores, rankOf, sanitizeName } from '../src/arcade/board.js';
 import { makeCard, verdict, isCorrect, timeAt, scoreFor, SIGNALS } from '../src/sort/deck.js';
 import { difficultyAt, spawnPick, killScore, comboMult as ppCombo, POPS } from '../src/panic/rules-panic.js';
+import * as soc from '../src/soc/model.js';
 
 // helper: build a 16-cell board from a 4x4 array of tiers (0 = empty)
 let idc = 0;
@@ -134,4 +135,34 @@ test('spawn variety unlocks over time; killScore scales with combo', () => {
   assert.ok(ppCombo(30) <= 6 && ppCombo(0) === 1);
   assert.equal(POPS.ransom.hp, 3);
   assert.equal(POPS.user.decoy, true);
+});
+
+// ---- Incident Zero (SOC) ----
+test('XDR correlation: needs >=2 alerts, same asset+IOC, >=2 distinct sensors', () => {
+  const A = (sensor, asset, ioc) => ({ sensor, asset, ioc });
+  assert.equal(soc.isValidCorrelation([A('AF', 'WS-1', '#a1')]), false, 'single alert is noise');
+  assert.equal(soc.isValidCorrelation([A('AF', 'WS-1', '#a1'), A('EDR', 'WS-1', '#a1')]), true, 'two sensors, one IOC+asset');
+  assert.equal(soc.isValidCorrelation([A('AF', 'WS-1', '#a1'), A('AF', 'WS-1', '#a1')]), false, 'same sensor does not corroborate');
+  assert.equal(soc.isValidCorrelation([A('AF', 'WS-1', '#a1'), A('EDR', 'WS-1', '#b2')]), false, 'different IOC = unrelated');
+  assert.equal(soc.isValidCorrelation([A('AF', 'WS-1', '#a1'), A('EDR', 'DB-2', '#a1')]), false, 'different asset');
+});
+
+test('each kill-chain stage maps to the one product whose real role stops it', () => {
+  assert.equal(soc.containFor(0), 'AF');     // perimeter
+  assert.equal(soc.containFor(1), 'EDR');    // endpoint
+  assert.equal(soc.containFor(2), 'NDR');    // lateral
+  assert.equal(soc.containFor(3), 'IAG');    // egress
+  assert.equal(soc.containFor(soc.RANSOM_STAGE), 'ASTOR');  // restore
+  assert.equal(soc.sensorFor(0), 'AF');
+  assert.equal(soc.STAGES.length, 5);
+});
+
+test('SOC difficulty ramps and stays bounded; scoring rewards early catch + deep saves', () => {
+  const a = soc.difficultyAt(0), b = soc.difficultyAt(60), c = soc.difficultyAt(600);
+  assert.ok(b.incidentInterval < a.incidentInterval && b.stageAdvanceMs < a.stageAdvanceMs);
+  assert.ok(c.stageAdvanceMs >= 2500 && c.alertTtl >= 5200 && c.maxIncidents <= 6);
+  assert.ok(soc.confirmScore(0, 0) > soc.confirmScore(soc.RANSOM_STAGE, 0), 'earlier confirm worth more');
+  assert.ok(soc.containScore(soc.RANSOM_STAGE, 0) > soc.containScore(0, 0), 'deeper containment averts more');
+  assert.equal(soc.confirmScore(0, 16), soc.confirmScore(0, 0) * 5, '5x combo cap');
+  assert.ok(soc.PENALTY_FALSE_CORR < 0 && soc.PENALTY_WRONG_TOOL < 0);
 });
