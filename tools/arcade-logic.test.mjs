@@ -266,14 +266,18 @@ test('line: scoring rewards combo (cap 6x) and boss > basic', () => {
 // ---------------------------------------------------------------------------
 import * as stand from '../src/stand/model.js';
 
-test('stand: EDR deploys turrets (then +dmg), MDR deploys teammates', () => {
+test('stand: EDR deploys turrets (then +dmg), MDR is one teammate that scales', () => {
   assert.equal(stand.deriveSquad({ EDR: 3 }).edrTurrets, 3);
   assert.equal(stand.deriveSquad({ EDR: 4 }).edrTurrets, 4);
   const e6 = stand.deriveSquad({ EDR: 6 });
   assert.equal(e6.edrTurrets, 4, 'turret count caps at 4');
   assert.ok(e6.edrDmg > stand.deriveSquad({ EDR: 4 }).edrDmg, 'extra EDR levels pump turret damage');
-  assert.equal(stand.deriveSquad({ MDR: 2 }).mdrAllies, 2);
-  assert.equal(stand.deriveSquad({ MDR: 5 }).mdrAllies, 2, 'ally count caps at 2');
+  // MDR: always a SINGLE teammate; levels raise its attack power and fire rate
+  assert.equal(stand.deriveSquad({ MDR: 1 }).mdrAllies, 1);
+  assert.equal(stand.deriveSquad({ MDR: 5 }).mdrAllies, 1, 'always one teammate, never a crowd');
+  const m1 = stand.deriveSquad({ MDR: 1 }), m5 = stand.deriveSquad({ MDR: 5 });
+  assert.ok(m5.mdrDmg > m1.mdrDmg, 'more MDR levels = more damage');
+  assert.ok(m5.mdrRate > m1.mdrRate, 'more MDR levels = faster fire');
 });
 
 test('stand: HCI is a compute core = fire rate for ALL units (no damage of its own)', () => {

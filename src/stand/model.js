@@ -42,8 +42,9 @@ export function deriveSquad(levels) {
   const edrDmg = 11 + Math.max(0, edr - 4) * 6;
 
   const mdr = lvl(levels, 'MDR');
-  const mdrAllies = Math.min(mdr, 2);                       // up to 2 teammates, then +damage
-  const mdrDmg = 18 + Math.max(0, mdr - 2) * 6;
+  const mdrAllies = mdr > 0 ? 1 : 0;                        // a single teammate; levels boost its power
+  const mdrDmg = 18 + Math.max(0, mdr - 1) * 12;            // attack power per level
+  const mdrRate = ALLY.rate + Math.max(0, mdr - 1) * 0.45;  // and fire speed per level
 
   const af = lvl(levels, 'AF');
   const afTier = af;
@@ -75,7 +76,7 @@ export function deriveSquad(levels) {
 
   return {
     fireRateMul,
-    edrTurrets, edrDmg, mdrAllies, mdrDmg,
+    edrTurrets, edrDmg, mdrAllies, mdrDmg, mdrRate,
     afTier, afHp, afWeaken, afHalfWidth,
     ndrReveal, ndrMark, ndrRadars,
     iagBand, iagSlowMul,
