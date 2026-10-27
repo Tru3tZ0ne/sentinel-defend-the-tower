@@ -75,15 +75,16 @@ on-board role and honest limitation. Pure logic is unit-tested in `tools/arcade-
 holds the bottom line while threats pour straight *down* at you and your base, and you and every unit
 fire straight *up*. Clearing threats levels you up fast, and **every level you choose one of three
 Sangfor products** — which then **deploys as a real unit on the battlefield** and fights the way the
-product actually works: **EDR** drops endpoint **turrets** beside you, **NGAF** raises a **barrier**
+product actually works: **EDR** sets up fixed endpoint **turret emplacements** along your wall, **NGAF** raises a **barrier**
 that blocks a cluster of threats and weakens any that break through, **MDR** brings a **teammate** who
 fights at your side 24/7, **NDR** deploys a **radar** that reveals cloaked APTs and marks threats so
 every unit does bonus damage, **IAG** projects a **checkpoint band** that slows whatever crosses it,
 **HCI** is a **compute core** that speeds up every unit's fire rate, **aStor** is a **snapshot vault**
 that shields the base, and **XDR** calls the colossal vertical **correlation beam** — weak alone, but
 multiplying with how many sensor units (EDR/NDR/NGAF) you have on the field. Mix and match into a
-squad. The product branding is woven through the whole thing — the on-field units are labelled and
-shaped like their products, plus the upgrade cards, weapon chip, loadout rail, and a Product Codex
+squad. The product branding is woven through the whole thing — every on-field unit carries its
+official Sangfor product mark and the base you defend wears the Sangfor logo, as do the upgrade
+cards, weapon chip, loadout rail, and a Product Codex
 pairing each product's real job with its battlefield role and honest limitation. Pure logic is
 unit-tested in `tools/arcade-logic.test.mjs`.
 

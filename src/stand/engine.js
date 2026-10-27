@@ -12,6 +12,7 @@ import {
   comboMult, killScore, SURVIVE_PER_SEC, STEAL_PENALTY,
 } from './model.js';
 import { ICONS } from '../ui/icons.js';
+import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { sfx } from '../rush/audio.js';
 
 const TAU = Math.PI * 2;
@@ -24,9 +25,9 @@ export const ACCENT = {
   IAG: '#ffd166', HCI: '#39c0ff', XDR: '#9be85a', ASTOR: '#a98bff',
 };
 const ICON_KEY = { HCI: 'network', EDR: 'edr', NDR: 'ndr', AF: 'af', IAG: 'iag', XDR: 'xdr', ASTOR: 'astor', MDR: 'mdr' };
-const SLOTS = [-38, 38, -74, 74, -104, 104];      // flanking offsets around the operator
+const MDR_SLOTS = [-52, 52, -96, 96];             // MDR teammates flank the operator (and move with them)
 const BAR_OFFSET = 74;                            // barrier sits this far above the operator
-const COLS = 5;                                   // the lane is five columns wide
+const COLS = 6;                                   // lane column guides
 
 function makeIcon(name, color) {
   const raw = (ICONS[ICON_KEY[name]] || ICONS.af)
@@ -46,6 +47,10 @@ export function createStandGame(canvas, opts = {}) {
   const onOver = opts.onOver || (() => {});
 
   const icons = {}; for (const id of WEAPON_ORDER) icons[id] = makeIcon(id, '#f4fff9');
+  // official Sangfor product artwork (raster) rendered on each deployed unit
+  const marks = {};
+  for (const id of WEAPON_ORDER) { const m = PRODUCT_MARKS[id]; if (m) { const im = new Image(); im.src = 'assets/brand/products/sangfor-' + m[0]; marks[id] = im; } }
+  const brandImg = new Image(); brandImg.src = 'assets/brand/sangfor-logo-white.png';
 
   // ---- geometry ----
   // the arena is a narrow central LANE (fieldL..fieldR); the sides are framed walls.
@@ -61,7 +66,7 @@ export function createStandGame(canvas, opts = {}) {
     baseY = H - barH;
     opHome = baseY - 30;
     bandY = H * 0.44;
-    fieldW = clamp(W * 0.56, 190, 260);             // ~5 monster columns wide, not 10
+    fieldW = clamp(W * 0.8, 300, 380);              // wider lane (was too narrow)
     fieldL = Math.round((W - fieldW) / 2); fieldR = fieldL + fieldW; colW = fieldW / COLS;
     if (S) { S.op.x = clamp(S.op.x, fieldL + 26, fieldR - 26); S.op.y = clamp(S.op.y, baseY - 150, baseY - 12); }
     buildCracks();
@@ -99,10 +104,12 @@ export function createStandGame(canvas, opts = {}) {
     const sq = S.squad;
     // rebuild the firing squad: operator + EDR turrets + MDR allies into flank slots
     const list = [{ kind: 'op', off: 0, yoff: 0, dmg: OPERATOR.dmg, rate: OPERATOR.rate, speed: OPERATOR.bulletSpeed, pierce: OPERATOR.pierce, acc: 0 }];
-    let slot = 0;
-    const yo = s => Math.floor(s / 2) * 10;   // outer flank slots sit back → a V formation
-    for (let i = 0; i < sq.edrTurrets; i++) { const s = slot++; list.push({ kind: 'edr', off: SLOTS[s] ?? 0, yoff: yo(s), dmg: sq.edrDmg, rate: TURRET.rate, speed: TURRET.bulletSpeed, pierce: TURRET.pierce, acc: 0 }); }
-    for (let i = 0; i < sq.mdrAllies; i++) { const s = slot++; list.push({ kind: 'mdr', off: SLOTS[s] ?? 0, yoff: yo(s), dmg: sq.mdrDmg, rate: ALLY.rate, speed: ALLY.bulletSpeed, pierce: ALLY.pierce, acc: 0 }); }
+    // EDR = FIXED turret emplacements along the wall (do NOT move with the operator),
+    // spread evenly across the lane so they cover columns.
+    const n = sq.edrTurrets;
+    for (let i = 0; i < n; i++) list.push({ kind: 'edr', fixed: true, frac: (i + 1) / (n + 1), dmg: sq.edrDmg, rate: TURRET.rate, speed: TURRET.bulletSpeed, pierce: TURRET.pierce, acc: 0 });
+    // MDR = teammates that flank the operator and move with them (staggered V)
+    for (let i = 0; i < sq.mdrAllies; i++) list.push({ kind: 'mdr', off: MDR_SLOTS[i] ?? 0, yoff: Math.floor(i / 2) * 12, dmg: sq.mdrDmg, rate: ALLY.rate, speed: ALLY.bulletSpeed, pierce: ALLY.pierce, acc: 0 });
     // keep existing accumulators where kinds line up (smooth level-ups)
     if (S.shooters) list.forEach((s, i) => { if (S.shooters[i]) s.acc = S.shooters[i].acc; });
     S.shooters = list;
@@ -144,7 +151,8 @@ export function createStandGame(canvas, opts = {}) {
   }
 
   // ---- firing (STRAIGHT UP only) ----
-  function unitX(sh) { return clamp(S.op.x + sh.off, fieldL + 16, fieldR - 16); }
+  function unitX(sh) { return sh.fixed ? fieldL + fieldW * sh.frac : clamp(S.op.x + (sh.off || 0), fieldL + 16, fieldR - 16); }
+  function unitY(sh) { return sh.fixed ? baseY - 26 : S.op.y + (sh.yoff || 0); }
   function fireUp(x, y, dmg, speed, pierce, color) {
     S.shots.push({ x, y, vx: 0, vy: -speed, dmg, pierce, hit: new Set(), r: 4.5, color });
   }
@@ -207,7 +215,8 @@ export function createStandGame(canvas, opts = {}) {
     // firing — every unit straight up
     for (const sh of S.shooters) {
       sh.acc += dt * 1000; const interval = 1000 / (sh.rate * sq.fireRateMul);
-      while (sh.acc >= interval) { sh.acc -= interval; const x = unitX(sh), uy = op.y + (sh.yoff || 0); fireUp(x, uy - 16, sh.dmg, sh.speed, sh.pierce, sh.kind === 'op' ? dominantColor() : ACCENT[sh.kind === 'edr' ? 'EDR' : 'MDR']); if (sh.kind === 'op') op.muzzle = 1; S.fx.push({ t: 'muzzle', x, y: uy - 18, color: ACCENT[sh.kind === 'edr' ? 'EDR' : sh.kind === 'mdr' ? 'MDR' : 'HCI'], life: 1 }); }
+      while (sh.acc >= interval) { sh.acc -= interval; const x = unitX(sh), uy = unitY(sh); fireUp(x, uy - 16, sh.dmg, sh.speed, sh.pierce, sh.kind === 'op' ? dominantColor() : ACCENT[sh.kind === 'edr' ? 'EDR' : 'MDR']); if (sh.kind === 'op') op.muzzle = 1; sh.muzzle = 1; S.fx.push({ t: 'muzzle', x, y: uy - 18, color: ACCENT[sh.kind === 'edr' ? 'EDR' : sh.kind === 'mdr' ? 'MDR' : 'HCI'], life: 1 }); }
+      if (sh.muzzle) sh.muzzle = Math.max(0, sh.muzzle - dt * 6);
     }
     // XDR beam
     if (sq.beamOn) { S.beamAcc += dt * 1000; if (S.beamAcc >= sq.beamEvery) { S.beamAcc = 0; fireBeam(); } }
@@ -349,22 +358,37 @@ export function createStandGame(canvas, opts = {}) {
     ctx.fillStyle = g; ctx.fillRect(fieldL, bandY - 22, fieldW, 44);
     ctx.strokeStyle = 'rgba(255,209,102,.5)'; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -(S.elapsed * 40) % 24; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(fieldL, bandY); ctx.lineTo(fieldR, bandY); ctx.stroke(); ctx.setLineDash([]);
-    label(fieldL + 20, bandY - 16, 'IAG EGRESS', ACCENT.IAG, false); drawIcon('IAG', fieldL + 10, bandY, 15, ACCENT.IAG);
+    drawMark(fieldL + 15, bandY, 'IAG', 18); label(fieldL + 28, bandY - 15, 'IAG EGRESS', ACCENT.IAG, false);
     ctx.restore();
   }
   function drawEnemy(e) {
     const cloaked = e.spec.cloak && !S.squad.ndrReveal;
-    ctx.save(); ctx.globalAlpha = cloaked ? 0.4 : 1;
-    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(e.x, e.y + e.r * 0.8, e.r * 0.95, e.r * 0.4, 0, 0, TAU); ctx.fill();
-    const g = ctx.createRadialGradient(e.x - e.r * 0.3, e.y - e.r * 0.4, e.r * 0.2, e.x, e.y, e.r);
-    g.addColorStop(0, '#fff'); g.addColorStop(0.25, e.spec.color); g.addColorStop(1, shade(e.spec.color, -0.5));
-    ctx.fillStyle = g;
-    if (e.spec.boss) { ctx.beginPath(); for (let i = 0; i < 12; i++) { const a = i / 12 * TAU, rr = e.r * (i % 2 ? 0.7 : 1.1), x = e.x + Math.cos(a) * rr, y = e.y + Math.sin(a) * rr; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.closePath(); ctx.fill(); }
-    else { ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, TAU); ctx.fill(); }
-    if (e.hit > 0) { ctx.fillStyle = `rgba(255,255,255,${e.hit * 0.7})`; ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, TAU); ctx.fill(); }
-    ctx.fillStyle = 'rgba(8,10,16,.8)'; ctx.beginPath(); ctx.arc(e.x - e.r * 0.28, e.y - e.r * 0.1, e.r * 0.16, 0, TAU); ctx.arc(e.x + e.r * 0.28, e.y - e.r * 0.1, e.r * 0.16, 0, TAU); ctx.fill();
+    const r = e.r, col = e.spec.color, boss = e.spec.boss, spin = e.wob;
+    ctx.save(); ctx.globalAlpha = cloaked ? 0.34 : 1;
+    shadowEllipse(e.x, e.y + r * 0.85, r * 0.95, r * 0.4);
+    // spiked shell for the aggressive strains
+    if (e.type === 'malware' || e.type === 'worm' || boss) {
+      const n = boss ? 11 : 7;
+      ctx.fillStyle = shade(col, -0.3); ctx.beginPath();
+      for (let i = 0; i < n * 2; i++) { const a = spin * 0.6 + i / (n * 2) * TAU, rr = (i % 2 ? r * 0.92 : r * 1.42); const px = e.x + Math.cos(a) * rr, py = e.y + Math.sin(a) * rr; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+      ctx.closePath(); ctx.fill();
+    }
+    // glossy 3D body
+    sphere(e.x, e.y, r, col);
+    ctx.strokeStyle = tintA(col, 0.5, cloaked ? 0.4 : 0.85); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(e.x, e.y, Math.max(0, r - 0.6), 0, TAU); ctx.stroke();
+    // pulsing threat core
+    const pulse = 0.55 + 0.45 * Math.sin(S.elapsed * 6 + e.wob);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = hexA('#ffffff', 0.28 * pulse); ctx.beginPath(); ctx.arc(e.x, e.y, Math.max(0, r * 0.36), 0, TAU); ctx.fill();
+    ctx.fillStyle = tintA(col, 0.6, 0.6 * pulse); ctx.beginPath(); ctx.arc(e.x, e.y, Math.max(0, r * 0.2), 0, TAU); ctx.fill();
     ctx.restore();
-    if (e.marked && !cloaked) { ctx.strokeStyle = 'rgba(88,200,255,.85)'; ctx.lineWidth = 1.5; const m = e.r + 4; ctx.beginPath(); for (let k = 0; k < 4; k++) { const a = k / 4 * TAU + Math.PI / 4; ctx.moveTo(e.x + Math.cos(a) * m, e.y + Math.sin(a) * m); ctx.lineTo(e.x + Math.cos(a) * (m + 4), e.y + Math.sin(a) * (m + 4)); } ctx.stroke(); }
+    // type signatures (not cartoon faces)
+    if (e.type === 'recon') { ctx.strokeStyle = tintA(col, 0.6, 0.9); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(e.x, e.y - r); ctx.lineTo(e.x, e.y - r - 5); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(e.x, e.y - r - 5, 1.6, 0, TAU); ctx.fill(); }
+    if (e.type === 'exfil') { ctx.fillStyle = 'rgba(8,12,20,.8)'; roundRect(e.x - r * 0.34, e.y - r * 0.26, r * 0.68, r * 0.52, 2); ctx.fill(); ctx.strokeStyle = tintA(col, 0.7, 0.95); ctx.lineWidth = 1; for (let i = 0; i < 3; i++) { const yy = e.y - r * 0.12 + i * r * 0.18; ctx.beginPath(); ctx.moveTo(e.x - r * 0.2, yy); ctx.lineTo(e.x + r * 0.2, yy); ctx.stroke(); } }
+    if (boss) { ctx.fillStyle = '#ffd166'; ctx.save(); ctx.shadowColor = '#ffba45'; ctx.shadowBlur = 8; ctx.beginPath(); for (let i = 0; i < 3; i++) { const bx = e.x + (i - 1) * r * 0.5; ctx.moveTo(bx - r * 0.16, e.y - r * 0.78); ctx.lineTo(bx, e.y - r * 1.05); ctx.lineTo(bx + r * 0.16, e.y - r * 0.78); } ctx.closePath(); ctx.fill(); ctx.restore(); }
+    if (e.hit > 0) { ctx.fillStyle = `rgba(255,255,255,${e.hit * 0.7})`; ctx.beginPath(); ctx.arc(e.x, e.y, r, 0, TAU); ctx.fill(); }
+    ctx.restore();
+    if (e.marked && !cloaked) { ctx.strokeStyle = 'rgba(88,200,255,.9)'; ctx.lineWidth = 1.5; const m = r + 4; ctx.beginPath(); for (let k = 0; k < 4; k++) { const a = k / 4 * TAU + Math.PI / 4; ctx.moveTo(e.x + Math.cos(a) * m, e.y + Math.sin(a) * m); ctx.lineTo(e.x + Math.cos(a) * (m + 4), e.y + Math.sin(a) * (m + 4)); } ctx.stroke(); }
     if (e.slow > 0) { ctx.strokeStyle = 'rgba(255,209,102,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, Math.max(0, e.r + 3), 0, TAU); ctx.stroke(); }
     if (e.hp < e.maxhp) { const wd = e.r * 2, hpx = e.x - e.r, hpy = e.y - e.r - 7; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(hpx, hpy, wd, 3.5); ctx.fillStyle = e.spec.boss ? '#ff5a6a' : '#2ee6a0'; ctx.fillRect(hpx, hpy, wd * clamp(e.hp / e.maxhp, 0, 1), 3.5); }
   }
@@ -385,95 +409,163 @@ export function createStandGame(canvas, opts = {}) {
     ctx.fillStyle = `rgba(255,255,255,${0.9 * a})`; ctx.fillRect(b.x - w * 0.18, 0, w * 0.36, S.op.y);
     ctx.strokeStyle = `rgba(210,255,170,${a})`; ctx.lineWidth = 2; ctx.beginPath(); let yy = 0; ctx.moveTo(b.x, 0); while (yy < S.op.y) { yy += 24; ctx.lineTo(b.x + rand(-w * 0.4, w * 0.4), yy); } ctx.stroke(); ctx.restore();
   }
+  // NGAF = a 3D energy barrier: emitter posts + a panelled force field whose
+  // opacity tracks its HP, with the official NGFW mark on the emitters.
   function drawBarrier() {
-    const op = S.op, sq = S.squad, barY = op.y - BAR_OFFSET, halfW = sq.afHalfWidth;
+    const op = S.op, sq = S.squad, barY = op.y - BAR_OFFSET, halfW = sq.afHalfWidth, col = ACCENT.AF;
     const frac = S.afMax ? clamp(S.afHp / S.afMax, 0, 1) : 0;
+    const L = op.x - halfW, R = op.x + halfW, down = S.afDown;
     ctx.save();
-    if (S.afDown) ctx.globalAlpha = 0.3 + 0.2 * Math.sin(S.elapsed * 20);
-    const g = ctx.createLinearGradient(0, barY - 9, 0, barY + 9);
-    g.addColorStop(0, 'rgba(120,255,190,.25)'); g.addColorStop(0.5, `rgba(46,230,160,${0.55 * (0.4 + frac * 0.6)})`); g.addColorStop(1, 'rgba(20,140,100,.25)');
-    ctx.fillStyle = g; roundRect(op.x - halfW, barY - 9, halfW * 2, 18, 7); ctx.fill();
-    ctx.strokeStyle = `rgba(46,230,160,${0.5 + frac * 0.4})`; ctx.lineWidth = 2; ctx.stroke();
-    // segment ticks
-    ctx.strokeStyle = 'rgba(8,20,14,.5)'; ctx.lineWidth = 1; for (let x = op.x - halfW + 14; x < op.x + halfW; x += 16) { ctx.beginPath(); ctx.moveTo(x, barY - 8); ctx.lineTo(x, barY + 8); ctx.stroke(); }
-    drawIcon('AF', op.x - halfW + 2, barY, 16, ACCENT.AF); drawIcon('AF', op.x + halfW - 2, barY, 16, ACCENT.AF);
+    // field
+    ctx.save();
+    ctx.globalAlpha = down ? 0.22 + 0.14 * Math.sin(S.elapsed * 20) : 0.35 + frac * 0.4;
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createLinearGradient(0, barY - 14, 0, barY + 14);
+    g.addColorStop(0, 'rgba(120,255,200,0)'); g.addColorStop(0.5, col); g.addColorStop(1, 'rgba(20,150,110,0)');
+    ctx.fillStyle = g; ctx.fillRect(L, barY - 14, halfW * 2, 28);
+    // hex-ish panel seams
+    ctx.strokeStyle = `rgba(190,255,225,${down ? 0.25 : 0.5})`; ctx.lineWidth = 1;
+    for (let x = L + 6; x < R; x += 18) { ctx.beginPath(); ctx.moveTo(x, barY - 12); ctx.lineTo(x + 9, barY); ctx.lineTo(x, barY + 12); ctx.stroke(); }
     ctx.restore();
-    label(op.x, barY - 15, 'NGAF BARRIER', ACCENT.AF, true);
+    // bright top/bottom rails
+    ctx.strokeStyle = `rgba(90,255,190,${0.6 + frac * 0.4})`; ctx.lineWidth = 2; ctx.shadowColor = col; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.moveTo(L, barY - 13); ctx.lineTo(R, barY - 13); ctx.moveTo(L, barY + 13); ctx.lineTo(R, barY + 13); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+    // emitter posts at each end (3D) + marks
+    for (const ex of [L, R]) { ctx.save(); shadowEllipse(ex, barY + 18, 8, 3); cyl(ex, barY - 12, 11, 26, '#1d4a38'); ctx.restore(); drawMark(ex, barY - 18, 'AF', 16); }
+    label(op.x, barY - 24, 'NGAF BARRIER', col, true);
   }
   function drawSquad() {
     const op = S.op;
-    // HCI compute core behind the operator
+    // HCI compute core behind the operator, with power lines feeding every unit
     if ((S.levels.HCI || 0) > 0) {
+      const cx = op.x, cy = op.y + 20;
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      const cx = op.x, cy = op.y + 16, pulse = 0.6 + 0.4 * Math.sin(S.elapsed * 5);
-      ctx.strokeStyle = `rgba(57,192,255,${0.5 * pulse})`; ctx.lineWidth = 2;
-      for (const sh of S.shooters) { if (sh.kind === 'op') continue; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(unitX(sh), op.y + (sh.yoff || 0) - 6); ctx.stroke(); }
+      const pulse = 0.55 + 0.45 * Math.sin(S.elapsed * 5);
+      ctx.strokeStyle = `rgba(57,192,255,${0.45 * pulse})`; ctx.lineWidth = 2;
+      for (const sh of S.shooters) { if (sh.kind === 'op') continue; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(unitX(sh), unitY(sh) - 6); ctx.stroke(); }
       ctx.restore();
-      drawIcon('HCI', cx, cy + 6, 14, ACCENT.HCI);
+      drawCore(cx, cy, pulse);
     }
-    // NDR radar dish (behind, lower) if owned
-    if ((S.levels.NDR || 0) > 0) { const rx = clamp(op.x + 64, fieldL + 20, fieldR - 20), ry = op.y + 12; drawRadar(rx, ry); }
-    // turrets, allies — sorted back-to-front so the V formation layers correctly
-    const units = S.shooters.filter(s => s.kind === 'edr' || s.kind === 'mdr').sort((a, b) => (a.yoff || 0) - (b.yoff || 0));
+    // NDR radar unit (fixed, lower corner) if owned
+    if ((S.levels.NDR || 0) > 0) drawRadar(clamp(fieldR - 34, fieldL + 30, fieldR - 30), baseY - 30);
+    // render order: fixed turrets + MDR allies, back-to-front; operator last
+    const units = S.shooters.filter(s => s.kind === 'edr' || s.kind === 'mdr').sort((a, b) => unitY(a) - unitY(b));
     for (const sh of units) {
-      const x = unitX(sh), y = op.y + (sh.yoff || 0);
-      if (sh.kind === 'edr') drawTurret(x, y);
-      else drawAlly(x, y);
+      const x = unitX(sh), y = unitY(sh);
+      if (sh.kind === 'edr') drawTurret(x, y, sh.muzzle || 0);
+      else drawAlly(x, y, sh.muzzle || 0);
     }
     drawOperator();
   }
+  function drawCore(x, y, pulse) {
+    ctx.save();
+    shadowEllipse(x, y + 8, 16, 5);
+    cyl(x, y - 6, 26, 12, '#1b3a52');
+    // glowing coils
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = `rgba(57,192,255,${0.5 + 0.5 * pulse})`; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.ellipse(x, y - 6 + i * 4, 11 - i, 3.4, 0, 0, TAU); ctx.stroke(); }
+    ctx.restore();
+    drawMark(x, y - 20, 'HCI', 22);
+    ctx.restore();
+  }
+  // EDR = a fixed 3D turret emplacement with the official EPP mark on its dome
   function drawTurret(x, y, flash) {
+    const col = ACCENT.EDR;
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(x, y + 14, 15, 5, 0, 0, TAU); ctx.fill();
-    // pedestal (3D-ish trapezoid)
-    ctx.fillStyle = '#2a3346'; ctx.beginPath(); ctx.moveTo(x - 13, y + 12); ctx.lineTo(x + 13, y + 12); ctx.lineTo(x + 9, y - 2); ctx.lineTo(x - 9, y - 2); ctx.closePath(); ctx.fill();
-    // barrel up
-    ctx.fillStyle = ACCENT.EDR; ctx.save(); ctx.shadowColor = ACCENT.EDR; ctx.shadowBlur = 8; roundRect(x - 3, y - 22, 6, 22, 3); ctx.fill(); ctx.restore();
-    // dome with EDR logo
-    const g = ctx.createRadialGradient(x - 3, y - 6, 2, x, y - 3, 12); g.addColorStop(0, '#ffd3bf'); g.addColorStop(1, shade(ACCENT.EDR, -0.2));
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y - 2, 11, 0, TAU); ctx.fill();
-    drawIcon('EDR', x, y - 2, 15, '#2a1206');
+    shadowEllipse(x, y + 15, 17, 6);
+    // armoured base ring + pedestal
+    ctx.fillStyle = '#4b5873'; ctx.beginPath(); ctx.ellipse(x, y + 12, 16, 6, 0, 0, TAU); ctx.fill();
+    cyl(x, y - 2, 24, 15, '#2f3a52');
+    // rotating housing (sphere) tinted EDR
+    sphere(x, y - 6, 13, col);
+    // twin barrels up
+    for (const dx of [-5, 5]) { ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 8; const bg = ctx.createLinearGradient(x + dx - 3, 0, x + dx + 3, 0); bg.addColorStop(0, shade(col, -0.2)); bg.addColorStop(.5, '#fff'); bg.addColorStop(1, shade(col, -0.2)); ctx.fillStyle = bg; roundRect(x + dx - 2.6, y - 28, 5.2, 24, 2.5); ctx.fill(); ctx.restore(); }
+    if (flash > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = flash; ctx.fillStyle = '#fff'; for (const dx of [-5, 5]) { ctx.beginPath(); ctx.arc(x + dx, y - 28, Math.max(0, 5 * flash), 0, TAU); ctx.fill(); } ctx.restore(); }
     ctx.restore();
-    label(x, y - 30, 'EDR', ACCENT.EDR);
+    drawMark(x, y - 7, 'EDR', 19);
   }
-  function drawAlly(x, y) {
+  // MDR = a 3D teammate operator that moves with you
+  function drawAlly(x, y, flash) {
+    const col = ACCENT.MDR;
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(x, y + 15, 15, 5, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#1f4a3a'; roundRect(x - 9, y - 6, 18, 22, 5); ctx.fill();
-    ctx.fillStyle = '#e7c9a0'; ctx.beginPath(); ctx.arc(x, y - 12, 6.5, 0, TAU); ctx.fill();
-    ctx.fillStyle = ACCENT.MDR; roundRect(x - 7, y - 17, 14, 6, 3); ctx.fill();   // visor
-    ctx.fillStyle = ACCENT.MDR; ctx.save(); ctx.shadowColor = ACCENT.MDR; ctx.shadowBlur = 8; roundRect(x + 4, y - 24, 5, 20, 2); ctx.fill(); ctx.restore();  // rifle up
+    shadowEllipse(x, y + 16, 14, 5);
+    // body armour (shaded)
+    const bg = ctx.createLinearGradient(x - 10, 0, x + 10, 0); bg.addColorStop(0, '#15402f'); bg.addColorStop(.5, '#2b6b4e'); bg.addColorStop(1, '#123726');
+    ctx.fillStyle = bg; roundRect(x - 9, y - 6, 18, 23, 6); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; roundRect(x - 7, y - 5, 6, 20, 4); ctx.fill();
+    // shoulders
+    ctx.fillStyle = shade(col, -0.2); ctx.beginPath(); ctx.ellipse(x - 9, y - 4, 4, 6, 0, 0, TAU); ctx.ellipse(x + 9, y - 4, 4, 6, 0, 0, TAU); ctx.fill();
+    // head + visor
+    sphere(x, y - 13, 7, '#e7c9a0');
+    ctx.fillStyle = col; ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 7; roundRect(x - 6, y - 16, 12, 5, 2.5); ctx.fill(); ctx.restore();
+    // rifle up
+    ctx.fillStyle = '#20313f'; roundRect(x + 5, y - 26, 5, 22, 2); ctx.fill();
+    ctx.fillStyle = col; ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 6; roundRect(x + 5.5, y - 26, 4, 5, 1.5); ctx.fill(); ctx.restore();
+    if (flash > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = flash; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x + 7.5, y - 27, Math.max(0, 5 * flash), 0, TAU); ctx.fill(); ctx.restore(); }
     ctx.restore();
-    drawIcon('MDR', x - 11, y - 14, 13, ACCENT.MDR);
-    label(x, y - 30, 'MDR', ACCENT.MDR);
+    drawMark(x - 13, y - 12, 'MDR', 16);
   }
+  // NDR = a 3D radar emplacement with a sweeping dish
   function drawRadar(x, y) {
+    const col = ACCENT.NDR;
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(x, y + 10, 12, 4, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#243247'; ctx.beginPath(); ctx.arc(x, y, 10, 0, TAU); ctx.fill();
-    ctx.strokeStyle = 'rgba(88,200,255,.4)'; ctx.lineWidth = 1; for (let rr = 4; rr <= 10; rr += 3) { ctx.beginPath(); ctx.arc(x, y, rr, 0, TAU); ctx.stroke(); }
-    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = ACCENT.NDR; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(S.radarAng) * 10, y + Math.sin(S.radarAng) * 10); ctx.stroke(); ctx.restore();
-    drawIcon('NDR', x, y, 12, ACCENT.NDR); ctx.restore();
-    label(x, y - 16, 'NDR', ACCENT.NDR);
-  }
-  function drawOperator() {
-    const op = S.op, col = dominantColor();
-    ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(op.x, op.y + 16, 18, 6, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#2a3346'; roundRect(op.x - 10, op.y - 6, 20, 24, 5); ctx.fill();
-    ctx.fillStyle = '#e7c9a0'; ctx.beginPath(); ctx.arc(op.x, op.y - 12, 7, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#39507a'; roundRect(op.x - 8, op.y - 17, 16, 7, 3); ctx.fill();
-    ctx.save(); ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 12; roundRect(op.x - 3.5, op.y - 34, 7, 24, 3); ctx.fill();
-    if (op.muzzle > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = '#fff'; ctx.globalAlpha = op.muzzle; ctx.beginPath(); ctx.arc(op.x, op.y - 36, Math.max(0, 7 * op.muzzle), 0, TAU); ctx.fill(); }
+    shadowEllipse(x, y + 13, 14, 5);
+    cyl(x, y + 2, 16, 11, '#223246');
+    // tilted dish
+    ctx.save(); ctx.translate(x, y - 6); ctx.transform(1, 0, -0.35, 0.72, 0, 0);
+    const dg = ctx.createRadialGradient(-2, -3, 1, 0, 0, 12); dg.addColorStop(0, shade(col, 0.4)); dg.addColorStop(1, '#13364d');
+    ctx.fillStyle = dg; ctx.beginPath(); ctx.arc(0, 0, 12, 0, TAU); ctx.fill();
+    ctx.strokeStyle = 'rgba(88,200,255,.5)'; ctx.lineWidth = 1; for (let rr = 4; rr <= 11; rr += 3.5) { ctx.beginPath(); ctx.arc(0, 0, rr, 0, TAU); ctx.stroke(); }
     ctx.restore();
-    if (S.shield > 0) { ctx.strokeStyle = 'rgba(169,139,255,.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(op.x, op.y, 30, Math.PI, TAU); ctx.stroke(); drawIcon('ASTOR', op.x, op.y - 40, 12, ACCENT.ASTOR); }
+    // sweep beam
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.shadowColor = col; ctx.shadowBlur = 8; ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x + Math.cos(S.radarAng) * 11, y - 6 + Math.sin(S.radarAng) * 7); ctx.stroke(); ctx.restore();
+    ctx.restore();
+    drawMark(x, y - 22, 'NDR', 17);
+  }
+  // the operator: a 3D hero gunner with the dominant product mark on the chest
+  function drawOperator() {
+    const op = S.op, dom = dominant(), col = dominantColor();
+    ctx.save();
+    shadowEllipse(op.x, op.y + 17, 18, 6);
+    // legs
+    ctx.fillStyle = '#20283a'; roundRect(op.x - 8, op.y + 6, 7, 12, 3); roundRect(op.x + 1, op.y + 6, 7, 12, 3); ctx.fill();
+    // torso armour
+    const bg = ctx.createLinearGradient(op.x - 12, 0, op.x + 12, 0); bg.addColorStop(0, '#263450'); bg.addColorStop(.5, '#3f5578'); bg.addColorStop(1, '#1c2740');
+    ctx.fillStyle = bg; roundRect(op.x - 11, op.y - 7, 22, 24, 7); ctx.fill();
+    // chest glow line + brand accent
+    ctx.fillStyle = `rgba(${hexRGB(col)},.9)`; ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 8; roundRect(op.x - 7, op.y - 2, 14, 2.5, 1); ctx.fill(); ctx.restore();
+    // shoulders
+    ctx.fillStyle = '#2b3a58'; ctx.beginPath(); ctx.ellipse(op.x - 11, op.y - 5, 4.5, 7, 0, 0, TAU); ctx.ellipse(op.x + 11, op.y - 5, 4.5, 7, 0, 0, TAU); ctx.fill();
+    // head + helmet + visor
+    sphere(op.x, op.y - 14, 7.5, '#dcc39a');
+    ctx.fillStyle = '#2c3d5e'; ctx.beginPath(); ctx.arc(op.x, op.y - 16, 8, Math.PI, TAU); ctx.fill();
+    ctx.fillStyle = col; ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 8; roundRect(op.x - 7, op.y - 15, 14, 4.5, 2); ctx.fill(); ctx.restore();
+    // weapon up (gradient barrel)
+    ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 12; const wg = ctx.createLinearGradient(op.x - 4, 0, op.x + 4, 0); wg.addColorStop(0, shade(col, -0.2)); wg.addColorStop(.5, '#fff'); wg.addColorStop(1, shade(col, -0.2)); ctx.fillStyle = wg; roundRect(op.x - 3.5, op.y - 36, 7, 26, 3); ctx.fill();
+    if (op.muzzle > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = '#fff'; ctx.globalAlpha = op.muzzle; ctx.beginPath(); ctx.arc(op.x, op.y - 38, Math.max(0, 8 * op.muzzle), 0, TAU); ctx.fill(); }
+    ctx.restore();
+    ctx.restore();
+    if (dom) drawMark(op.x, op.y + 6, dom, 15);
+    if (S.shield > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(169,139,255,.8)'; ctx.lineWidth = 2.5; ctx.shadowColor = ACCENT.ASTOR; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(op.x, op.y - 4, 28, Math.PI * 0.85, Math.PI * 2.15); ctx.stroke(); ctx.restore(); drawMark(op.x, op.y - 46, 'ASTOR', 15); }
   }
   function drawBarricade() {
     const g = ctx.createLinearGradient(0, baseY, 0, H);
     g.addColorStop(0, '#39445a'); g.addColorStop(0.15, '#2a3245'); g.addColorStop(1, '#141924');
     ctx.fillStyle = g; ctx.fillRect(fieldL, baseY, fieldW, barH);
-    ctx.fillStyle = 'rgba(114,187,56,.5)'; ctx.fillRect(fieldL, baseY, fieldW, 2);
+    // beveled top lip
+    ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(fieldL, baseY, fieldW, 2);
+    ctx.fillStyle = 'rgba(114,187,56,.55)'; ctx.fillRect(fieldL, baseY + 2, fieldW, 1.5);
+    // armour plates with rivets
     ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1;
-    for (let x = fieldL; x <= fieldR; x += 48) { ctx.beginPath(); ctx.moveTo(x, baseY); ctx.lineTo(x, H); ctx.stroke(); ctx.fillStyle = 'rgba(180,200,230,.25)'; ctx.beginPath(); ctx.arc(x + 8, baseY + 12, 2, 0, TAU); ctx.fill(); }
+    for (let x = fieldL; x <= fieldR; x += 46) { ctx.beginPath(); ctx.moveTo(x, baseY + 4); ctx.lineTo(x, H); ctx.stroke(); ctx.fillStyle = 'rgba(180,200,230,.3)'; ctx.beginPath(); ctx.arc(x + 8, baseY + 13, 1.8, 0, TAU); ctx.fill(); }
+    // the SANGFOR corporate logo on the base you are defending
+    if (brandImg.complete && brandImg.naturalWidth > 0) {
+      const lw = Math.min(fieldW * 0.42, 150), lh = lw * (brandImg.naturalHeight / brandImg.naturalWidth);
+      ctx.save(); ctx.globalAlpha = 0.9; ctx.drawImage(brandImg, fieldL + fieldW / 2 - lw / 2, baseY + barH / 2 - lh / 2, lw, lh); ctx.restore();
+    }
   }
   function drawFx() {
     for (const f of S.fx) {
@@ -495,7 +587,43 @@ export function createStandGame(canvas, opts = {}) {
   // small canvas helpers
   function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
   function drawIcon(id, x, y, s, tint) { const img = icons[id]; if (img && img.complete && img.naturalWidth > 0) ctx.drawImage(img, x - s / 2, y - s / 2, s, s); else { ctx.fillStyle = tint || '#fff'; ctx.beginPath(); ctx.arc(x, y, s * 0.3, 0, TAU); ctx.fill(); } }
-  function label(x, y, text, color, center) { ctx.save(); ctx.font = '700 8.5px ui-monospace,monospace'; ctx.textAlign = center === undefined ? 'center' : (center ? 'center' : 'left'); ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillText(text, x + 0.5, y + 0.5); ctx.fillStyle = color; ctx.fillText(text, x, y); ctx.restore(); ctx.textAlign = 'start'; }
+  function label(x, y, text, color, center) { ctx.save(); ctx.font = '700 8.5px ui-monospace,monospace'; ctx.textAlign = center === undefined ? 'center' : (center ? 'center' : 'left'); ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText(text, x + 0.5, y + 0.5); ctx.fillStyle = color; ctx.fillText(text, x, y); ctx.restore(); ctx.textAlign = 'start'; }
+
+  // ---- 3D primitives ----
+  function shadowEllipse(x, y, rx, ry) { ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, TAU); ctx.fill(); }
+  function sphere(x, y, r, col) {
+    const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
+    g.addColorStop(0, shade(col, 0.55)); g.addColorStop(0.5, col); g.addColorStop(1, shade(col, -0.45));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(x - r * 0.32, y - r * 0.4, r * 0.24, r * 0.15, -0.6, 0, TAU); ctx.fill();
+  }
+  function cyl(x, yTop, w, h, col) {
+    const hw = w / 2, ry = w * 0.26;
+    const g = ctx.createLinearGradient(x - hw, 0, x + hw, 0);
+    g.addColorStop(0, shade(col, -0.35)); g.addColorStop(0.45, shade(col, 0.28)); g.addColorStop(0.55, shade(col, 0.28)); g.addColorStop(1, shade(col, -0.4));
+    ctx.fillStyle = g; ctx.fillRect(x - hw, yTop, w, h);
+    ctx.fillStyle = shade(col, -0.3); ctx.beginPath(); ctx.ellipse(x, yTop + h, hw, ry, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = shade(col, 0.3); ctx.beginPath(); ctx.ellipse(x, yTop, hw, ry, 0, 0, TAU); ctx.fill();
+  }
+  // a bright product badge carrying the official Sangfor mark
+  function drawMark(x, y, id, s) {
+    const col = ACCENT[id] || '#72bb38';
+    ctx.save();
+    ctx.shadowColor = col; ctx.shadowBlur = s * 0.5;
+    const g = ctx.createLinearGradient(x, y - s / 2, x, y + s / 2); g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#e7edf5');
+    ctx.fillStyle = g; roundRect(x - s / 2, y - s / 2, s, s, s * 0.26); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5; roundRect(x - s / 2 + 0.75, y - s / 2 + 0.75, s - 1.5, s - 1.5, s * 0.24); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.4)'; roundRect(x - s / 2 + 1.5, y - s / 2 + 1.5, s - 3, s * 0.36, s * 0.2); ctx.fill();
+    const im = marks[id], pad = s * 0.17;
+    if (im && im.complete && im.naturalWidth > 0) {
+      const avail = s - pad * 2, sc = Math.min(avail / im.naturalWidth, avail / im.naturalHeight), dw = im.naturalWidth * sc, dh = im.naturalHeight * sc;
+      ctx.save(); roundRect(x - s / 2 + 2, y - s / 2 + 2, s - 4, s - 4, s * 0.2); ctx.clip(); ctx.drawImage(im, x - dw / 2, y - dh / 2, dw, dh); ctx.restore();
+    } else drawIcon(id, x, y, s * 0.6, col);
+    ctx.restore();
+  }
+  function hexRGB(hex) { const c = hex.replace('#', ''); return `${parseInt(c.slice(0, 2), 16)},${parseInt(c.slice(2, 4), 16)},${parseInt(c.slice(4, 6), 16)}`; }
+  function tintA(hex, amt, a) { const c = hex.replace('#', ''); let r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16); r = clamp(Math.round(r + 255 * amt), 0, 255); g = clamp(Math.round(g + 255 * amt), 0, 255); b = clamp(Math.round(b + 255 * amt), 0, 255); return `rgba(${r},${g},${b},${a})`; }
 
   // ---- hud ----
   function pushHud() {

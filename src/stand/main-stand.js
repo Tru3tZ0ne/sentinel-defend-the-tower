@@ -7,6 +7,7 @@ import { createStandGame, ACCENT } from './engine.js';
 import { WEAPONS, WEAPON_ORDER, START_BASE } from './model.js';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
+import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { makeI18n } from '../arcade/i18n.js';
 import { makeBoard } from '../arcade/board.js';
 import { brandHTML, boardListHTML, footerHTML, fmt, esc, painter } from '../arcade/ui-kit.js';
@@ -15,6 +16,8 @@ import { setMuted, isMuted, resumeAudio } from '../rush/audio.js';
 const ICON_KEY = { HCI: 'network', EDR: 'edr', NDR: 'ndr', AF: 'af', IAG: 'iag', XDR: 'xdr', ASTOR: 'astor', MDR: 'mdr' };
 const CAP_NAME = { HCI: 'HCI Cloud', EDR: 'Endpoint Secure', NDR: 'Cyber Command', AF: 'NGAF', IAG: 'IAG Gateway', XDR: 'XDR', ASTOR: 'aStor', MDR: 'MDR' };
 const ICO = id => ICONS[ICON_KEY[id]] || '';
+// official Sangfor product artwork for the HUD (same marks the battlefield uses)
+const MARK = id => { const m = PRODUCT_MARKS[id]; return m ? `<img class="st-mark" src="assets/brand/products/sangfor-${m[0]}" alt="${esc(CAP_NAME[id] || id)}" loading="lazy" />` : ICO(id); };
 
 const EN = {
   'st.title': 'Last Stand',
@@ -210,9 +213,9 @@ const game = createStandGame(el.canvas, {
 
 function weapHTML(h) {
   const id = h.dom;
-  if (!id) return `<span class="st-weap-ico cap-XDR">${ICO('XDR')}</span><span class="st-weap-lv"><b>${esc(t('st.weapon'))}</b><span>T0</span></span>`;
+  if (!id) return `<span class="st-weap-ico cap-XDR">${MARK('XDR')}</span><span class="st-weap-lv"><b>${esc(t('st.weapon'))}</b><span>T0</span></span>`;
   const lvl = h.levels[id] || 0;
-  return `<span class="st-weap-ico cap-${id}">${ICO(id)}</span>` +
+  return `<span class="st-weap-ico cap-${id}">${MARK(id)}</span>` +
     `<span class="st-weap-lv"><b>${esc(CAP_NAME[id])}</b><span>Lv${lvl} · T${h.tier}</span></span>`;
 }
 function railHTML(levels) {
@@ -222,7 +225,7 @@ function railHTML(levels) {
     const lv = levels[id] || 0, max = WEAPONS[id].max;
     const dots = Array.from({ length: max }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('');
     return `<span class="st-rail-item cap-${id}" title="${esc(CAP_NAME[id])} - ${esc(t('dim.' + id))}">
-      <span class="st-rail-ico">${ICO(id)}</span><span class="st-rail-dots">${dots}</span></span>`;
+      <span class="st-rail-ico">${MARK(id)}</span><span class="st-rail-dots">${dots}</span></span>`;
   }).join('');
 }
 
@@ -241,7 +244,7 @@ function cardHTML(ch) {
   const id = ch.id, isNew = ch.toLevel === 1, maxed = ch.toLevel >= ch.max;
   return `<button class="st-card cap-${id}" data-up="${id}">
     <span class="st-card-top">
-      <span class="st-card-ico">${ICO(id)}</span>
+      <span class="st-card-ico">${MARK(id)}</span>
       ${isNew ? `<span class="st-card-tag">${esc(t('st.new'))}</span>` : `<span class="st-card-tag lv">${esc(t('st.to', { a: ch.toLevel - 1, b: ch.toLevel }))}${maxed ? ' · ' + esc(t('st.max')) : ''}</span>`}
     </span>
     <span class="st-card-name">${esc(CAP_NAME[id])}</span>
@@ -312,7 +315,7 @@ function codexRows() {
     const lim = p ? p.limitation[L] : t('l.' + id);
     const name = p ? p.shortName : CAP_NAME[id];
     return `<div class="vc-cx cap-${id}">
-      <div class="vc-cx-h"><span class="st-cx-ico">${ICO(id)}</span><b>${esc(name)}</b><span class="st-cx-dim">${esc(t('dim.' + id))}</span></div>
+      <div class="vc-cx-h"><span class="st-cx-ico">${MARK(id)}</span><b>${esc(name)}</b><span class="st-cx-dim">${esc(t('dim.' + id))}</span></div>
       <div class="vc-cx-row"><span class="vc-cx-k">${esc(t('st.real'))}</span><span>${esc(real)}</span></div>
       <div class="vc-cx-row boost"><span class="vc-cx-k">${esc(t('st.boost'))}</span><span>${esc(t('b.' + id))}</span></div>
       <div class="vc-cx-row lim"><span class="vc-cx-k">${esc(t('st.limit'))}</span><span>${esc(lim)}</span></div>
