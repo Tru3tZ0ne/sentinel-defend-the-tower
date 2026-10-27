@@ -444,9 +444,9 @@ export function createStandGame(canvas, opts = {}) {
   function drawFx() {
     for (const f of S.fx) {
       const a = Math.max(0, f.life);
-      if (f.t === 'ring') { ctx.strokeStyle = hexA(f.color, a); ctx.lineWidth = f.w; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, TAU); ctx.stroke(); }
+      if (f.t === 'ring') { ctx.strokeStyle = hexA(f.color, a); ctx.lineWidth = f.w; ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(0, f.r), 0, TAU); ctx.stroke(); }
       else if (f.t === 'zap') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = hexA(f.color, a); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(f.x1, f.y1); const mx = (f.x1 + f.x2) / 2 + rand(-12, 12), my = (f.y1 + f.y2) / 2 + rand(-12, 12); ctx.quadraticCurveTo(mx, my, f.x2, f.y2); ctx.stroke(); ctx.restore(); }
-      else if (f.t === 'frost') { ctx.strokeStyle = `rgba(150,210,255,${a})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, TAU); ctx.stroke(); }
+      else if (f.t === 'frost') { ctx.strokeStyle = `rgba(150,210,255,${a})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(0, f.r), 0, TAU); ctx.stroke(); }
       else if (f.t === 'muzzle') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = hexA(f.color, a); ctx.beginPath(); ctx.arc(f.x, f.y, 9 * a, 0, TAU); ctx.fill(); ctx.restore(); }
     }
     for (const pt of S.parts) { ctx.globalAlpha = Math.max(0, pt.life); ctx.fillStyle = pt.color; ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r, 0, TAU); ctx.fill(); }
@@ -480,7 +480,7 @@ export function createStandGame(canvas, opts = {}) {
 
   // ---- lifecycle ----
   function frame(ts) {
-    const dt = Math.min(0.05, (ts - lastTS) / 1000 || 0); lastTS = ts;
+    const dt = Math.min(0.05, Math.max(0, (ts - lastTS) / 1000 || 0)); lastTS = ts;
     if (S.phase === 'play') update(dt);
     draw();
     raf = requestAnimationFrame(frame);
