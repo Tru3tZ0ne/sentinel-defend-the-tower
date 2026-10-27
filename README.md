@@ -38,7 +38,7 @@ Several self-contained experiences share the brand, i18n and assets:
 | `soc.html` | **Incident Zero** — live SOC: **XDR correlation** + stage-correct containment | `src/soc/` (+ `src/arcade/`) |
 | `vector.html` | **Threat Vector** — survivor shooter: monsters charge, product **drops** level you up | `src/vector/` (+ `src/arcade/`) |
 | `line.html` | **Breach Line** — a Plants-vs-Zombies lane defense; deploy product **defenders** in a grid | `src/line/` (+ `src/arcade/`) |
-| `stand.html` | **Last Stand** — a vertical survivor shooter; each product **upgrades your weapon** on a different axis | `src/stand/` (+ `src/arcade/`) |
+| `stand.html` | **Last Stand** — a vertical survivor shooter; each product **deploys as a unit** on the field | `src/stand/` (+ `src/arcade/`) |
 
 The last three are **quick-play arcade games** — pick-up-and-play, instant score, and each maps
 to real Sangfor products. They share a small common layer in `src/arcade/` (bilingual strings,
@@ -72,18 +72,20 @@ capability legible at a glance. The in-game Product Codex pairs every product's 
 on-board role and honest limitation. Pure logic is unit-tested in `tools/arcade-logic.test.mjs`.
 
 **Last Stand** (`stand.html`) is a vertical, 3D-style "survivor" defense shooter. Your operator
-holds the line at the bottom while threats pour *down* the shaft at you and your base; the weapon
-fires itself at the nearest threat. Clearing threats levels you up, and **every level you choose one
-of three Sangfor products** to bolt onto the weapon — and each one upgrades a *different dimension*,
-faithful to what the product really does: **HCI** = fire rate (cloud compute throughput), **EDR** =
-damage per shot (endpoint kill power), **NDR** = pierce + multishot *and* revealing cloaked APTs
-(network-wide reach), **NGAF** = a perimeter spread fan + a harder base, **IAG** = a slow field
-(egress throttle), **aStor** = a snapshot shield that soaks a hit, **MDR** = a managed wingman drone,
-and **XDR** = the colossal vertical correlation beam that is weak alone but whose damage *multiplies
-with how many sensors (EDR/NDR/NGAF) feed it*. The product branding is woven through the whole UI —
-the upgrade cards, the weapon chip, the loadout rail, and a Product Codex that pairs each product's
-real job with its weapon upgrade and honest limitation. Pure logic is unit-tested in
-`tools/arcade-logic.test.mjs`.
+holds the bottom line while threats pour straight *down* at you and your base, and you and every unit
+fire straight *up*. Clearing threats levels you up fast, and **every level you choose one of three
+Sangfor products** — which then **deploys as a real unit on the battlefield** and fights the way the
+product actually works: **EDR** drops endpoint **turrets** beside you, **NGAF** raises a **barrier**
+that blocks a cluster of threats and weakens any that break through, **MDR** brings a **teammate** who
+fights at your side 24/7, **NDR** deploys a **radar** that reveals cloaked APTs and marks threats so
+every unit does bonus damage, **IAG** projects a **checkpoint band** that slows whatever crosses it,
+**HCI** is a **compute core** that speeds up every unit's fire rate, **aStor** is a **snapshot vault**
+that shields the base, and **XDR** calls the colossal vertical **correlation beam** — weak alone, but
+multiplying with how many sensor units (EDR/NDR/NGAF) you have on the field. Mix and match into a
+squad. The product branding is woven through the whole thing — the on-field units are labelled and
+shaped like their products, plus the upgrade cards, weapon chip, loadout rail, and a Product Codex
+pairing each product's real job with its battlefield role and honest limitation. Pure logic is
+unit-tested in `tools/arcade-logic.test.mjs`.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your

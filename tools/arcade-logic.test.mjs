@@ -266,63 +266,61 @@ test('line: scoring rewards combo (cap 6x) and boss > basic', () => {
 // ---------------------------------------------------------------------------
 import * as stand from '../src/stand/model.js';
 
-test('stand: HCI drives fire rate, EDR drives damage - distinct dimensions', () => {
-  const base = stand.deriveWeapon({});
-  const hci = stand.deriveWeapon({ HCI: 4 });
-  const edr = stand.deriveWeapon({ EDR: 4 });
-  assert.ok(hci.fireRate > base.fireRate && hci.dmg === base.dmg, 'HCI = rate only');
-  assert.ok(edr.dmg > base.dmg && edr.fireRate === base.fireRate, 'EDR = damage only');
-  assert.ok(hci.shotMs < base.shotMs, 'faster rate = shorter interval');
+test('stand: EDR deploys turrets (then +dmg), MDR deploys teammates', () => {
+  assert.equal(stand.deriveSquad({ EDR: 3 }).edrTurrets, 3);
+  assert.equal(stand.deriveSquad({ EDR: 4 }).edrTurrets, 4);
+  const e6 = stand.deriveSquad({ EDR: 6 });
+  assert.equal(e6.edrTurrets, 4, 'turret count caps at 4');
+  assert.ok(e6.edrDmg > stand.deriveSquad({ EDR: 4 }).edrDmg, 'extra EDR levels pump turret damage');
+  assert.equal(stand.deriveSquad({ MDR: 2 }).mdrAllies, 2);
+  assert.equal(stand.deriveSquad({ MDR: 5 }).mdrAllies, 2, 'ally count caps at 2');
 });
 
-test('stand: the XDR beam is weak alone and multiplies with sensors feeding it', () => {
-  const alone = stand.deriveWeapon({ XDR: 3 });
-  const fed = stand.deriveWeapon({ XDR: 3, EDR: 2, NDR: 2 });
-  assert.ok(alone.beamOn && alone.xdrIdle, 'XDR with no sensors is idle');
+test('stand: HCI is a compute core = fire rate for ALL units (no damage of its own)', () => {
+  const base = stand.deriveSquad({});
+  const hci = stand.deriveSquad({ HCI: 4 });
+  assert.ok(hci.fireRateMul > base.fireRateMul);
+  assert.equal(hci.edrTurrets, 0);
+  assert.equal(hci.edrDmg, base.edrDmg);
+});
+
+test('stand: NGAF deploys a barrier that blocks + weakens; IAG a slow band', () => {
+  const af = stand.deriveSquad({ AF: 3 });
+  assert.ok(af.afTier === 3 && af.afHp > 0 && af.afWeaken > 0 && af.afHalfWidth > 0);
+  assert.equal(stand.deriveSquad({}).afTier, 0);
+  const iag = stand.deriveSquad({ IAG: 3 });
+  assert.ok(iag.iagBand && iag.iagSlowMul < 1);
+  assert.equal(stand.deriveSquad({}).iagSlowMul, 1);
+});
+
+test('stand: the XDR beam is weak alone and multiplies with the SENSOR UNITS on the field', () => {
+  const alone = stand.deriveSquad({ XDR: 3 });
+  assert.ok(alone.beamOn && alone.xdrIdle && alone.sensors === 0);
+  const fed = stand.deriveSquad({ XDR: 3, EDR: 2, NDR: 2, AF: 1 });
+  assert.ok(!fed.xdrIdle && fed.sensors === (2 + 2 + 1), 'EDR turrets + NDR radars + AF barrier count');
   assert.ok(fed.beamDmg > alone.beamDmg * 2, 'sensors multiply the beam hard');
-  assert.ok(!fed.xdrIdle && fed.sensors === 4);
-  assert.equal(stand.sensorLevels({ EDR: 2, NDR: 1, AF: 3, HCI: 9 }), 6);
 });
 
-test('stand: NDR = pierce/multishot, AF = spread, IAG = slow', () => {
-  const ndr = stand.deriveWeapon({ NDR: 4 });
-  const af = stand.deriveWeapon({ AF: 3 });
-  const iag = stand.deriveWeapon({ IAG: 3 });
-  assert.equal(ndr.pierce, 4);
-  assert.equal(ndr.multishot, 3);        // 1 + floor(4/2)
-  assert.equal(af.spread, 3);
-  assert.ok(af.baseArmor > 0);
-  assert.ok(iag.slowMul < 1 && iag.slowMs > 0);
-  assert.equal(stand.deriveWeapon({}).slowMul, 1);
-});
-
-test('stand: APT stealth takes half damage until NDR (network visibility) is owned', () => {
+test('stand: NDR reveals + marks - cloaked APTs take half damage until NDR, bonus after', () => {
   const apt = stand.ENEMIES.apt;
-  assert.equal(stand.visibilityMul(apt, {}), 0.5);
-  assert.equal(stand.visibilityMul(apt, { NDR: 1 }), 1);
-  assert.equal(stand.damageTo(apt, {}, 100), 50);
-  assert.equal(stand.damageTo({ cloak: false }, {}, 100), 100);
+  assert.equal(stand.visibilityMul(apt, stand.deriveSquad({})), 0.5);
+  assert.equal(stand.visibilityMul(apt, stand.deriveSquad({ NDR: 1 })), 1);
+  assert.equal(stand.damageTo(apt, stand.deriveSquad({}), 100), 50);
+  const ndr = stand.deriveSquad({ NDR: 2 });
+  assert.ok(stand.damageTo(apt, ndr, 100) > 100, 'marked threats take bonus damage');
 });
 
-test('stand: upgrade offers are valid, never maxed, and nudge a sensor when XDR is idle', () => {
-  let seed = 7; const rng = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+test('stand: upgrades valid/never-maxed/nudge a sensor when XDR idle; difficulty ramps; combo cap 6x', () => {
+  let seed = 11; const rng = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
   const offers = stand.upgradeChoices({ XDR: 1 }, rng);
-  assert.ok(offers.length === 3);
-  const ids = offers.map(o => o.id);
-  assert.ok(new Set(ids).size === ids.length, 'distinct offers');
-  assert.ok(stand.SENSORS.some(s => ids.includes(s)), 'a sensor is offered when XDR idle');
-  for (const o of offers) assert.ok(o.toLevel <= o.max, o.id + ' not past max');
-  // a fully-maxed dimension is never offered
+  assert.equal(offers.length, 3);
+  assert.ok(stand.SENSORS.some(s => offers.map(o => o.id).includes(s)), 'a sensor is offered when XDR idle');
+  for (const o of offers) assert.ok(o.toLevel <= o.max);
   const maxed = {}; for (const id of stand.WEAPON_ORDER) maxed[id] = stand.WEAPONS[id].max;
   assert.equal(stand.upgradeChoices(maxed, rng).length, 0);
-});
-
-test('stand: difficulty ramps/bounded, pools unlock, scoring rewards combo (cap 6x)', () => {
   const a = stand.difficultyAt(0), b = stand.difficultyAt(120);
-  assert.ok(b.spawnGap < a.spawnGap && b.hpMul > a.hpMul && b.speedMul <= 1.8);
+  assert.ok(b.spawnGap < a.spawnGap && b.batch >= a.batch && b.speedMul <= 1.7);
   assert.ok(!stand.threatPool(0).includes('apt') && stand.threatPool(100).includes('apt'));
-  assert.ok(stand.xpToLevel(5) > stand.xpToLevel(1));
-  assert.equal(stand.comboMult(0), 1);
-  assert.equal(stand.comboMult(100), 6);
+  assert.equal(stand.comboMult(0), 1); assert.equal(stand.comboMult(100), 6);
   assert.ok(stand.killScore('ransom', 1) > stand.killScore('recon', 1));
 });
