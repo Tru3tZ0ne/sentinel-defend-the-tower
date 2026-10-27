@@ -1,0 +1,123 @@
+/* Last Stand — a vertical, pseudo-3D survivor defense shooter. Full-bleed canvas
+   plus a glossy, product-branded HUD (XP/level bar, weapon chip, loadout rail,
+   base-integrity bar) and big beveled Sangfor "upgrade cards" on level up.
+   Layers on main.css tokens + the shared arcade.css chrome. */
+
+.ar-field { padding: 0; display: block; overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 0%, #10151f 0%, #070a11 70%); }
+#stCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+
+/* per-product accent (shared by chip, rail, cards, codex) */
+.cap-HCI { --cap: #39c0ff; } .cap-EDR { --cap: #ff8a5a; } .cap-NDR { --cap: #58c8ff; }
+.cap-AF { --cap: #2ee6a0; } .cap-IAG { --cap: #ffd166; } .cap-XDR { --cap: #9be85a; }
+.cap-ASTOR { --cap: #a98bff; } .cap-MDR { --cap: #16ca78; }
+
+/* ---------- top bar: XP/level + weapon chip ---------- */
+.st-topbar { position: absolute; top: 10px; left: 12px; right: 12px; z-index: 5;
+  display: flex; align-items: center; gap: 10px; pointer-events: none; }
+.st-xp { position: relative; flex: 1; height: 16px; border-radius: 20px; overflow: hidden;
+  background: linear-gradient(180deg, rgba(5,9,16,.9), rgba(8,13,24,.82));
+  border: 1px solid var(--line); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 3px 10px rgba(0,0,0,.5); }
+.st-xp i { position: absolute; inset: 0; width: 0%; border-radius: 20px;
+  background: linear-gradient(180deg, #7fd4ff, #39c0ff 60%, #1f93d6);
+  box-shadow: 0 0 12px rgba(57,192,255,.6); transition: width .18s linear; }
+.st-lv-txt { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2;
+  font-family: var(--mono); font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.8); }
+.st-weap { pointer-events: none; display: inline-flex; align-items: center; gap: 8px; padding: 5px 11px 5px 7px;
+  border-radius: 14px; border: 1px solid var(--cap, var(--line)); background: linear-gradient(180deg, rgba(18,26,40,.95), rgba(9,14,24,.95));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 0 16px color-mix(in srgb, var(--cap, #39c0ff) 30%, transparent), 0 4px 12px rgba(0,0,0,.5); }
+.st-weap-ico { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--cap) 45%, #0b1220), #0b1220);
+  color: var(--cap, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cap) 60%, transparent); }
+.st-weap-ico svg { width: 20px; height: 20px; }
+.st-weap-lv { display: flex; flex-direction: column; line-height: 1.15; }
+.st-weap-lv b { font-size: 11px; color: #fff; }
+.st-weap-lv span { font-family: var(--mono); font-size: 9px; color: var(--cap, var(--ink-dim)); letter-spacing: .5px; }
+
+/* ---------- loadout rail (right edge, vertical) ---------- */
+.st-rail { position: absolute; top: 56px; right: 10px; z-index: 5; display: flex; flex-direction: column; gap: 6px;
+  pointer-events: none; align-items: flex-end; }
+.st-rail-item { display: inline-flex; align-items: center; gap: 6px; padding: 3px 7px 3px 4px; border-radius: 11px;
+  background: linear-gradient(180deg, rgba(14,20,32,.88), rgba(8,12,22,.88)); border: 1px solid color-mix(in srgb, var(--cap, #fff) 45%, var(--line));
+  box-shadow: 0 2px 8px rgba(0,0,0,.45); backdrop-filter: blur(3px); }
+.st-rail-ico { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; color: var(--cap, #fff);
+  background: color-mix(in srgb, var(--cap) 18%, #0b1220); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cap) 50%, transparent); }
+.st-rail-ico svg { width: 15px; height: 15px; }
+.st-rail-dots { display: inline-flex; gap: 2.5px; }
+.st-rail-dots i { width: 4.5px; height: 4.5px; border-radius: 50%; background: rgba(255,255,255,.16); }
+.st-rail-dots i.on { background: var(--cap, #fff); box-shadow: 0 0 5px var(--cap, #fff); }
+
+/* ---------- base integrity bar (bottom) ---------- */
+.st-base { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 5; pointer-events: none;
+  width: min(420px, 82%); height: 18px; border-radius: 20px; overflow: hidden;
+  background: linear-gradient(180deg, rgba(4,8,14,.92), rgba(8,13,22,.85));
+  border: 1px solid var(--line); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 4px 14px rgba(0,0,0,.6); }
+.st-base i { position: absolute; inset: 0; width: 100%; border-radius: 20px; transition: width .15s linear, background .25s; }
+.st-base i.ok { background: linear-gradient(180deg, #4dffa6, #16ca78 65%, #0e9a5a); box-shadow: 0 0 14px rgba(46,230,160,.55); }
+.st-base i.warn { background: linear-gradient(180deg, #ffd27a, #ffba45 65%, #d98a1f); }
+.st-base i.bad { background: linear-gradient(180deg, #ff8491, #ff5a6a 65%, #c2384a); }
+.st-base-txt { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2; font-size: 11px; font-weight: 800;
+  color: #04210f; font-variant-numeric: tabular-nums; text-shadow: 0 1px 0 rgba(255,255,255,.25); }
+
+/* ---------- level-up cards ---------- */
+.st-lvup { background: rgba(4,7,13,.72); backdrop-filter: blur(5px); }
+.st-lvcard { width: min(560px, 100%); text-align: center; animation: stPop .22s ease; }
+@keyframes stPop { from { transform: scale(.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.st-lv-badge { display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+  text-transform: uppercase; color: #04210f; background: linear-gradient(180deg, #4dffa6, #16ca78); padding: 4px 14px; border-radius: 20px;
+  box-shadow: 0 0 16px rgba(46,230,160,.5); }
+.st-lv-title { font-size: 20px; margin: 12px 0 2px; color: #fff; }
+.st-lv-sub { font-size: 12px; color: var(--ink-dim); margin-bottom: 14px; }
+.st-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.st-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  padding: 16px 10px 14px; border-radius: 16px; cursor: pointer; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--cap) 55%, var(--line));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cap) 12%, #0d1420), #0a0f1a 70%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 6px 18px rgba(0,0,0,.5);
+  transition: transform .12s, box-shadow .12s, border-color .12s; }
+.st-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 42%;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cap) 22%, transparent), transparent); pointer-events: none; }
+.st-card:hover, .st-card:focus-visible { transform: translateY(-4px); outline: none;
+  border-color: var(--cap); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 0 22px color-mix(in srgb, var(--cap) 45%, transparent), 0 10px 24px rgba(0,0,0,.6); }
+.st-card-top { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
+.st-card-ico { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 15px; color: var(--cap);
+  background: radial-gradient(circle at 36% 28%, color-mix(in srgb, var(--cap) 50%, #0b1220), #0b1220);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cap) 60%, transparent), 0 0 18px color-mix(in srgb, var(--cap) 40%, transparent); }
+.st-card-ico svg { width: 32px; height: 32px; }
+.st-card-tag { font-family: var(--mono); font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 20px; color: #04210f; background: var(--cap); }
+.st-card-tag.lv { color: var(--cap); background: color-mix(in srgb, var(--cap) 16%, #0b1220); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cap) 45%, transparent); }
+.st-card-name { position: relative; z-index: 1; font-size: 14px; font-weight: 800; color: #fff; }
+.st-card-dim { position: relative; z-index: 1; font-family: var(--mono); font-size: 10px; letter-spacing: .5px; color: var(--cap); }
+.st-card-dd { position: relative; z-index: 1; font-size: 10.5px; line-height: 1.4; color: var(--ink-dim); margin-top: 2px; }
+
+/* ---------- game-over build strip + codex (self-contained) ---------- */
+.st-build-h { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-mute); margin: 14px 0 6px; text-align: center; }
+.st-rail.final { position: static; transform: none; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; }
+.st-rail-empty { font-size: 11px; color: var(--ink-mute); }
+
+.ar-card.wide { width: min(560px, 100%); }
+.vc-cx-list { display: grid; gap: 10px; max-height: 56vh; overflow: auto; padding-right: 4px; }
+.vc-cx { border: 1px solid var(--line); border-left: 3px solid var(--cap, var(--brand-2)); border-radius: 12px;
+  padding: 10px 12px; background: rgba(8,13,24,.55); }
+.vc-cx-h { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.vc-cx-h b { font-size: 14px; color: #fff; }
+.st-cx-ico { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; color: var(--cap, var(--brand-2));
+  background: color-mix(in srgb, var(--cap, #16ca78) 18%, #0b1220); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cap, #16ca78) 45%, transparent); }
+.st-cx-ico svg { width: 17px; height: 17px; }
+.st-cx-dim { margin-left: auto; font-family: var(--mono); font-size: 9.5px; letter-spacing: .5px; color: var(--cap, var(--brand-2)); }
+.vc-cx-row { display: grid; grid-template-columns: 82px 1fr; gap: 8px; font-size: 11.5px; color: var(--ink-dim); line-height: 1.5; margin-top: 3px; }
+.vc-cx-k { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-mute); padding-top: 2px; }
+.vc-cx-row.boost span:last-child { color: var(--cap, var(--brand-2)); font-weight: 600; }
+.vc-cx-row.lim span:last-child { color: var(--warn); }
+
+@media (max-width: 480px) {
+  .st-cards { grid-template-columns: 1fr; gap: 8px; }
+  .st-card { flex-direction: row; text-align: left; align-items: center; padding: 10px 12px; gap: 10px; }
+  .st-card-top { flex-direction: row; width: auto; }
+  .st-card-ico { width: 40px; height: 40px; } .st-card-ico svg { width: 24px; height: 24px; }
+  .st-card-name, .st-card-dim, .st-card-dd { text-align: left; }
+  .vc-cx-row { grid-template-columns: 64px 1fr; }
+  .st-weap-lv b { font-size: 10px; }
+}

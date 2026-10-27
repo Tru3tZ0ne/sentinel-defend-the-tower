@@ -260,3 +260,69 @@ test('line: scoring rewards combo (cap 6x) and boss > basic', () => {
   assert.ok(line.killScore('ransom', 0) > line.killScore('recon', 0));
   assert.equal(line.killScore('recon', 100), line.ZOMBIES.recon.score * 6);
 });
+
+// ---------------------------------------------------------------------------
+// Last Stand — vertical survivor defense shooter (src/stand/model.js)
+// ---------------------------------------------------------------------------
+import * as stand from '../src/stand/model.js';
+
+test('stand: HCI drives fire rate, EDR drives damage - distinct dimensions', () => {
+  const base = stand.deriveWeapon({});
+  const hci = stand.deriveWeapon({ HCI: 4 });
+  const edr = stand.deriveWeapon({ EDR: 4 });
+  assert.ok(hci.fireRate > base.fireRate && hci.dmg === base.dmg, 'HCI = rate only');
+  assert.ok(edr.dmg > base.dmg && edr.fireRate === base.fireRate, 'EDR = damage only');
+  assert.ok(hci.shotMs < base.shotMs, 'faster rate = shorter interval');
+});
+
+test('stand: the XDR beam is weak alone and multiplies with sensors feeding it', () => {
+  const alone = stand.deriveWeapon({ XDR: 3 });
+  const fed = stand.deriveWeapon({ XDR: 3, EDR: 2, NDR: 2 });
+  assert.ok(alone.beamOn && alone.xdrIdle, 'XDR with no sensors is idle');
+  assert.ok(fed.beamDmg > alone.beamDmg * 2, 'sensors multiply the beam hard');
+  assert.ok(!fed.xdrIdle && fed.sensors === 4);
+  assert.equal(stand.sensorLevels({ EDR: 2, NDR: 1, AF: 3, HCI: 9 }), 6);
+});
+
+test('stand: NDR = pierce/multishot, AF = spread, IAG = slow', () => {
+  const ndr = stand.deriveWeapon({ NDR: 4 });
+  const af = stand.deriveWeapon({ AF: 3 });
+  const iag = stand.deriveWeapon({ IAG: 3 });
+  assert.equal(ndr.pierce, 4);
+  assert.equal(ndr.multishot, 3);        // 1 + floor(4/2)
+  assert.equal(af.spread, 3);
+  assert.ok(af.baseArmor > 0);
+  assert.ok(iag.slowMul < 1 && iag.slowMs > 0);
+  assert.equal(stand.deriveWeapon({}).slowMul, 1);
+});
+
+test('stand: APT stealth takes half damage until NDR (network visibility) is owned', () => {
+  const apt = stand.ENEMIES.apt;
+  assert.equal(stand.visibilityMul(apt, {}), 0.5);
+  assert.equal(stand.visibilityMul(apt, { NDR: 1 }), 1);
+  assert.equal(stand.damageTo(apt, {}, 100), 50);
+  assert.equal(stand.damageTo({ cloak: false }, {}, 100), 100);
+});
+
+test('stand: upgrade offers are valid, never maxed, and nudge a sensor when XDR is idle', () => {
+  let seed = 7; const rng = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  const offers = stand.upgradeChoices({ XDR: 1 }, rng);
+  assert.ok(offers.length === 3);
+  const ids = offers.map(o => o.id);
+  assert.ok(new Set(ids).size === ids.length, 'distinct offers');
+  assert.ok(stand.SENSORS.some(s => ids.includes(s)), 'a sensor is offered when XDR idle');
+  for (const o of offers) assert.ok(o.toLevel <= o.max, o.id + ' not past max');
+  // a fully-maxed dimension is never offered
+  const maxed = {}; for (const id of stand.WEAPON_ORDER) maxed[id] = stand.WEAPONS[id].max;
+  assert.equal(stand.upgradeChoices(maxed, rng).length, 0);
+});
+
+test('stand: difficulty ramps/bounded, pools unlock, scoring rewards combo (cap 6x)', () => {
+  const a = stand.difficultyAt(0), b = stand.difficultyAt(120);
+  assert.ok(b.spawnGap < a.spawnGap && b.hpMul > a.hpMul && b.speedMul <= 1.8);
+  assert.ok(!stand.threatPool(0).includes('apt') && stand.threatPool(100).includes('apt'));
+  assert.ok(stand.xpToLevel(5) > stand.xpToLevel(1));
+  assert.equal(stand.comboMult(0), 1);
+  assert.equal(stand.comboMult(100), 6);
+  assert.ok(stand.killScore('ransom', 1) > stand.killScore('recon', 1));
+});

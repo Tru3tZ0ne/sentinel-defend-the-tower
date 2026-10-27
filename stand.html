@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Sentinel · Last Stand — a Sangfor survivor defense shooter</title>
+  <meta name="description" content="Last Stand: a vertical, 3D-style survivor defense shooter. Hold the line at the bottom while threats pour down; your weapon auto-fires. Every level you pick a Sangfor product that upgrades your weapon on a different dimension - HCI = fire rate, EDR = damage, NDR = pierce, NGAF = spread, IAG = slow, XDR = the giant correlation beam (x your sensors), aStor = shield, MDR = a drone. Survive and climb the world ranking." />
+  <meta name="theme-color" content="#05070e" />
+  <link rel="stylesheet" href="./src/style/main.css" />
+  <link rel="stylesheet" href="./src/arcade/arcade.css" />
+  <link rel="stylesheet" href="./src/stand/stand.css" />
+  <!-- World ranking: local by default; set window.__STAND_API to a deployed leaderboard worker for a global board. -->
+  <script>/* window.__STAND_API = ''; */</script>
+</head>
+<body>
+  <div class="wrap" id="app"></div>
+  <noscript>This game needs JavaScript enabled.</noscript>
+  <script type="module" src="./src/stand/main-stand.js"></script>
+</body>
+</html>
