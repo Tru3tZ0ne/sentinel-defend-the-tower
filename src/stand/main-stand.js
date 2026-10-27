@@ -156,7 +156,8 @@ app.innerHTML = `
   <div class="ar-field">
     <canvas id="stCanvas"></canvas>
     <div class="st-topbar">
-      <div class="st-xp"><i id="stXpFill"></i><span class="st-lv-txt" id="stLvTxt">${esc(t('st.lv'))} 1</span></div>
+      <div class="st-lvbadge" id="stLvTxt">${esc(t('st.lv'))} 1</div>
+      <div class="st-xp"><i id="stXpFill"></i></div>
       <div class="st-weap" id="stWeap"></div>
     </div>
     <div class="st-rail" id="stRail"></div>

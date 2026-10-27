@@ -24,8 +24,9 @@ export const ACCENT = {
   IAG: '#ffd166', HCI: '#39c0ff', XDR: '#9be85a', ASTOR: '#a98bff',
 };
 const ICON_KEY = { HCI: 'network', EDR: 'edr', NDR: 'ndr', AF: 'af', IAG: 'iag', XDR: 'xdr', ASTOR: 'astor', MDR: 'mdr' };
-const SLOTS = [-46, 46, -92, 92, -138, 138];     // flanking offsets around the operator
+const SLOTS = [-38, 38, -74, 74, -104, 104];      // flanking offsets around the operator
 const BAR_OFFSET = 74;                            // barrier sits this far above the operator
+const COLS = 5;                                   // the lane is five columns wide
 
 function makeIcon(name, color) {
   const raw = (ICONS[ICON_KEY[name]] || ICONS.af)
@@ -47,7 +48,9 @@ export function createStandGame(canvas, opts = {}) {
   const icons = {}; for (const id of WEAPON_ORDER) icons[id] = makeIcon(id, '#f4fff9');
 
   // ---- geometry ----
+  // the arena is a narrow central LANE (fieldL..fieldR); the sides are framed walls.
   let W = 0, H = 0, dpr = 1, barH = 0, baseY = 0, opHome = 0, bandY = 0, cracks = [];
+  let fieldL = 0, fieldR = 0, fieldW = 0, colW = 0;
   function resize() {
     const r = canvas.getBoundingClientRect();
     W = Math.max(1, r.width); H = Math.max(1, r.height);
@@ -58,13 +61,16 @@ export function createStandGame(canvas, opts = {}) {
     baseY = H - barH;
     opHome = baseY - 30;
     bandY = H * 0.44;
-    if (S) { S.op.x = clamp(S.op.x, 40, W - 40); S.op.y = clamp(S.op.y, baseY - 150, baseY - 12); }
+    fieldW = clamp(W * 0.56, 190, 260);             // ~5 monster columns wide, not 10
+    fieldL = Math.round((W - fieldW) / 2); fieldR = fieldL + fieldW; colW = fieldW / COLS;
+    if (S) { S.op.x = clamp(S.op.x, fieldL + 26, fieldR - 26); S.op.y = clamp(S.op.y, baseY - 150, baseY - 12); }
     buildCracks();
   }
+  const opMinX = () => fieldL + 26, opMaxX = () => fieldR - 26;
   function buildCracks() {
     cracks = [];
     for (let i = 0; i < 9; i++) {
-      const x = rand(0, W), y = rand(0, baseY), len = rand(50, 150), a = rand(0, TAU);
+      const x = rand(fieldL, fieldR), y = rand(0, baseY), len = rand(50, 150), a = rand(0, TAU);
       const pts = [[x, y]]; let px = x, py = y, ang = a;
       for (let k = 0; k < 4; k++) { ang += rand(-0.7, 0.7); px += Math.cos(ang) * len / 4; py += Math.sin(ang) * len / 4; pts.push([px, py]); }
       cracks.push(pts);
@@ -92,10 +98,11 @@ export function createStandGame(canvas, opts = {}) {
     S.squad = deriveSquad(S.levels);
     const sq = S.squad;
     // rebuild the firing squad: operator + EDR turrets + MDR allies into flank slots
-    const list = [{ kind: 'op', off: 0, dmg: OPERATOR.dmg, rate: OPERATOR.rate, speed: OPERATOR.bulletSpeed, pierce: OPERATOR.pierce, acc: 0 }];
+    const list = [{ kind: 'op', off: 0, yoff: 0, dmg: OPERATOR.dmg, rate: OPERATOR.rate, speed: OPERATOR.bulletSpeed, pierce: OPERATOR.pierce, acc: 0 }];
     let slot = 0;
-    for (let i = 0; i < sq.edrTurrets; i++) list.push({ kind: 'edr', off: SLOTS[slot++] ?? 0, dmg: sq.edrDmg, rate: TURRET.rate, speed: TURRET.bulletSpeed, pierce: TURRET.pierce, acc: 0 });
-    for (let i = 0; i < sq.mdrAllies; i++) list.push({ kind: 'mdr', off: SLOTS[slot++] ?? 0, dmg: sq.mdrDmg, rate: ALLY.rate, speed: ALLY.bulletSpeed, pierce: ALLY.pierce, acc: 0 });
+    const yo = s => Math.floor(s / 2) * 10;   // outer flank slots sit back → a V formation
+    for (let i = 0; i < sq.edrTurrets; i++) { const s = slot++; list.push({ kind: 'edr', off: SLOTS[s] ?? 0, yoff: yo(s), dmg: sq.edrDmg, rate: TURRET.rate, speed: TURRET.bulletSpeed, pierce: TURRET.pierce, acc: 0 }); }
+    for (let i = 0; i < sq.mdrAllies; i++) { const s = slot++; list.push({ kind: 'mdr', off: SLOTS[s] ?? 0, yoff: yo(s), dmg: sq.mdrDmg, rate: ALLY.rate, speed: ALLY.bulletSpeed, pierce: ALLY.pierce, acc: 0 }); }
     // keep existing accumulators where kinds line up (smooth level-ups)
     if (S.shooters) list.forEach((s, i) => { if (S.shooters[i]) s.acc = S.shooters[i].acc; });
     S.shooters = list;
@@ -117,7 +124,7 @@ export function createStandGame(canvas, opts = {}) {
   function spawnEnemy(type) {
     const d = difficultyAt(S.elapsed), spec = ENEMIES[type];
     const hp = Math.round(spec.hp * (spec.boss ? 1 : d.hpMul));
-    S.enemies.push({ id: nextId++, type, spec, x: rand(spec.r + 10, W - spec.r - 10), y: -spec.r - rand(2, 40), r: spec.r, hp, maxhp: hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false });
+    S.enemies.push({ id: nextId++, type, spec, x: rand(fieldL + spec.r + 4, fieldR - spec.r - 4), y: -spec.r - rand(2, 40), r: spec.r, hp, maxhp: hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false });
   }
   function killEnemy(e, viaBeam) {
     e.dead = true;
@@ -137,7 +144,7 @@ export function createStandGame(canvas, opts = {}) {
   }
 
   // ---- firing (STRAIGHT UP only) ----
-  function unitX(sh) { return clamp(S.op.x + sh.off, 22, W - 22); }
+  function unitX(sh) { return clamp(S.op.x + sh.off, fieldL + 16, fieldR - 16); }
   function fireUp(x, y, dmg, speed, pierce, color) {
     S.shots.push({ x, y, vx: 0, vy: -speed, dmg, pierce, hit: new Set(), r: 4.5, color });
   }
@@ -189,7 +196,7 @@ export function createStandGame(canvas, opts = {}) {
     if (keys.has('left')) op.x -= mv; if (keys.has('right')) op.x += mv;
     if (keys.has('up')) op.y -= mv; if (keys.has('down')) op.y += mv;
     if (drag.on) { op.x += (drag.x - op.x) * Math.min(1, dt * 16); op.y += (drag.y - op.y) * Math.min(1, dt * 16); }
-    op.x = clamp(op.x, 40, W - 40); op.y = clamp(op.y, baseY - 150, baseY - 12);
+    op.x = clamp(op.x, opMinX(), opMaxX()); op.y = clamp(op.y, baseY - 150, baseY - 12);
     op.muzzle = Math.max(0, op.muzzle - dt * 6);
 
     // spawns (batches = more monsters)
@@ -200,7 +207,7 @@ export function createStandGame(canvas, opts = {}) {
     // firing — every unit straight up
     for (const sh of S.shooters) {
       sh.acc += dt * 1000; const interval = 1000 / (sh.rate * sq.fireRateMul);
-      while (sh.acc >= interval) { sh.acc -= interval; const x = unitX(sh); fireUp(x, (sh.kind === 'op' ? op.y : op.y) - 16, sh.dmg, sh.speed, sh.pierce, sh.kind === 'op' ? dominantColor() : ACCENT[sh.kind === 'edr' ? 'EDR' : 'MDR']); if (sh.kind === 'op') op.muzzle = 1; S.fx.push({ t: 'muzzle', x, y: op.y - 18, color: ACCENT[sh.kind === 'edr' ? 'EDR' : sh.kind === 'mdr' ? 'MDR' : 'HCI'], life: 1 }); }
+      while (sh.acc >= interval) { sh.acc -= interval; const x = unitX(sh), uy = op.y + (sh.yoff || 0); fireUp(x, uy - 16, sh.dmg, sh.speed, sh.pierce, sh.kind === 'op' ? dominantColor() : ACCENT[sh.kind === 'edr' ? 'EDR' : 'MDR']); if (sh.kind === 'op') op.muzzle = 1; S.fx.push({ t: 'muzzle', x, y: uy - 18, color: ACCENT[sh.kind === 'edr' ? 'EDR' : sh.kind === 'mdr' ? 'MDR' : 'HCI'], life: 1 }); }
     }
     // XDR beam
     if (sq.beamOn) { S.beamAcc += dt * 1000; if (S.beamAcc >= sq.beamEvery) { S.beamAcc = 0; fireBeam(); } }
@@ -226,7 +233,7 @@ export function createStandGame(canvas, opts = {}) {
       e.wob += dt * 3;
       const sp = e.spec.speed * d.speedMul * slowK;
       const nextY = e.y + sp * dt;
-      const dx = op.x - e.x; e.x = clamp(e.x + clamp(dx * 0.15, -18, 18) * dt + Math.cos(e.wob) * 6 * dt, e.r, W - e.r);
+      const dx = op.x - e.x; e.x = clamp(e.x + clamp(dx * 0.15, -18, 18) * dt + Math.cos(e.wob) * 6 * dt, fieldL + e.r, fieldR - e.r);
       e.hit = Math.max(0, e.hit - dt * 4);
       // barrier interaction
       const underBar = Math.abs(e.x - op.x) <= halfW + e.r;
@@ -303,26 +310,46 @@ export function createStandGame(canvas, opts = {}) {
     ctx.restore();
     if (S.flash > 0) { ctx.fillStyle = `rgba(${S.flashCol},${S.flash * 0.3})`; ctx.fillRect(0, 0, W, H); }
     drawVignette();
+    drawHudBands();
+  }
+
+  // dark shelves so the HTML HUD reads cleanly over the incoming action
+  function drawHudBands() {
+    const tg = ctx.createLinearGradient(0, 0, 0, 58);
+    tg.addColorStop(0, 'rgba(5,8,14,.82)'); tg.addColorStop(0.7, 'rgba(5,8,14,.35)'); tg.addColorStop(1, 'rgba(5,8,14,0)');
+    ctx.fillStyle = tg; ctx.fillRect(0, 0, W, 58);
   }
 
   function drawFloor() {
+    // framed side walls (so the lane reads as a contained arena, not a wide floor)
+    const wall = ctx.createLinearGradient(0, 0, 0, H);
+    wall.addColorStop(0, '#070a12'); wall.addColorStop(1, '#03050a');
+    ctx.fillStyle = wall; ctx.fillRect(0, 0, fieldL, H); ctx.fillRect(fieldR, 0, W - fieldR, H);
+    // the lane floor
     const g = ctx.createLinearGradient(0, 0, 0, baseY);
     g.addColorStop(0, '#0a0d16'); g.addColorStop(0.55, '#141a26'); g.addColorStop(1, '#1d2432');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, baseY);
-    ctx.strokeStyle = 'rgba(120,150,190,.06)'; ctx.lineWidth = 1;
-    for (let i = 1; i < 22; i++) { const t = i / 22, y = baseY * (t * t); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-    const cx = W / 2;
-    for (let i = -6; i <= 6; i++) { ctx.beginPath(); ctx.moveTo(cx + i * (W / 10), 0); ctx.lineTo(cx + i * (W / 3.2), baseY); ctx.stroke(); }
+    ctx.fillStyle = g; ctx.fillRect(fieldL, 0, fieldW, baseY);
+    // horizontal depth rows
+    ctx.strokeStyle = 'rgba(120,150,190,.07)'; ctx.lineWidth = 1;
+    for (let i = 1; i < 22; i++) { const t = i / 22, y = baseY * (t * t); ctx.beginPath(); ctx.moveTo(fieldL, y); ctx.lineTo(fieldR, y); ctx.stroke(); }
+    // the five column guides
+    ctx.strokeStyle = 'rgba(120,150,190,.09)';
+    for (let i = 1; i < COLS; i++) { const x = fieldL + colW * i; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, baseY); ctx.stroke(); }
+    // glowing lane edges
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(114,187,56,.45)'; ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(114,187,56,.55)'; ctx.shadowBlur = 12;
+    ctx.beginPath(); ctx.moveTo(fieldL + 0.5, 0); ctx.lineTo(fieldL + 0.5, H); ctx.moveTo(fieldR - 0.5, 0); ctx.lineTo(fieldR - 0.5, H); ctx.stroke();
+    ctx.restore();
   }
   function drawCracks() { ctx.strokeStyle = 'rgba(0,0,0,.33)'; ctx.lineWidth = 2; for (const pts of cracks) { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0], pts[k][1]); ctx.stroke(); } }
   function drawBand() {
     const sq = S.squad; ctx.save();
     const g = ctx.createLinearGradient(0, bandY - 22, 0, bandY + 22);
     g.addColorStop(0, 'rgba(255,209,102,0)'); g.addColorStop(0.5, `rgba(255,200,90,${0.12 + 0.03 * 0})`); g.addColorStop(1, 'rgba(255,209,102,0)');
-    ctx.fillStyle = g; ctx.fillRect(0, bandY - 22, W, 44);
+    ctx.fillStyle = g; ctx.fillRect(fieldL, bandY - 22, fieldW, 44);
     ctx.strokeStyle = 'rgba(255,209,102,.5)'; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -(S.elapsed * 40) % 24; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, bandY); ctx.lineTo(W, bandY); ctx.stroke(); ctx.setLineDash([]);
-    label(26, bandY - 16, 'IAG EGRESS', ACCENT.IAG); drawIcon('IAG', 12, bandY, 16, ACCENT.IAG);
+    ctx.beginPath(); ctx.moveTo(fieldL, bandY); ctx.lineTo(fieldR, bandY); ctx.stroke(); ctx.setLineDash([]);
+    label(fieldL + 20, bandY - 16, 'IAG EGRESS', ACCENT.IAG, false); drawIcon('IAG', fieldL + 10, bandY, 15, ACCENT.IAG);
     ctx.restore();
   }
   function drawEnemy(e) {
@@ -380,17 +407,18 @@ export function createStandGame(canvas, opts = {}) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       const cx = op.x, cy = op.y + 16, pulse = 0.6 + 0.4 * Math.sin(S.elapsed * 5);
       ctx.strokeStyle = `rgba(57,192,255,${0.5 * pulse})`; ctx.lineWidth = 2;
-      for (const sh of S.shooters) { if (sh.kind === 'op') continue; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(unitX(sh), op.y - 6); ctx.stroke(); }
+      for (const sh of S.shooters) { if (sh.kind === 'op') continue; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(unitX(sh), op.y + (sh.yoff || 0) - 6); ctx.stroke(); }
       ctx.restore();
       drawIcon('HCI', cx, cy + 6, 14, ACCENT.HCI);
     }
     // NDR radar dish (behind, lower) if owned
-    if ((S.levels.NDR || 0) > 0) { const rx = clamp(op.x + 120, 30, W - 30), ry = op.y + 10; drawRadar(rx, ry); }
-    // turrets, allies
-    for (const sh of S.shooters) {
-      const x = unitX(sh);
-      if (sh.kind === 'edr') drawTurret(x, op.y, sh.muzzleFlash);
-      else if (sh.kind === 'mdr') drawAlly(x, op.y);
+    if ((S.levels.NDR || 0) > 0) { const rx = clamp(op.x + 64, fieldL + 20, fieldR - 20), ry = op.y + 12; drawRadar(rx, ry); }
+    // turrets, allies — sorted back-to-front so the V formation layers correctly
+    const units = S.shooters.filter(s => s.kind === 'edr' || s.kind === 'mdr').sort((a, b) => (a.yoff || 0) - (b.yoff || 0));
+    for (const sh of units) {
+      const x = unitX(sh), y = op.y + (sh.yoff || 0);
+      if (sh.kind === 'edr') drawTurret(x, y);
+      else drawAlly(x, y);
     }
     drawOperator();
   }
@@ -442,11 +470,10 @@ export function createStandGame(canvas, opts = {}) {
   function drawBarricade() {
     const g = ctx.createLinearGradient(0, baseY, 0, H);
     g.addColorStop(0, '#39445a'); g.addColorStop(0.15, '#2a3245'); g.addColorStop(1, '#141924');
-    ctx.fillStyle = g; ctx.fillRect(0, baseY, W, barH);
-    ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(0, baseY, W, 2);
+    ctx.fillStyle = g; ctx.fillRect(fieldL, baseY, fieldW, barH);
+    ctx.fillStyle = 'rgba(114,187,56,.5)'; ctx.fillRect(fieldL, baseY, fieldW, 2);
     ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1;
-    const plates = Math.ceil(W / 64);
-    for (let i = 0; i <= plates; i++) { const x = i * 64; ctx.beginPath(); ctx.moveTo(x, baseY); ctx.lineTo(x, H); ctx.stroke(); ctx.fillStyle = 'rgba(180,200,230,.25)'; ctx.beginPath(); ctx.arc(x + 10, baseY + 12, 2, 0, TAU); ctx.arc(x + 54, baseY + 12, 2, 0, TAU); ctx.fill(); }
+    for (let x = fieldL; x <= fieldR; x += 48) { ctx.beginPath(); ctx.moveTo(x, baseY); ctx.lineTo(x, H); ctx.stroke(); ctx.fillStyle = 'rgba(180,200,230,.25)'; ctx.beginPath(); ctx.arc(x + 8, baseY + 12, 2, 0, TAU); ctx.fill(); }
   }
   function drawFx() {
     for (const f of S.fx) {
@@ -481,8 +508,8 @@ export function createStandGame(canvas, opts = {}) {
 
   // ---- input ----
   const toLocal = ev => { const r = canvas.getBoundingClientRect(); const p = ev.touches ? ev.touches[0] : ev; return { x: p.clientX - r.left, y: p.clientY - r.top }; };
-  function onDown(ev) { if (S?.phase !== 'play') return; ev.preventDefault(); const p = toLocal(ev); drag.on = true; drag.x = clamp(p.x, 40, W - 40); drag.y = clamp(p.y, baseY - 150, baseY - 12); }
-  function onMove(ev) { if (!drag.on) return; ev.preventDefault(); const p = toLocal(ev); drag.x = clamp(p.x, 40, W - 40); drag.y = clamp(p.y, baseY - 150, baseY - 12); }
+  function onDown(ev) { if (S?.phase !== 'play') return; ev.preventDefault(); const p = toLocal(ev); drag.on = true; drag.x = clamp(p.x, opMinX(), opMaxX()); drag.y = clamp(p.y, baseY - 150, baseY - 12); }
+  function onMove(ev) { if (!drag.on) return; ev.preventDefault(); const p = toLocal(ev); drag.x = clamp(p.x, opMinX(), opMaxX()); drag.y = clamp(p.y, baseY - 150, baseY - 12); }
   function onUp() { drag.on = false; }
   const KMAP = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right', ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down' };
   function onKey(e, down) { const k = KMAP[e.key]; if (k) { if (down) keys.add(k); else keys.delete(k); e.preventDefault(); } }
