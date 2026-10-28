@@ -331,9 +331,12 @@ export function createStandGame(canvas, opts = {}) {
     const spacing = Math.min(56, (fieldW * 0.82) / (n + 1));
     for (let i = 0; i < n; i++) {
       const off = (i - (n - 1) / 2) * spacing;
-      S.temps.push({ id: nextId++, team: id, off, yoff: -(12 + (i % 2) * 24), dmg: cfg.dmg, rate: cfg.rate, speed: cfg.speed, pierce: cfg.pierce, color: cfg.hex, acc: 0, muzzle: 0, life: spec.dur, dur: spec.dur, born: 0.35 });
-      const sx = clamp(S.op.x + off, fieldL + 16, fieldR - 16);
-      burst(sx, S.op.y - 12, cfg.hex, 10, 150); ring(sx, S.op.y - 12, cfg.hex, 70, 4);
+      // anchor each operative to a FIXED spot on the field at summon time - they
+      // hold their ground and do NOT follow the operator as it moves.
+      const fx = clamp(S.op.x + off, fieldL + 16, fieldR - 16);
+      const fy = clamp(S.op.y - (12 + (i % 2) * 24), 70, baseY - 20);
+      S.temps.push({ id: nextId++, team: id, fx, fy, dmg: cfg.dmg, rate: cfg.rate, speed: cfg.speed, pierce: cfg.pierce, color: cfg.hex, acc: 0, muzzle: 0, life: spec.dur, dur: spec.dur, born: 0.35 });
+      burst(fx, fy, cfg.hex, 10, 150); ring(fx, fy, cfg.hex, 70, 4);
     }
     ring(S.op.x, S.op.y, cfg.hex, 170, 6); shock(S.op.x, S.op.y, cfg.hex, 240); sfx.ability();
   }
@@ -388,13 +391,12 @@ export function createStandGame(canvas, opts = {}) {
       while (sh.acc >= interval) { sh.acc -= interval; const x = unitX(sh), uy = unitY(sh); fireUp(x, uy - 16, sh.dmg, sh.speed, sh.pierce, sh.kind === 'op' ? dominantColor() : ACCENT[sh.kind === 'edr' ? 'EDR' : 'MDR']); if (sh.kind === 'op') op.muzzle = 1; sh.muzzle = 1; }
       if (sh.muzzle) sh.muzzle = Math.max(0, sh.muzzle - dt * 6);
     }
-    // summoned service teams fire straight up alongside you until they withdraw
+    // summoned service teams hold their fixed spot and fire straight up until they withdraw
     for (const u of S.temps) {
       if (u.born > 0) u.born = Math.max(0, u.born - dt);
       u.life -= dt; if (u.life <= 0) { u.dead = true; continue; }
-      const ux = clamp(op.x + u.off, fieldL + 16, fieldR - 16), uy = op.y + u.yoff;
       u.acc += dt * 1000; const interval = 1000 / (u.rate * sq.fireRateMul);
-      while (u.acc >= interval) { u.acc -= interval; fireUp(ux, uy - 16, u.dmg, u.speed, u.pierce, u.color); u.muzzle = 1; }
+      while (u.acc >= interval) { u.acc -= interval; fireUp(u.fx, u.fy - 16, u.dmg, u.speed, u.pierce, u.color); u.muzzle = 1; }
       if (u.muzzle) u.muzzle = Math.max(0, u.muzzle - dt * 6);
     }
     if (sq.beamOn) { S.beamAcc += dt * 1000; if (S.beamAcc >= sq.beamEvery) { S.beamAcc = 0; fireBeam(); } }
@@ -652,9 +654,8 @@ export function createStandGame(canvas, opts = {}) {
     for (const u of S.temps) {
       seenT.add(u.id);
       let tm = tempMeshes.get(u.id); if (!tm) { tm = buildOperative(u.team); tempsGroup.add(tm); tempMeshes.set(u.id, tm); }
-      const ux = clamp(op.x + u.off, fieldL + 16, fieldR - 16), uy = op.y + u.yoff;
       const appear = u.born > 0 ? 1 - u.born / 0.35 : (u.life < 0.6 ? Math.max(0.12, u.life / 0.6) : 1);
-      tm.position.set(wX(ux), 0, wZ(uy)); tm.scale.setScalar(0.82 * clamp(appear, 0.05, 1));
+      tm.position.set(wX(u.fx), 0, wZ(u.fy)); tm.scale.setScalar(0.82 * clamp(appear, 0.05, 1));
       if (tm.userData.flash) { const f = tm.userData.flash; f.visible = u.muzzle > 0.05; if (f.visible) { f.scale.setScalar(0.5 + u.muzzle * 0.6); f.material.opacity = u.muzzle * 0.85; } }
       billboard(tm.userData.tag);
     }
