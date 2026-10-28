@@ -153,6 +153,7 @@ export function createStandGame(canvas, opts = {}) {
       spawnAcc: 0, beamAcc: 0, shieldAcc: 0, lastBoss: -28,
       shake: 0, flash: 0, flashCol: '255,90,106', hudAcc: 0,
       cd: { ir: 0, pt: 0, rt: 0 }, ptT: 0, rtT: 0,   // active-skill cooldowns + effect timers
+      hitStop: 0, corrAnnounced: false,              // brief time-freeze for impact; correlation teach
     };
   }
 
@@ -167,6 +168,7 @@ export function createStandGame(canvas, opts = {}) {
     S.shooters = list;
     if (sq.afTier > 0) { const grew = sq.afHp - S.afMax; S.afMax = sq.afHp; if (grew > 0) S.afHp = Math.min(sq.afHp, S.afHp + grew); if (S.afHp <= 0 && !S.afDown) S.afHp = sq.afHp; }
     else { S.afMax = 0; S.afHp = 0; S.afDown = false; }
+    if (correlationLinks() > 0 && !S.corrAnnounced) { S.corrAnnounced = true; onToast('corrOn', 'good'); }
     unitsDirty = true;
   }
 
@@ -192,9 +194,39 @@ export function createStandGame(canvas, opts = {}) {
     gainXp(e.spec.xp);
     burst(e.x, e.y, e.spec.color, e.spec.boss ? 40 : 12, e.spec.boss ? 300 : 170);
     ring(e.x, e.y, e.spec.color, e.r * (e.spec.boss ? 5 : 2.2));
-    if (e.spec.boss) { S.shake = 1; S.flash = 0.8; S.flashCol = '255,90,106'; sfx.boss(); }
+    ring(e.x, e.y, '#ffffff', e.r * (e.spec.boss ? 3 : 1.7), 2);   // crisp white death pop
+    if (e.spec.boss) { S.shake = 1; S.flash = 0.8; S.flashCol = '255,90,106'; S.hitStop = Math.max(S.hitStop, 0.13); sfx.boss(); }
     else if (!viaBeam) sfx.hit(S.combo);
     if (e.spec.splits) for (let i = 0; i < e.spec.splits; i++) { const r2 = ENEMIES.recon; S.enemies.push({ id: nextId++, type: 'recon', spec: r2, x: e.x + rand(-14, 14), y: e.y, r: r2.r, hp: r2.hp, maxhp: r2.hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false }); }
+    // XDR CORRELATION CHAINS (the signature): with 2+ sensors on the field, a kill
+    // correlates across them and arcs lightning to nearby threats, which can cascade.
+    const links = correlationLinks();
+    if (links > 0) fireCorrelation(e.x, e.y, links, 0);
+  }
+  // XDR needs >=2 sensor UNITS to correlate (its real rule); chain reach grows with them
+  const correlationLinks = () => (S.squad.sensors >= 2 ? Math.min(4, S.squad.sensors - 1) : 0);
+  function fireCorrelation(x, y, links, depth) {
+    if (links <= 0 || depth > 3) return;
+    const R2 = (150 + S.squad.sensors * 12) ** 2;
+    const near = S.enemies.filter(t => !t.dead && (t.x !== x || t.y !== y) && dist2(x, y, t.x, t.y) <= R2)
+      .sort((a, b) => dist2(x, y, a.x, a.y) - dist2(x, y, b.x, b.y)).slice(0, links);
+    if (!near.length) return;
+    const dmg = 24 + S.squad.sensors * 13;
+    S.shake = Math.min(1, S.shake + 0.12);
+    for (const t of near) {
+      zap(x, y, t.x, t.y, '#7dffd0'); zap(x, y, t.x, t.y, '#eafffb');
+      ring(t.x, t.y, '#7dffd0', t.r * 2.6, 3);
+      const dealt = dealDamage(t, dmg);
+      dmgText(t.x, t.y - t.r, dealt, '#7dffd0', false);
+      burst(t.x, t.y, '#7dffd0', 5, 100);
+      if (t.hp <= 0 && !t.dead) {
+        t.dead = true; S.combo++; S.maxCombo = Math.max(S.maxCombo, S.combo);
+        S.score += killScore(t.type, comboMult(S.combo)); S.kills++; gainXp(t.spec.xp);
+        burst(t.x, t.y, t.spec.color, 12, 160); ring(t.x, t.y, '#ffffff', t.r * 1.7, 2);
+        fireCorrelation(t.x, t.y, links - 1, depth + 1);   // cascade
+      }
+    }
+    if (depth === 0) sfx.ability();
   }
   // cloaked APTs are only fully seen once NDR is deployed OR a pen-test is live
   const revealed = () => S.squad.ndrReveal || S.ptT > 0;
@@ -569,7 +601,7 @@ export function createStandGame(canvas, opts = {}) {
       em.body.rotation.y = e.wob * 0.6; em.body.rotation.x = e.wob * 0.3;
       const cloaked = e.spec.cloak && !revealed();
       em.body.material.opacity = cloaked ? 0.4 : 1; em.body.material.transparent = cloaked;
-      em.body.material.emissiveIntensity = e.hit > 0 ? 1.1 : em.baseEmissive;
+      em.body.material.emissiveIntensity = e.hit > 0 ? 1.5 : em.baseEmissive;
       if (e.hit > 0) em.body.material.emissive.setHex(0xffffff); else em.body.material.emissive.setHex(hexNum(e.spec.color));
       const pulse = 0.6 + 0.4 * Math.sin(t * 6 + e.wob); em.core.material.opacity = (cloaked ? 0.2 : 0.5) * pulse; em.core.scale.setScalar(0.7 + pulse * 0.2);
       billboard(em.glyph); em.glyph.position.set(0, 0, -r * 0.7); em.glyph.material.opacity = cloaked ? 0.3 : (e.marked ? 1 : 0.92);
@@ -605,14 +637,19 @@ export function createStandGame(canvas, opts = {}) {
     for (const f of S.fxr) {
       const a = Math.max(0, f.life);
       if (f.t === 'ring') { const p = proj(f.x, f.y, 0.3); fctx.strokeStyle = rgba(f.color, a); fctx.lineWidth = Math.max(1, f.w * p.s); fctx.beginPath(); fctx.ellipse(p.x, p.y, Math.max(0, f.r * p.s * 0.5), Math.max(0, f.r * p.s * 0.28), 0, 0, TAU); fctx.stroke(); }
-      else if (f.t === 'zap') { const a1 = proj(f.x1, f.y1, 0.8), a2 = proj(f.x2, f.y2, 0.8); fctx.strokeStyle = rgba(f.color, a); fctx.lineWidth = 2; fctx.beginPath(); fctx.moveTo(a1.x, a1.y); fctx.lineTo(a2.x, a2.y); fctx.stroke(); }
+      else if (f.t === 'zap') {
+        const a1 = proj(f.x1, f.y1, 0.8), a2 = proj(f.x2, f.y2, 0.8), seg = 7, pts = [];
+        for (let i = 0; i <= seg; i++) { const tt = i / seg, edge = i === 0 || i === seg; pts.push({ x: a1.x + (a2.x - a1.x) * tt + (edge ? 0 : rand(-8, 8)), y: a1.y + (a2.y - a1.y) * tt + (edge ? 0 : rand(-8, 8)) }); }
+        const stroke = (col, w) => { fctx.strokeStyle = col; fctx.lineWidth = w; fctx.beginPath(); fctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) fctx.lineTo(pts[i].x, pts[i].y); fctx.stroke(); };
+        stroke(rgba(f.color, a * 0.45), 5.5); stroke(rgba('#ffffff', a), 1.6);
+      }
     }
     // particles
     for (const pt of S.parts) { const p = proj(pt.x, pt.y, 0.8); fctx.globalAlpha = Math.max(0, pt.life); fctx.fillStyle = pt.color; fctx.beginPath(); fctx.arc(p.x, p.y, Math.max(0.5, pt.r * p.s), 0, TAU); fctx.fill(); }
     fctx.globalAlpha = 1; fctx.globalCompositeOperation = 'source-over';
     // damage numbers
     fctx.textAlign = 'center';
-    for (const tx of S.texts) { const p = proj(tx.x, tx.y, 1.4); const a = Math.max(0, Math.min(1, tx.life * 1.4)); const fs = (tx.big ? 22 : 14) * clamp(p.s, 0.6, 1.6); fctx.font = `800 ${fs}px ui-sans-serif,system-ui`; fctx.fillStyle = `rgba(0,0,0,${a * 0.6})`; fctx.fillText(tx.text, p.x + 1, p.y + 1); fctx.fillStyle = rgba(tx.color, a); fctx.fillText(tx.text, p.x, p.y); }
+    for (const tx of S.texts) { const p = proj(tx.x, tx.y, 1.4); const a = Math.max(0, Math.min(1, tx.life * 1.4)); const fs = (tx.big ? 23 : 14) * clamp(p.s, 0.6, 1.6); fctx.font = `800 ${fs}px ui-sans-serif,system-ui`; if (tx.big) { fctx.shadowColor = rgba(tx.color, a); fctx.shadowBlur = 10; } fctx.fillStyle = `rgba(0,0,0,${a * 0.6})`; fctx.fillText(tx.text, p.x + 1, p.y + 1); fctx.fillStyle = rgba(tx.color, a); fctx.fillText(tx.text, p.x, p.y); fctx.shadowBlur = 0; }
     fctx.textAlign = 'start';
     // full-screen flash
     if (S.flash > 0) { fctx.fillStyle = `rgba(${S.flashCol},${S.flash * 0.26})`; fctx.fillRect(0, 0, W, H); }
@@ -710,11 +747,11 @@ export function createStandGame(canvas, opts = {}) {
   function pushHud() {
     const abilities = {};
     for (const id of ABILITY_ORDER) { const spec = ABILITIES[id]; abilities[id] = { cd: S.cd[id], cdMax: spec.cd, ready: S.cd[id] <= 0, active: id === 'pt' ? S.ptT > 0 : id === 'rt' ? S.rtT > 0 : false }; }
-    onHud({ base: Math.round(S.base), baseMax: S.baseMax, score: S.score, best: Math.max(S.best, S.score), combo: S.combo, mult: comboMult(S.combo), elapsed: Math.floor(S.elapsed), level: S.level, xp: S.xp, xpNeed: S.xpNeed, tier: WEAPON_ORDER.reduce((a, id) => a + (S.levels[id] || 0), 0), levels: { ...S.levels }, dom: dominant(), sensors: S.squad.sensors, shield: S.shield, shieldMax: S.squad.shieldMax, abilities });
+    onHud({ base: Math.round(S.base), baseMax: S.baseMax, score: S.score, best: Math.max(S.best, S.score), combo: S.combo, mult: comboMult(S.combo), elapsed: Math.floor(S.elapsed), level: S.level, xp: S.xp, xpNeed: S.xpNeed, tier: WEAPON_ORDER.reduce((a, id) => a + (S.levels[id] || 0), 0), levels: { ...S.levels }, dom: dominant(), sensors: S.squad.sensors, shield: S.shield, shieldMax: S.squad.shieldMax, corr: correlationLinks(), abilities });
   }
 
   // ---- lifecycle ----
-  function frame(ts) { const dt = Math.min(0.05, Math.max(0, (ts - lastTS) / 1000 || 0)); lastTS = ts; if (S.phase === 'play') update(dt); if (S) { syncScene(dt); render(); } raf = requestAnimationFrame(frame); }
+  function frame(ts) { let dt = Math.min(0.05, Math.max(0, (ts - lastTS) / 1000 || 0)); lastTS = ts; if (S && S.hitStop > 0) { S.hitStop = Math.max(0, S.hitStop - dt); dt *= 0.2; } if (S.phase === 'play') update(dt); if (S) { syncScene(dt); render(); } raf = requestAnimationFrame(frame); }
   function gameOver() { if (S.phase === 'over') return; S.phase = 'over'; S.best = Math.max(S.best, S.score); sfx.over(); onOver({ score: Math.round(S.score), best: Math.round(S.best), kills: S.kills, elapsed: Math.floor(S.elapsed), maxCombo: S.maxCombo, level: S.level, levels: { ...S.levels } }); }
 
   // ---- input ----

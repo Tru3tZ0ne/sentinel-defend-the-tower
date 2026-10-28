@@ -23,7 +23,7 @@ const EN = {
   'st.title': 'Last Stand',
   'st.tag': 'Hold the line. Threats pour straight down at you and your base; you and every unit fire straight up. Each level you DEPLOY a Sangfor product that shows up on the field and fights the way it really works - EDR endpoint turrets beside you, an NGAF barrier that blocks + weakens, MDR teammates, an NDR radar, the XDR correlation beam. Build your squad, survive, climb the board.',
   'st.h1': 'Move along the bottom with A/D (or arrows), or just drag. You and all your units auto-fire straight up - line threats up in your columns.',
-  'st.h2': 'Clear threats to level up fast. Each level, choose 1 of 3 Sangfor products - it DEPLOYS as a real unit on the field. Stack them into a squad.',
+  'st.h2': 'Clear threats to level up fast. Each level, choose 1 of 3 Sangfor products - it DEPLOYS as a real unit on the field. Stack them into a squad. With 2+ sensors (EDR / NDR / NGAF) your kills CHAIN XDR correlation across nearby threats - set up cascades.',
   'st.h3': 'Every unit is the real product: EDR = a turret, NGAF = a barrier, MDR = a teammate, NDR = radar + marking, IAG = a slow band, HCI = fire rate for all, XDR = the giant beam (x your sensors), aStor = a base shield. Zero base integrity ends it.',
   'st.base': 'Base integrity',
   'st.time': 'Time',
@@ -74,6 +74,8 @@ const EN = {
   't.irOn': 'Incident Response - breach contained',
   't.ptOn': 'Penetration Testing - weaknesses exposed',
   't.rtOn': 'Red Team Assessment - offensive surge',
+  't.corrOn': 'XDR correlation online - kills now chain across your sensors',
+  'st.corr': 'CORR',
   // active operator skills
   'st.skills': 'Operator skills (service engagements)',
   'ab.ir': 'Incident Response',
@@ -90,7 +92,7 @@ const ZH = {
   'st.title': '最后防线',
   'st.tag': '守住防线。威胁笔直向你和基地压下，你和每一个单位都笔直向上开火。每次升级都会在战场上部署一件深信服产品，它按照真实功能作战——EDR 终端炮塔、拦截并削弱敌人的 NGAF 屏障、MDR 队友、NDR 雷达、XDR 关联光束。组建你的小队，活下去，冲上排行榜。',
   'st.h1': '用 A/D（或方向键）在底部移动，或直接拖动。你和所有单位都会笔直向上自动开火——把敌人排进你的射击纵列。',
-  'st.h2': '清除威胁快速升级。每次升级从 3 件深信服产品中选 1 件——它会作为真实单位部署到战场。把它们叠成一支小队。',
+  'st.h2': '清除威胁快速升级。每次升级从 3 件深信服产品中选 1 件——它会作为真实单位部署到战场。把它们叠成一支小队。当你拥有 2 个以上传感器（EDR / NDR / NGAF）时，击杀会在附近威胁间触发 XDR 关联链——制造连锁清场。',
   'st.h3': '每个单位都是真实产品：EDR=炮塔，NGAF=屏障，MDR=队友，NDR=雷达+标记，IAG=减速带，HCI=全体射速，XDR=巨型光束（×你的传感器），aStor=基地护盾。基地完整度归零即结束。',
   'st.base': '基地完整度',
   'st.time': '时间',
@@ -139,6 +141,8 @@ const ZH = {
   't.irOn': '应急响应——已遏制入侵',
   't.ptOn': '渗透测试——已暴露弱点',
   't.rtOn': '红队评估——进攻爆发',
+  't.corrOn': 'XDR 关联已上线——击杀将在传感器之间链式触发',
+  'st.corr': '关联',
   // 主动操作员技能
   'st.skills': '操作员技能（服务项目）',
   'ab.ir': '应急响应',
@@ -274,8 +278,9 @@ function weapHTML(h) {
   const id = h.dom;
   if (!id) return `<span class="st-weap-ico cap-XDR">${MARK('XDR')}</span><span class="st-weap-lv"><b>${esc(t('st.weapon'))}</b><span>T0</span></span>`;
   const lvl = h.levels[id] || 0;
+  const corr = h.corr > 0 ? ` · <em class="st-corr-in">${esc(t('st.corr'))}&times;${h.corr}</em>` : '';
   return `<span class="st-weap-ico cap-${id}">${MARK(id)}</span>` +
-    `<span class="st-weap-lv"><b>${esc(CAP_NAME[id])}</b><span>Lv${lvl} · T${h.tier}</span></span>`;
+    `<span class="st-weap-lv"><b>${esc(CAP_NAME[id])}</b><span>Lv${lvl} · T${h.tier}${corr}</span></span>`;
 }
 function railHTML(levels) {
   const ids = WEAPON_ORDER.filter(id => (levels[id] || 0) > 0);
