@@ -94,16 +94,19 @@ export function createStandGame(canvas, opts = {}) {
   composer.addPass(new OutputPass());
 
   // ---- static world: floor, walls, base + Sangfor logo, lane edges ----
+  // The floor/walls/edges live in a group whose X-scale narrows the whole lane on
+  // portrait phones (set in resize) so the operator's range always stays on-screen.
   const laneW = HALFW * 2;
+  const laneFrame = new THREE.Group(); scene.add(laneFrame);
   const floorMat = new THREE.MeshStandardMaterial({ map: makeFloorTex(), roughness: 0.92, metalness: 0.1 });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(laneW, LEN + 12), floorMat);
-  floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, LEN / 2 - 3); floor.receiveShadow = true; scene.add(floor);
+  floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, LEN / 2 - 3); floor.receiveShadow = true; laneFrame.add(floor);
 
   const wallMat = new THREE.MeshStandardMaterial({ color: 0x0a0f1a, roughness: 1, metalness: 0 });
-  for (const s of [-1, 1]) { const wall = new THREE.Mesh(new THREE.BoxGeometry(2.5, 7, LEN + 12), wallMat); wall.position.set(s * (HALFW + 1.25), 3, LEN / 2 - 3); wall.receiveShadow = true; scene.add(wall); }
+  for (const s of [-1, 1]) { const wall = new THREE.Mesh(new THREE.BoxGeometry(2.5, 7, LEN + 12), wallMat); wall.position.set(s * (HALFW + 1.25), 3, LEN / 2 - 3); wall.receiveShadow = true; laneFrame.add(wall); }
   // glowing lane edges
   const edgeMat = new THREE.MeshBasicMaterial({ color: 0x72bb38 });
-  for (const s of [-1, 1]) { const edge = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, LEN + 12), edgeMat); edge.position.set(s * HALFW, 0.07, LEN / 2 - 3); scene.add(edge); }
+  for (const s of [-1, 1]) { const edge = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, LEN + 12), edgeMat); edge.position.set(s * HALFW, 0.07, LEN / 2 - 3); laneFrame.add(edge); }
 
   // base rampart behind the operator, carrying the SANGFOR corporate logo
   const base = new THREE.Group();
@@ -127,7 +130,7 @@ export function createStandGame(canvas, opts = {}) {
 
   // ---- geometry (pixel space for the sim) ----
   let W = 0, H = 0, dpr = 1, barH = 0, baseY = 0, opHome = 0, bandY = 0;
-  let fieldL = 0, fieldR = 0, fieldW = 0;
+  let fieldL = 0, fieldR = 0, fieldW = 0, laneHalf = HALFW;   // world half-width (narrows on portrait)
   function resize() {
     const r = canvas.getBoundingClientRect();
     W = Math.max(1, r.width); H = Math.max(1, r.height);
@@ -145,6 +148,17 @@ export function createStandGame(canvas, opts = {}) {
     fx.width = Math.round(W * dpr); fx.height = Math.round(H * dpr); fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     barH = Math.max(52, H * 0.09); baseY = H - barH; opHome = baseY - 62; bandY = H * 0.44;
     fieldW = clamp(W * 0.92, 340, 440); fieldL = Math.round((W - fieldW) / 2); fieldR = fieldL + fieldW;
+    // adaptive world lane half-width: narrow the whole lane on portrait phones so
+    // the operator's full movement range always stays inside the camera frustum.
+    const hHalf = Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect);   // horizontal half-FOV
+    const fdx = CAM_LOOK.x - CAM_BASE.x, fdy = CAM_LOOK.y - CAM_BASE.y, fdz = CAM_LOOK.z - CAM_BASE.z;
+    const fl = Math.hypot(fdx, fdy, fdz) || 1, fnx = fdx / fl, fny = fdy / fl, fnz = fdz / fl;
+    const opZ = wZ(baseY - 40);                                 // nearest the operator ever gets (worst case)
+    const fwd = (0 - CAM_BASE.x) * fnx + (0.9 - CAM_BASE.y) * fny + (opZ - CAM_BASE.z) * fnz;
+    const visHalf = Math.max(1.5, fwd * Math.tan(hHalf));       // visible world half-width at the operator
+    const opFrac = Math.max(0.5, 1 - 52 / fieldW);             // fraction of laneHalf the operator reaches
+    laneHalf = Math.min(HALFW, visHalf * 0.84 / opFrac);       // 0.84 leaves the operator clear of the edge
+    laneFrame.scale.x = laneHalf / HALFW;
     if (S) { S.op.x = clamp(S.op.x, opMinX(), opMaxX()); S.op.y = clamp(S.op.y, opMinY(), opMaxY()); unitsDirty = true; }
   }
   const opMinX = () => fieldL + 26, opMaxX = () => fieldR - 26;
@@ -152,7 +166,7 @@ export function createStandGame(canvas, opts = {}) {
   const cx = () => fieldL + fieldW / 2;
   // The camera looks DOWN the lane from behind the operator (toward +Z), so world
   // +X renders on the LEFT. Negate so dragging/steering RIGHT moves the unit right.
-  const wX = gx => -((gx - cx()) / (fieldW / 2)) * HALFW;
+  const wX = gx => -((gx - cx()) / (fieldW / 2)) * laneHalf;
   const wZ = gy => ((baseY - gy) / baseY) * LEN;
   const wR = pr => pr * 0.055;    // pixel radius -> world radius
 

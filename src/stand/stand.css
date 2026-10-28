@@ -128,9 +128,11 @@
   .ar-field { padding: 0; }
   .st-topbar { top: max(8px, env(safe-area-inset-top)); left: 8px; right: 8px; gap: 7px; }
   .st-rail { top: 46px; right: 7px; gap: 5px; }
-  .st-abil { left: 8px; bottom: calc(34px + env(safe-area-inset-bottom)); gap: 6px; }
-  .st-ab { width: 50px; height: 50px; border-radius: 13px; }
-  .st-ab-code { font-size: 15px; }
+  .st-abil { left: 8px; bottom: calc(34px + env(safe-area-inset-bottom)); gap: 8px; }
+  .st-ab { width: 52px; height: 52px; border-radius: 14px; gap: 0; }
+  .st-ab-code { font-size: 19px; }
+  .st-ab-name { display: none; }   /* no room for the full name on a phone */
+  .st-ab-key { display: none; }    /* no keyboard on a phone - tap the button */
   .st-base { bottom: calc(8px + env(safe-area-inset-bottom)); width: min(320px, 82%); }
   .st-boss { top: calc(40px + env(safe-area-inset-top)); width: 92%; }
 }
