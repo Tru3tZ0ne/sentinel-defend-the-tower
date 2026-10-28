@@ -66,7 +66,14 @@ const EN = {
   'b.HCI': 'An HCI compute core speeds up the fire rate of every unit you have.',
   'b.XDR': 'Calls the giant XDR correlation beam. Weak alone - its damage multiplies with the sensor units (EDR/NDR/NGAF) on the field.',
   'b.ASTOR': 'An aStor snapshot vault shields your base from a hit and restores integrity.',
-  't.boss': 'Ransomware brute inbound',
+  't.boss_ransom': 'BOSS - Ransomware brute inbound',
+  't.boss_botnet': 'BOSS - Botnet controller inbound (it spews bots)',
+  't.boss_wraith': 'BOSS - Zero-day wraith inbound (cloaked + fast)',
+  't.boss_siege': 'APEX BOSS - APT Siege Engine inbound',
+  'boss.ransom': 'Ransomware Brute',
+  'boss.botnet': 'Botnet Controller',
+  'boss.wraith': 'Zero-Day Wraith',
+  'boss.siege': 'APT Siege Engine',
   't.exfil': 'Data exfiltrated! An exfil runner slipped through',
   't.absorb': 'aStor snapshot absorbed the hit',
   't.afDown': 'NGAF barrier breached - rebuilding',
@@ -133,7 +140,14 @@ const ZH = {
   'b.HCI': '一座 HCI 算力核心，提升你所有单位的射速。',
   'b.XDR': '召唤巨型 XDR 关联光束。单独很弱——伤害随战场上的传感器单位（EDR/NDR/NGAF）数量倍增。',
   'b.ASTOR': '一座 aStor 快照保险库替基地挡下一击，并恢复完整度。',
-  't.boss': '勒索软件巨兽来袭',
+  't.boss_ransom': 'BOSS——勒索软件巨兽来袭',
+  't.boss_botnet': 'BOSS——僵尸网络控制器来袭（不断释放肉鸡）',
+  't.boss_wraith': 'BOSS——零日幽灵来袭（隐身且高速）',
+  't.boss_siege': '终极 BOSS——APT 攻城引擎来袭',
+  'boss.ransom': '勒索软件巨兽',
+  'boss.botnet': '僵尸网络控制器',
+  'boss.wraith': '零日幽灵',
+  'boss.siege': 'APT 攻城引擎',
   't.exfil': '数据被窃取！一个外泄跑者溜了过去',
   't.absorb': 'aStor 快照挡下了这一击',
   't.afDown': 'NGAF 屏障被攻破——重建中',
@@ -191,6 +205,10 @@ app.innerHTML = `
       <div class="st-xp"><i id="stXpFill"></i></div>
       <div class="st-weap" id="stWeap"></div>
     </div>
+    <div class="st-boss" id="stBoss" hidden>
+      <div class="st-boss-row"><span class="st-boss-name" id="stBossName"></span><span class="st-boss-hp" id="stBossHp"></span></div>
+      <div class="st-boss-bar"><i id="stBossFill"></i></div>
+    </div>
     <div class="st-rail" id="stRail"></div>
     <div class="st-abil" id="stAbil"></div>
     <div class="st-base"><i id="stBaseFill"></i><span class="st-base-txt" id="stBaseTxt"></span></div>
@@ -212,6 +230,10 @@ const el = {
   baseFill: document.getElementById('stBaseFill'),
   baseTxt: document.getElementById('stBaseTxt'),
   abil: document.getElementById('stAbil'),
+  boss: document.getElementById('stBoss'),
+  bossName: document.getElementById('stBossName'),
+  bossHp: document.getElementById('stBossHp'),
+  bossFill: document.getElementById('stBossFill'),
   toasts: document.getElementById('stToasts'),
   overlay: document.getElementById('stOverlay'),
 };
@@ -235,6 +257,16 @@ function buildAbilBar() {
     abilBtns[id] = { btn: b, cd: b.querySelector('.st-ab-cd'), timer: b.querySelector('.st-ab-timer') };
     b.addEventListener('click', () => { if (phase === 'play') game.useAbility(id); });
   }
+}
+function updateBossBar(boss) {
+  if (!el.boss) return;
+  if (!boss) { if (!el.boss.hidden) el.boss.hidden = true; return; }
+  el.boss.hidden = false;
+  el.boss.classList.toggle('mega', !!boss.mega);
+  if (boss.color) el.boss.style.setProperty('--bcol', boss.color);
+  el.bossName.textContent = t('boss.' + boss.type) || t('boss.ransom');
+  el.bossHp.textContent = `${fmt(boss.hp)} / ${fmt(boss.maxhp)}`;
+  el.bossFill.style.width = Math.max(0, Math.min(100, boss.frac * 100)) + '%';
 }
 function updateAbilBar(abilities) {
   if (!abilities) return;
@@ -268,6 +300,7 @@ const game = createStandGame(el.canvas, {
     paintWeap(el.weap, weapHTML(h));
     paintRail(el.rail, railHTML(h.levels));
     updateAbilBar(h.abilities);
+    updateBossBar(h.boss);
   },
   onToast: (key, kind) => toast(t('t.' + key), kind),
   onLevelUp: (choices, level) => showLevelUp(choices, level),
@@ -402,6 +435,7 @@ function showCodex() {
 async function onGameOver(summary) {
   phase = 'over'; lastSummary = summary; lastResult = null;
   el.abil.innerHTML = '';
+  if (el.boss) el.boss.hidden = true;
   if (summary.best > getBest()) saveBest(summary.best);
   renderOver(summary, null);
   const n = Object.keys(summary.levels).length;
@@ -445,6 +479,7 @@ function resetHud() {
   el.baseFill.style.width = '100%'; el.baseFill.className = 'ok'; el.baseTxt.textContent = START_BASE;
   el.xpFill.style.width = '0%'; el.lvTxt.textContent = `${t('st.lv')} 1`;
   el.weap.innerHTML = ''; el.rail.innerHTML = ''; el.abil.innerHTML = '';
+  if (el.boss) el.boss.hidden = true;
   el.time.textContent = '0s'; el.combo.textContent = 'x1'; el.combo.classList.remove('on');
 }
 

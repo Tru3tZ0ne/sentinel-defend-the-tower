@@ -16,6 +16,7 @@ import {
   START_BASE, OPERATOR, TURRET, ALLY, WEAPON_ORDER, deriveSquad, damageTo,
   xpToLevel, upgradeChoices, ENEMIES, threatPool, difficultyAt,
   comboMult, killScore, SURVIVE_PER_SEC, STEAL_PENALTY, ABILITIES, ABILITY_ORDER,
+  bossFor, bossHpScale,
 } from './model.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { sfx } from '../rush/audio.js';
@@ -31,6 +32,7 @@ export const ACCENT = {
 };
 const ACC = Object.fromEntries(Object.entries(ACCENT).map(([k, v]) => [k, parseInt(v.slice(1), 16)]));
 const hexNum = h => parseInt(h.replace('#', ''), 16);
+const hexToRGB = h => { const c = h.replace('#', ''); return `${parseInt(c.slice(0, 2), 16)},${parseInt(c.slice(2, 4), 16)},${parseInt(c.slice(4, 6), 16)}`; };
 const BAR_OFFSET = 74;
 
 // Temporary SERVICE teams summoned by the active skills. Red Team = many basic
@@ -166,7 +168,7 @@ export function createStandGame(canvas, opts = {}) {
       afHp: 0, afMax: 0, afDown: false, afDownT: 0, radarAng: 0,
       op: { x: W / 2, y: opHome, muzzle: 0 },
       enemies: [], shots: [], parts: [], texts: [], fxr: [], beam: null, temps: [],
-      spawnAcc: 0, beamAcc: 0, shieldAcc: 0, lastBoss: -28,
+      spawnAcc: 0, beamAcc: 0, shieldAcc: 0, lastBoss: -28, bossCount: 0,
       shake: 0, flash: 0, flashCol: '255,90,106', hudAcc: 0,
       cd: { ir: 0, pt: 0, rt: 0 }, ptT: 0, rtT: 0,   // active-skill cooldowns + team-summon timers
       hitStop: 0, corrAnnounced: false,              // brief time-freeze for impact; correlation teach
@@ -200,8 +202,16 @@ export function createStandGame(canvas, opts = {}) {
   // ---- enemies ----
   function spawnEnemy(type) {
     const d = difficultyAt(S.elapsed), spec = ENEMIES[type];
-    const hp = Math.round(spec.hp * (spec.boss ? 1 : d.hpMul));
-    S.enemies.push({ id: nextId++, type, spec, x: rand(fieldL + spec.r + 4, fieldR - spec.r - 4), y: -spec.r - rand(2, 40), r: spec.r, hp, maxhp: hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false });
+    const hp = Math.round(spec.hp * (spec.boss ? bossHpScale(S.elapsed, spec.mega) : d.hpMul));
+    S.enemies.push({ id: nextId++, type, spec, x: rand(fieldL + spec.r + 4, fieldR - spec.r - 4), y: -spec.r - rand(2, 40), r: spec.r, hp, maxhp: hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false, spawnAcc: 0 });
+  }
+  // Bosses arrive on a rotation (model BOSS_ORDER). Each entrance is telegraphed.
+  function spawnBoss() {
+    const type = bossFor(S.bossCount++), mega = !!ENEMIES[type].mega;
+    spawnEnemy(type);
+    onToast('boss_' + type, 'bad');
+    S.flash = mega ? 0.9 : 0.6; S.flashCol = hexToRGB(ENEMIES[type].color); S.shake = Math.min(1, mega ? 1 : 0.7);
+    sfx.boss();
   }
   function killEnemy(e, viaBeam) {
     e.dead = true;
@@ -211,7 +221,12 @@ export function createStandGame(canvas, opts = {}) {
     burst(e.x, e.y, e.spec.color, e.spec.boss ? 40 : 12, e.spec.boss ? 300 : 170);
     ring(e.x, e.y, e.spec.color, e.r * (e.spec.boss ? 5 : 2.2));
     ring(e.x, e.y, '#ffffff', e.r * (e.spec.boss ? 3 : 1.7), 2);   // crisp white death pop
-    if (e.spec.boss) { S.shake = 1; S.flash = 0.8; S.flashCol = '255,90,106'; S.hitStop = Math.max(S.hitStop, 0.13); sfx.boss(); }
+    if (e.spec.boss) {
+      S.shake = 1; S.flash = e.spec.mega ? 1 : 0.85; S.flashCol = hexToRGB(e.spec.color);
+      S.hitStop = Math.max(S.hitStop, e.spec.mega ? 0.24 : 0.14);
+      if (e.spec.mega) { shock(e.x, e.y, '#ffffff', e.r * 10); for (let i = 0; i < 5; i++) ring(e.x + rand(-e.r, e.r), e.y + rand(-e.r, e.r), e.spec.color, e.r * (2.5 + i), 2); }
+      sfx.boss();
+    }
     else if (!viaBeam) sfx.hit(S.combo);
     if (e.spec.splits) for (let i = 0; i < e.spec.splits; i++) { const r2 = ENEMIES.recon; S.enemies.push({ id: nextId++, type: 'recon', spec: r2, x: e.x + rand(-14, 14), y: e.y, r: r2.r, hp: r2.hp, maxhp: r2.hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false }); }
     // XDR CORRELATION CHAINS (the signature): with 2+ sensors on the field, a kill
@@ -366,7 +381,7 @@ export function createStandGame(canvas, opts = {}) {
 
     S.spawnAcc += dt * 1000;
     if (S.spawnAcc >= d.spawnGap) { S.spawnAcc = 0; const pool = threatPool(S.elapsed); for (let i = 0; i < d.batch; i++) spawnEnemy(pool[Math.floor(Math.random() * pool.length)]); }
-    if (S.elapsed - S.lastBoss > d.bossEvery) { S.lastBoss = S.elapsed; spawnEnemy('ransom'); onToast('boss', 'bad'); }
+    if (S.elapsed - S.lastBoss > d.bossEvery) { S.lastBoss = S.elapsed; spawnBoss(); }
 
     for (const sh of S.shooters) {
       sh.acc += dt * 1000; const interval = 1000 / (sh.rate * sq.fireRateMul);
@@ -394,12 +409,22 @@ export function createStandGame(canvas, opts = {}) {
     for (const e of S.enemies) {
       if (e.dead) continue;
       if (sq.ndrReveal) e.marked = true;
+      // boss abilities: controllers/siege engines keep spawning minions as they advance
+      if (e.spec.spawn && e.y > 0) {
+        e.spawnAcc += dt;
+        if (e.spawnAcc >= e.spec.spawnEvery) {
+          e.spawnAcc = 0; const m = ENEMIES[e.spec.spawn];
+          for (let k = 0; k < (e.spec.spawnCount || 1); k++) S.enemies.push({ id: nextId++, type: e.spec.spawn, spec: m, x: clamp(e.x + rand(-30, 30), fieldL + m.r, fieldR - m.r), y: e.y + e.r * 0.5, r: m.r, hp: m.hp, maxhp: m.hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false, spawnAcc: 0 });
+          ring(e.x, e.y, e.spec.color, e.r * 1.5, 4); burst(e.x, e.y + e.r * 0.4, e.spec.color, 8, 130);
+        }
+      }
       let slowK = e.slow > 0 ? 0.5 : 1; if (e.slow > 0) e.slow -= dt * 1000;
       if (sq.iagBand && e.y > bandY - 24 && e.y < bandY + 24) slowK *= sq.iagSlowMul;
       e.wob += dt * 3;
       const sp = e.spec.speed * d.speedMul * slowK;
       const nextY = e.y + sp * dt;
-      const dx = op.x - e.x; e.x = clamp(e.x + clamp(dx * 0.15, -18, 18) * dt + Math.cos(e.wob) * 6 * dt, fieldL + e.r, fieldR - e.r);
+      const juke = e.spec.juke || 1;   // zero-day wraith strafes hard to dodge your fire
+      const dx = op.x - e.x; e.x = clamp(e.x + clamp(dx * 0.15, -18, 18) * dt + Math.cos(e.wob) * 6 * juke * dt, fieldL + e.r, fieldR - e.r);
       e.hit = Math.max(0, e.hit - dt * 4);
       const underBar = Math.abs(e.x - op.x) <= halfW + e.r;
       if (barActive && underBar && nextY + e.r >= barY && e.y + e.r < barY + 4) {
@@ -580,15 +605,31 @@ export function createStandGame(canvas, opts = {}) {
     return new THREE.SphereGeometry(r, 18, 14);
   }
   function makeEnemyMesh(e) {
-    const col = hexNum(e.spec.color);
+    const col = hexNum(e.spec.color), r = wR(e.r);
     const body = new THREE.Mesh(enemyGeo(e), std(col, col, 0.45, 0.35, 0.2)); body.castShadow = true;
     const glow = new THREE.Color(col).lerp(new THREE.Color(0xffffff), 0.45);
-    const core = new THREE.Mesh(new THREE.SphereGeometry(wR(e.r) * 0.3, 10, 8), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
-    const gs = wR(e.r) * (e.spec.boss ? 1.5 : 1.75);
+    const core = new THREE.Mesh(new THREE.SphereGeometry(r * 0.3, 10, 8), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const gs = r * (e.spec.boss ? 1.5 : 1.75);
     const glyph = new THREE.Mesh(new THREE.PlaneGeometry(gs, gs), new THREE.MeshBasicMaterial({ map: threatTex(e.type), transparent: true, depthWrite: false, depthTest: false }));
     glyph.renderOrder = 3;
-    const g = new THREE.Group(); g.add(body); g.add(core); g.add(glyph); enemyGroup.add(g);
-    return { group: g, body, core, glyph, bodyMat: body.material, baseEmissive: 0.45 };
+    const g = new THREE.Group(); g.add(body); g.add(core); g.add(glyph);
+    let shell = null, orbit = null, nodes = null;
+    if (e.spec.boss) {
+      // every boss wears a menacing plasma aura
+      const aura = new THREE.Mesh(new THREE.SphereGeometry(r * 1.12, 16, 12), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
+      g.add(aura);
+      if (e.spec.mega) {                      // APT siege engine: caged armored core
+        shell = new THREE.Mesh(new THREE.IcosahedronGeometry(r * 1.32, 1), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.6, roughness: 0.3, metalness: 0.8, wireframe: true }));
+        orbit = new THREE.Mesh(new THREE.TorusGeometry(r * 1.5, r * 0.09, 10, 36), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })); orbit.rotation.x = Math.PI / 2.4;
+        g.add(shell); g.add(orbit);
+      } else if (e.spec.spawn) {              // botnet controller: a swarm of orbiting bot nodes
+        nodes = new THREE.Group();
+        for (let i = 0; i < 6; i++) { const nd = new THREE.Mesh(new THREE.SphereGeometry(r * 0.16, 8, 6), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })); const a = (i / 6) * TAU; nd.position.set(Math.cos(a) * r * 1.5, Math.sin(a) * r * 0.5, Math.sin(a) * r * 1.5); nodes.add(nd); }
+        g.add(nodes);
+      }
+    }
+    enemyGroup.add(g);
+    return { group: g, body, core, glyph, shell, orbit, nodes, bodyMat: body.material, baseEmissive: e.spec.boss ? 0.6 : 0.45 };
   }
   function makeBullet() {
     const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.8, depthWrite: false }));
@@ -666,6 +707,8 @@ export function createStandGame(canvas, opts = {}) {
       em.body.material.emissiveIntensity = e.hit > 0 ? 1.5 : em.baseEmissive;
       if (e.hit > 0) em.body.material.emissive.setHex(0xffffff); else em.body.material.emissive.setHex(hexNum(e.spec.color));
       const pulse = 0.6 + 0.4 * Math.sin(t * 6 + e.wob); em.core.material.opacity = (cloaked ? 0.2 : 0.5) * pulse; em.core.scale.setScalar(0.7 + pulse * 0.2);
+      if (em.shell) { em.shell.rotation.y = t * 0.8; em.shell.rotation.x = t * 0.5; em.orbit.rotation.z = t * 1.7; }
+      if (em.nodes) em.nodes.rotation.y = t * 1.6;
       billboard(em.glyph); em.glyph.position.set(0, 0, -r * 0.7); em.glyph.material.opacity = cloaked ? 0.3 : (e.marked ? 1 : 0.92);
     }
     for (const [id, em] of enemyMeshes) { if (!seen.has(id)) { enemyGroup.remove(em.group); disposeTree(em.group); enemyMeshes.delete(id); } }
@@ -783,6 +826,20 @@ export function createStandGame(canvas, opts = {}) {
       roundRectPath(g, -30, -6, 60, 46, 8); g.fill();
       g.lineWidth = 11; g.beginPath(); g.arc(0, -8, 20, Math.PI, 0); g.stroke();
       g.fillStyle = '#1a0608'; g.beginPath(); g.arc(0, 14, 7, 0, TAU); g.fill(); g.fillRect(-4, 14, 8, 16);
+    } else if (type === 'botnet') {    // botnet C2: central node wired to satellite bots
+      const sats = [[0, -38], [34, -14], [34, 22], [-34, -14], [-34, 22], [0, 40]];
+      for (const [sx, sy] of sats) { g.beginPath(); g.moveTo(0, 0); g.lineTo(sx * 0.7, sy * 0.7); g.stroke(); }
+      for (const [sx, sy] of sats) { g.beginPath(); g.arc(sx * 0.7, sy * 0.7, 7, 0, TAU); g.fill(); }
+      g.beginPath(); g.arc(0, 0, 15, 0, TAU); g.fill();
+    } else if (type === 'wraith') {    // zero-day wraith: a ghost
+      g.beginPath(); g.moveTo(-32, 42); g.lineTo(-32, -6); g.quadraticCurveTo(-32, -42, 0, -42); g.quadraticCurveTo(32, -42, 32, -6); g.lineTo(32, 42);
+      g.lineTo(18, 30); g.lineTo(6, 42); g.lineTo(-6, 30); g.lineTo(-18, 42); g.closePath(); g.fill();
+      g.fillStyle = '#140a24'; g.beginPath(); g.ellipse(-12, -8, 7, 11, 0, 0, TAU); g.fill(); g.beginPath(); g.ellipse(12, -8, 7, 11, 0, 0, TAU); g.fill();
+    } else if (type === 'siege') {     // APT siege engine (apex): a skull
+      g.beginPath(); g.moveTo(-30, 10); g.quadraticCurveTo(-34, -40, 0, -40); g.quadraticCurveTo(34, -40, 30, 10); g.quadraticCurveTo(26, 24, 12, 24); g.lineTo(-12, 24); g.quadraticCurveTo(-26, 24, -30, 10); g.fill();
+      g.fillStyle = '#1a0624'; g.beginPath(); g.ellipse(-13, -6, 9, 11, 0, 0, TAU); g.fill(); g.beginPath(); g.ellipse(13, -6, 9, 11, 0, 0, TAU); g.fill();
+      g.beginPath(); g.moveTo(0, 2); g.lineTo(-6, 16); g.lineTo(6, 16); g.closePath(); g.fill();
+      g.fillStyle = '#1a0624'; for (let i = -2; i <= 2; i++) g.fillRect(i * 7 - 2, 24, 4, 10);
     }
     const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; threatTexCache[type] = tx; return tx;
   }
@@ -809,7 +866,9 @@ export function createStandGame(canvas, opts = {}) {
   function pushHud() {
     const abilities = {};
     for (const id of ABILITY_ORDER) { const spec = ABILITIES[id]; abilities[id] = { cd: S.cd[id], cdMax: spec.cd, ready: S.cd[id] <= 0, active: id === 'pt' ? S.ptT > 0 : id === 'rt' ? S.rtT > 0 : false }; }
-    onHud({ base: Math.round(S.base), baseMax: S.baseMax, score: S.score, best: Math.max(S.best, S.score), combo: S.combo, mult: comboMult(S.combo), elapsed: Math.floor(S.elapsed), level: S.level, xp: S.xp, xpNeed: S.xpNeed, tier: WEAPON_ORDER.reduce((a, id) => a + (S.levels[id] || 0), 0), levels: { ...S.levels }, dom: dominant(), sensors: S.squad.sensors, shield: S.shield, shieldMax: S.squad.shieldMax, corr: correlationLinks(), abilities });
+    let boss = null; for (const e of S.enemies) if (e.spec.boss && !e.dead && (!boss || e.y > boss.y)) boss = e;
+    const bossHud = boss ? { type: boss.type, hp: Math.max(0, Math.round(boss.hp)), maxhp: boss.maxhp, frac: clamp(boss.hp / boss.maxhp, 0, 1), color: boss.spec.color, mega: !!boss.spec.mega } : null;
+    onHud({ base: Math.round(S.base), baseMax: S.baseMax, score: S.score, best: Math.max(S.best, S.score), combo: S.combo, mult: comboMult(S.combo), elapsed: Math.floor(S.elapsed), level: S.level, xp: S.xp, xpNeed: S.xpNeed, tier: WEAPON_ORDER.reduce((a, id) => a + (S.levels[id] || 0), 0), levels: { ...S.levels }, dom: dominant(), sensors: S.squad.sensors, shield: S.shield, shieldMax: S.squad.shieldMax, corr: correlationLinks(), abilities, boss: bossHud });
   }
 
   // ---- lifecycle ----

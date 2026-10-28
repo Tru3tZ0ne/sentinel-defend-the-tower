@@ -146,8 +146,19 @@ export const ENEMIES = {
   worm:   { id: 'worm',   hp: 22,  speed: 78, dmg: 44,  xp: 2,  score: 22,  r: 15, color: '#2ee6a0', splits: 2 },
   apt:    { id: 'apt',    hp: 52,  speed: 58, dmg: 76,  xp: 3,  score: 34,  r: 16, color: '#a98bff', cloak: true },
   exfil:  { id: 'exfil',  hp: 38,  speed: 100,dmg: 0,   xp: 3,  score: 26,  r: 15, color: '#ffd166', steals: 150 },
-  ransom: { id: 'ransom', hp: 760, speed: 33, dmg: 270, xp: 12, score: 150, r: 34, color: '#ff5a6a', boss: true },
+  // ---- bosses (arrive on a rotation, each a distinct cyber-threat archetype) ----
+  ransom: { id: 'ransom', hp: 760,  speed: 33, dmg: 270, xp: 12, score: 150, r: 34, color: '#ff5a6a', boss: true },                                            // ransomware wrecking ball
+  botnet: { id: 'botnet', hp: 1000, speed: 26, dmg: 170, xp: 16, score: 220, r: 33, color: '#39c0ff', boss: true, spawn: 'recon',   spawnCount: 3, spawnEvery: 2.3 }, // C2 that spews bots
+  wraith: { id: 'wraith', hp: 700,  speed: 66, dmg: 240, xp: 18, score: 260, r: 28, color: '#a98bff', boss: true, cloak: true, juke: 2.6 },                     // cloaked, fast zero-day
+  siege:  { id: 'siege',  hp: 2300, speed: 18, dmg: 300, xp: 40, score: 600, r: 50, color: '#ff5ad0', boss: true, mega: true, spawn: 'malware', spawnCount: 1, spawnEvery: 2.5 }, // APT siege engine (apex)
 };
+
+// Bosses arrive on a rotation so each run cycles through all four archetypes.
+export const BOSS_ORDER = ['ransom', 'botnet', 'wraith', 'siege'];
+export function bossFor(index) { return BOSS_ORDER[((index % BOSS_ORDER.length) + BOSS_ORDER.length) % BOSS_ORDER.length]; }
+// bosses don't ride the normal hp curve, but scale lightly with time so late waves
+// stay threatening (the apex siege engine scales a bit harder).
+export function bossHpScale(t, mega) { return 1 + t * (mega ? 0.007 : 0.004); }
 
 export function threatPool(t) {
   const pool = ['recon'];
