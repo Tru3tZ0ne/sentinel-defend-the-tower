@@ -87,13 +87,20 @@ real Sangfor **service engagements**, not products: **Incident Response** `[Q]` 
 breach (heavy damage to every threat on screen + restores base integrity), **Penetration Testing**
 `[E]` exposes weaknesses (reveals all hidden threats and amplifies every hit for a few seconds), and
 **Red Team Assessment** `[R]` goes on the offensive (surges the whole squad's fire rate and firepower).
+Boss waves escalate the pressure: a **ransomware brute** rolls in on a timer, and every third wave
+brings the headline **APT Siege Engine** — a huge armored core that keeps emitting malware payloads as
+it grinds toward your base, tracked by a dedicated boss health bar. The fortress fights back on its
+own: the base mounts **twin heavy cannons** that fire a coordinated salvo of giant explosive shells
+straight up the lane (bursting in a wide area blast, and faster while a boss is on the field).
 It renders in **real-time 3D with Three.js**: a perspective lane, lit meshes with shadows and bloom,
 the XDR beam as a layered electric lance, and threats that read as specific cyber attacks (ransomware
-wears a padlock, recon an eye, worms a chain, exfil a data-out glyph, APT a stealth hood). The product
-branding is woven through the whole thing — every on-field unit carries its official Sangfor product
-mark **and a floating product name tag**, and the base you defend wears the Sangfor logo, as do the
-upgrade cards, weapon chip, loadout rail, and a Product Codex pairing each product's real job with its
-battlefield role and honest limitation. Pure logic is unit-tested in `tools/arcade-logic.test.mjs`.
+wears a padlock, recon an eye, worms a chain, exfil a data-out glyph, APT a stealth hood, the siege
+boss a skull). The product branding is woven through the whole thing — every on-field unit carries its
+official Sangfor product mark **and a floating product name tag**, and the base you defend wears a big
+**backlit SANGFOR banner**, as do the upgrade cards, weapon chip, loadout rail, and a Product Codex
+pairing each product's real job with its battlefield role and honest limitation. The layout is tuned
+for **phones** too: the camera keeps the lane's width constant and reveals more of it on tall screens,
+and the HUD respects the notch / safe-area insets. Pure logic is unit-tested in `tools/arcade-logic.test.mjs`.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your

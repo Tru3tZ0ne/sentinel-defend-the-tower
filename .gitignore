@@ -84,3 +84,4 @@ tools/_rushlive2.mjs
 
 # scratch playtest scripts (underscore-prefixed, not committed)
 tools/_*.mjs
+tools/_*.png
