@@ -4,7 +4,7 @@
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
 import { createStandGame, ACCENT } from './engine.js';
-import { WEAPONS, WEAPON_ORDER, START_BASE } from './model.js';
+import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER } from './model.js';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
@@ -71,6 +71,18 @@ const EN = {
   't.absorb': 'aStor snapshot absorbed the hit',
   't.afDown': 'NGAF barrier breached - rebuilding',
   't.xdrIdle': 'XDR beam has no sensors to correlate - add EDR / NDR / NGAF',
+  't.irOn': 'Incident Response - breach contained',
+  't.ptOn': 'Penetration Testing - weaknesses exposed',
+  't.rtOn': 'Red Team Assessment - offensive surge',
+  // active operator skills
+  'st.skills': 'Operator skills (service engagements)',
+  'ab.ir': 'Incident Response',
+  'ab.pt': 'Penetration Testing',
+  'ab.rt': 'Red Team Assessment',
+  'ab.ready': 'READY',
+  'abd.ir': 'Contain the active breach: heavy damage to every threat on screen, restore base integrity, and brace for the next hit. [Q]',
+  'abd.pt': 'Expose weaknesses: reveal every hidden threat and amplify ALL your damage for a few seconds. [E]',
+  'abd.rt': 'Go on the offensive: surge the fire rate and firepower of your whole squad for a few seconds. [R]',
   'g.HCI': 'Elastic, pooled cloud compute (HCI): raw capacity and throughput for everything you run.',
   'l.HCI': 'Capacity, not security on its own - it makes everything else run harder and faster.',
 };
@@ -124,6 +136,18 @@ const ZH = {
   't.absorb': 'aStor 快照挡下了这一击',
   't.afDown': 'NGAF 屏障被攻破——重建中',
   't.xdrIdle': 'XDR 光束没有可关联的传感器——去加 EDR / NDR / NGAF',
+  't.irOn': '应急响应——已遏制入侵',
+  't.ptOn': '渗透测试——已暴露弱点',
+  't.rtOn': '红队评估——进攻爆发',
+  // 主动操作员技能
+  'st.skills': '操作员技能（服务项目）',
+  'ab.ir': '应急响应',
+  'ab.pt': '渗透测试',
+  'ab.rt': '红队评估',
+  'ab.ready': '就绪',
+  'abd.ir': '遏制正在发生的入侵：对屏幕上每个威胁造成大量伤害，恢复基地完整度，并抵御下一次攻击。[Q]',
+  'abd.pt': '暴露弱点：让所有隐藏威胁现形，并在数秒内放大你的全部伤害。[E]',
+  'abd.rt': '转入进攻：在数秒内提升整支小队的射速与火力。[R]',
   'g.HCI': '弹性、池化的云计算（HCI）：为你运行的一切提供算力与吞吐。',
   'l.HCI': '它本身是算力而非安全——让其它一切跑得更猛、更快。',
 };
@@ -164,6 +188,7 @@ app.innerHTML = `
       <div class="st-weap" id="stWeap"></div>
     </div>
     <div class="st-rail" id="stRail"></div>
+    <div class="st-abil" id="stAbil"></div>
     <div class="st-base"><i id="stBaseFill"></i><span class="st-base-txt" id="stBaseTxt"></span></div>
   </div>
   <div class="ar-toasts" id="stToasts"></div>
@@ -182,9 +207,42 @@ const el = {
   rail: document.getElementById('stRail'),
   baseFill: document.getElementById('stBaseFill'),
   baseTxt: document.getElementById('stBaseTxt'),
+  abil: document.getElementById('stAbil'),
   toasts: document.getElementById('stToasts'),
   overlay: document.getElementById('stOverlay'),
 };
+
+// ---------- active operator skills (bottom bar) ----------
+const ABIL_CAP = { ir: 'NDR', pt: 'IAG', rt: 'EDR' };   // accent reuse
+const ABIL_KEY = { ir: 'Q', pt: 'E', rt: 'R' };
+const abilBtns = {};
+function buildAbilBar() {
+  el.abil.innerHTML = ABILITY_ORDER.map(id => `
+    <button class="st-ab cap-${ABIL_CAP[id]}" data-ab="${id}" type="button"
+      title="${esc(t('ab.' + id))} - ${esc(t('abd.' + id))}" aria-label="${esc(t('ab.' + id))}">
+      <span class="st-ab-cd"></span>
+      <span class="st-ab-key">${ABIL_KEY[id]}</span>
+      <span class="st-ab-code">${id.toUpperCase()}</span>
+      <span class="st-ab-name">${esc(t('ab.' + id))}</span>
+      <span class="st-ab-timer"></span>
+    </button>`).join('');
+  for (const id of ABILITY_ORDER) {
+    const b = el.abil.querySelector(`[data-ab="${id}"]`);
+    abilBtns[id] = { btn: b, cd: b.querySelector('.st-ab-cd'), timer: b.querySelector('.st-ab-timer') };
+    b.addEventListener('click', () => { if (phase === 'play') game.useAbility(id); });
+  }
+}
+function updateAbilBar(abilities) {
+  if (!abilities) return;
+  for (const id of ABILITY_ORDER) {
+    const a = abilities[id], ui = abilBtns[id]; if (!a || !ui) continue;
+    const pct = a.ready ? 0 : Math.max(0, Math.min(100, a.cd / a.cdMax * 100));
+    ui.cd.style.height = pct + '%';
+    ui.btn.classList.toggle('ready', a.ready);
+    ui.btn.classList.toggle('active', !!a.active);
+    ui.timer.textContent = a.ready ? '' : Math.ceil(a.cd) + 's';
+  }
+}
 const paintScore = painter();
 const paintWeap = painter();
 const paintRail = painter();
@@ -205,6 +263,7 @@ const game = createStandGame(el.canvas, {
     el.baseTxt.textContent = `${h.base}`;
     paintWeap(el.weap, weapHTML(h));
     paintRail(el.rail, railHTML(h.levels));
+    updateAbilBar(h.abilities);
   },
   onToast: (key, kind) => toast(t('t.' + key), kind),
   onLevelUp: (choices, level) => showLevelUp(choices, level),
@@ -337,6 +396,7 @@ function showCodex() {
 
 async function onGameOver(summary) {
   phase = 'over'; lastSummary = summary; lastResult = null;
+  el.abil.innerHTML = '';
   if (summary.best > getBest()) saveBest(summary.best);
   renderOver(summary, null);
   const n = Object.keys(summary.levels).length;
@@ -379,7 +439,7 @@ function renderOver(summary, result) {
 function resetHud() {
   el.baseFill.style.width = '100%'; el.baseFill.className = 'ok'; el.baseTxt.textContent = START_BASE;
   el.xpFill.style.width = '0%'; el.lvTxt.textContent = `${t('st.lv')} 1`;
-  el.weap.innerHTML = ''; el.rail.innerHTML = '';
+  el.weap.innerHTML = ''; el.rail.innerHTML = ''; el.abil.innerHTML = '';
   el.time.textContent = '0s'; el.combo.textContent = 'x1'; el.combo.classList.remove('on');
 }
 
@@ -389,6 +449,7 @@ function play() {
   resumeAudio();
   el.overlay.innerHTML = '';
   phase = 'play';
+  buildAbilBar();
   game.start(getBest());
 }
 
@@ -407,10 +468,13 @@ el.overlay.addEventListener('click', e => {
   else if (act === 'share') shareResult(e.target);
 });
 
+const ABIL_HOTKEY = { q: 'ir', e: 'pt', r: 'rt' };
 window.addEventListener('keydown', e => {
   if (phase === 'levelup' && '123'.includes(e.key)) {
     const cards = document.querySelectorAll('#stLevelUp .st-card');
     const card = cards[+e.key - 1]; if (card) { e.preventDefault(); chooseUpgrade(card.dataset.up); }
+  } else if (phase === 'play' && ABIL_HOTKEY[e.key?.toLowerCase()]) {
+    e.preventDefault(); game.useAbility(ABIL_HOTKEY[e.key.toLowerCase()]);
   } else if (e.key === 'Escape') { const c = document.getElementById('stCodex'); if (c) c.remove(); }
 });
 

@@ -15,7 +15,7 @@ import { OutputPass } from '../../vendor/three/addons/postprocessing/OutputPass.
 import {
   START_BASE, OPERATOR, TURRET, ALLY, WEAPON_ORDER, deriveSquad, damageTo,
   xpToLevel, upgradeChoices, ENEMIES, threatPool, difficultyAt,
-  comboMult, killScore, SURVIVE_PER_SEC, STEAL_PENALTY,
+  comboMult, killScore, SURVIVE_PER_SEC, STEAL_PENALTY, ABILITIES, ABILITY_ORDER,
 } from './model.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { sfx } from '../rush/audio.js';
@@ -125,13 +125,16 @@ export function createStandGame(canvas, opts = {}) {
     composer.setPixelRatio(dpr); composer.setSize(W, H);
     camera.aspect = W / H; camera.updateProjectionMatrix();
     fx.width = Math.round(W * dpr); fx.height = Math.round(H * dpr); fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    barH = Math.max(52, H * 0.09); baseY = H - barH; opHome = baseY - 30; bandY = H * 0.44;
+    barH = Math.max(52, H * 0.09); baseY = H - barH; opHome = baseY - 62; bandY = H * 0.44;
     fieldW = clamp(W * 0.92, 340, 440); fieldL = Math.round((W - fieldW) / 2); fieldR = fieldL + fieldW;
-    if (S) { S.op.x = clamp(S.op.x, opMinX(), opMaxX()); S.op.y = clamp(S.op.y, baseY - 150, baseY - 12); unitsDirty = true; }
+    if (S) { S.op.x = clamp(S.op.x, opMinX(), opMaxX()); S.op.y = clamp(S.op.y, opMinY(), opMaxY()); unitsDirty = true; }
   }
   const opMinX = () => fieldL + 26, opMaxX = () => fieldR - 26;
+  const opMinY = () => baseY - 168, opMaxY = () => baseY - 40;
   const cx = () => fieldL + fieldW / 2;
-  const wX = gx => ((gx - cx()) / (fieldW / 2)) * HALFW;
+  // The camera looks DOWN the lane from behind the operator (toward +Z), so world
+  // +X renders on the LEFT. Negate so dragging/steering RIGHT moves the unit right.
+  const wX = gx => -((gx - cx()) / (fieldW / 2)) * HALFW;
   const wZ = gy => ((baseY - gy) / baseY) * LEN;
   const wR = pr => pr * 0.055;    // pixel radius -> world radius
 
@@ -149,6 +152,7 @@ export function createStandGame(canvas, opts = {}) {
       enemies: [], shots: [], parts: [], texts: [], fxr: [], beam: null,
       spawnAcc: 0, beamAcc: 0, shieldAcc: 0, lastBoss: -28,
       shake: 0, flash: 0, flashCol: '255,90,106', hudAcc: 0,
+      cd: { ir: 0, pt: 0, rt: 0 }, ptT: 0, rtT: 0,   // active-skill cooldowns + effect timers
     };
   }
 
@@ -192,21 +196,35 @@ export function createStandGame(canvas, opts = {}) {
     else if (!viaBeam) sfx.hit(S.combo);
     if (e.spec.splits) for (let i = 0; i < e.spec.splits; i++) { const r2 = ENEMIES.recon; S.enemies.push({ id: nextId++, type: 'recon', spec: r2, x: e.x + rand(-14, 14), y: e.y, r: r2.r, hp: r2.hp, maxhp: r2.hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false }); }
   }
-  function hitEnemy(e, raw, color, big) {
-    const dealt = damageTo(e, S.squad, raw);
+  // cloaked APTs are only fully seen once NDR is deployed OR a pen-test is live
+  const revealed = () => S.squad.ndrReveal || S.ptT > 0;
+  // damage with the NDR mark bonus, stealth, and the live Penetration Testing amp
+  function dealDamage(e, raw) {
+    const mark = e.spec.cloak && !revealed() ? 0.5 : 1;
+    const bonus = (S.squad.ndrMark ? 1 + S.squad.ndrMark : 1) * (S.ptT > 0 ? 1.7 : 1);
+    const dealt = raw * mark * bonus;
     e.hp -= dealt; e.hit = 1;
+    return dealt;
+  }
+  function hitEnemy(e, raw, color, big) {
+    const dealt = dealDamage(e, raw);
     dmgText(e.x, e.y - e.r, dealt, color || '#fff', big);
   }
 
   // ---- firing (straight up only) ----
   function unitX(sh) { return sh.fixed ? fieldL + fieldW * sh.frac : clamp(S.op.x + (sh.off || 0), fieldL + 16, fieldR - 16); }
-  function unitY(sh) { return sh.fixed ? baseY - 26 : S.op.y + (sh.yoff || 0); }
+  function unitY(sh) { return sh.fixed ? baseY - 50 : S.op.y + (sh.yoff || 0); }
   function fireUp(x, y, dmg, speed, pierce, color) { S.shots.push({ x, y, vx: 0, vy: -speed, dmg, pierce, hit: new Set(), r: 4.5, color }); }
   function fireBeam() {
     const sq = S.squad; if (!sq.beamOn) return;
     S.beam = { x: S.op.x, life: 1, width: sq.beamWidth, dmg: sq.beamDmg };
-    S.flash = 0.7; S.flashCol = '155,232,90'; S.shake = Math.min(1, 0.4 + sq.sensors * 0.07);
+    S.flash = 0.82; S.flashCol = '185,255,120'; S.shake = Math.min(1, 0.5 + sq.sensors * 0.07);
+    shock(S.op.x, S.op.y - 10, '#eaffc0', 210); ring(S.op.x, S.op.y - 10, ACCENT.XDR, 170, 7);
+    burst(S.op.x, S.op.y - 20, '#eaffc0', 24, 230);
+    // correlation arcs to every sensor unit feeding the beam
     for (const sh of S.shooters) if (sh.kind === 'edr') zap(S.op.x, S.op.y - 16, unitX(sh), unitY(sh) - 6, ACCENT.EDR);
+    if (sq.ndrRadars > 0) zap(S.op.x, S.op.y - 16, clamp(fieldR - 34, fieldL + 30, fieldR - 30), baseY - 30, ACCENT.NDR);
+    if (sq.afTier > 0) zap(S.op.x, S.op.y - 16, S.op.x, S.op.y - BAR_OFFSET, ACCENT.AF);
     sfx.ability();
     if (sq.xdrIdle) onToast('xdrIdle', 'bad');
   }
@@ -232,6 +250,35 @@ export function createStandGame(canvas, opts = {}) {
     if (S.pendingLevels > 0) openLevelUp(); else { S.phase = 'play'; lastTS = performance.now(); }
   }
 
+  // ---- active operator skills (player-triggered, on cooldown) ----
+  function useAbility(id) {
+    if (!S || S.phase !== 'play') return false;
+    const spec = ABILITIES[id]; if (!spec || S.cd[id] > 0) return false;
+    S.cd[id] = spec.cd;
+    if (id === 'ir') abilityIR();
+    else if (id === 'pt') { S.ptT = spec.dur; onToast('ptOn', 'good'); ring(S.op.x, S.op.y, ACCENT.IAG, 150, 6); shock(S.op.x, S.op.y, '#ffe08a', 240); sfx.ability(); }
+    else if (id === 'rt') { S.rtT = spec.dur; onToast('rtOn', 'good'); ring(S.op.x, S.op.y, ACCENT.EDR, 150, 6); shock(S.op.x, S.op.y, '#ffb48a', 240); S.flash = 0.4; S.flashCol = '255,138,90'; sfx.ability(); }
+    pushHud();
+    return true;
+  }
+  function abilityIR() {
+    // Incident Response: contain the active breach - heavy damage to every threat,
+    // restore base integrity, and absorb the next hit (a snapshot-style save).
+    S.flash = 0.95; S.flashCol = '88,200,255'; S.shake = 1;
+    shock(S.op.x, S.op.y, '#9fe8ff', Math.max(W, H));
+    ring(S.op.x, baseY - 2, '#58c8ff', fieldW * 1.1, 9);
+    for (const e of [...S.enemies]) {
+      if (e.dead) continue;
+      const dmg = Math.max(e.maxhp * 0.6, 150);
+      e.hp -= dmg; e.hit = 1; dmgText(e.x, e.y - e.r, dmg, '#9fe8ff', true);
+      burst(e.x, e.y, '#58c8ff', 9, 170); zap(S.op.x, S.op.y - 16, e.x, e.y, '#bfefff');
+      if (e.hp <= 0) killEnemy(e, true);
+    }
+    S.base = Math.min(S.baseMax, S.base + 160);
+    S.shield = Math.min((S.squad.shieldMax || 0) + 1, S.shield + 1);
+    onToast('irOn', 'good'); sfx.ability();
+  }
+
   // ---- base damage ----
   function hitBase(amount, color) {
     if (S.shield > 0) { S.shield--; S.flash = 0.6; S.flashCol = '169,139,255'; ring(S.op.x, baseY - 2, ACCENT.ASTOR, 120, 6); onToast('absorb', 'good'); sfx.ability(); return; }
@@ -248,16 +295,22 @@ export function createStandGame(canvas, opts = {}) {
     if (keys.has('left')) op.x -= mv; if (keys.has('right')) op.x += mv;
     if (keys.has('up')) op.y -= mv; if (keys.has('down')) op.y += mv;
     if (drag.on) { op.x += (drag.x - op.x) * Math.min(1, dt * 16); op.y += (drag.y - op.y) * Math.min(1, dt * 16); }
-    op.x = clamp(op.x, opMinX(), opMaxX()); op.y = clamp(op.y, baseY - 150, baseY - 12);
+    op.x = clamp(op.x, opMinX(), opMaxX()); op.y = clamp(op.y, opMinY(), opMaxY());
     op.muzzle = Math.max(0, op.muzzle - dt * 6);
+
+    // active-skill cooldowns + effect timers
+    for (const k in S.cd) if (S.cd[k] > 0) S.cd[k] = Math.max(0, S.cd[k] - dt);
+    if (S.ptT > 0) S.ptT = Math.max(0, S.ptT - dt);
+    if (S.rtT > 0) S.rtT = Math.max(0, S.rtT - dt);
+    const rtFire = S.rtT > 0 ? 1.85 : 1, rtDmg = S.rtT > 0 ? 1.4 : 1;
 
     S.spawnAcc += dt * 1000;
     if (S.spawnAcc >= d.spawnGap) { S.spawnAcc = 0; const pool = threatPool(S.elapsed); for (let i = 0; i < d.batch; i++) spawnEnemy(pool[Math.floor(Math.random() * pool.length)]); }
     if (S.elapsed - S.lastBoss > d.bossEvery) { S.lastBoss = S.elapsed; spawnEnemy('ransom'); onToast('boss', 'bad'); }
 
     for (const sh of S.shooters) {
-      sh.acc += dt * 1000; const interval = 1000 / (sh.rate * sq.fireRateMul);
-      while (sh.acc >= interval) { sh.acc -= interval; const x = unitX(sh), uy = unitY(sh); fireUp(x, uy - 16, sh.dmg, sh.speed, sh.pierce, sh.kind === 'op' ? dominantColor() : ACCENT[sh.kind === 'edr' ? 'EDR' : 'MDR']); if (sh.kind === 'op') op.muzzle = 1; sh.muzzle = 1; }
+      sh.acc += dt * 1000; const interval = 1000 / (sh.rate * sq.fireRateMul * rtFire);
+      while (sh.acc >= interval) { sh.acc -= interval; const x = unitX(sh), uy = unitY(sh); fireUp(x, uy - 16, sh.dmg * rtDmg, sh.speed, sh.pierce, sh.kind === 'op' ? dominantColor() : ACCENT[sh.kind === 'edr' ? 'EDR' : 'MDR']); if (sh.kind === 'op') op.muzzle = 1; sh.muzzle = 1; }
       if (sh.muzzle) sh.muzzle = Math.max(0, sh.muzzle - dt * 6);
     }
     if (sq.beamOn) { S.beamAcc += dt * 1000; if (S.beamAcc >= sq.beamEvery) { S.beamAcc = 0; fireBeam(); } }
@@ -271,7 +324,7 @@ export function createStandGame(canvas, opts = {}) {
 
     for (const e of S.enemies) {
       if (e.dead) continue;
-      if (sq.ndrReveal) e.marked = true;
+      if (sq.ndrReveal || S.ptT > 0) e.marked = true;
       let slowK = e.slow > 0 ? 0.5 : 1; if (e.slow > 0) e.slow -= dt * 1000;
       if (sq.iagBand && e.y > bandY - 24 && e.y < bandY + 24) slowK *= sq.iagSlowMul;
       e.wob += dt * 3;
@@ -300,7 +353,7 @@ export function createStandGame(canvas, opts = {}) {
 
     if (S.beam) {
       const b = S.beam; b.life -= dt * 2.2;
-      for (const e of S.enemies) { if (e.dead) continue; if (Math.abs(e.x - b.x) < b.width / 2 + e.r) { const dealt = damageTo(e, S.squad, b.dmg * dt * 1.2); e.hp -= dealt; e.hit = 1; if (Math.random() < 0.08) dmgText(e.x, e.y - e.r, b.dmg, ACCENT.XDR, true); if (Math.random() < 0.4) burst(e.x, e.y, ACCENT.XDR, 3, 60); if (e.hp <= 0) killEnemy(e, true); } }
+      for (const e of S.enemies) { if (e.dead) continue; if (Math.abs(e.x - b.x) < b.width / 2 + e.r) { dealDamage(e, b.dmg * dt * 1.2); if (Math.random() < 0.08) dmgText(e.x, e.y - e.r, b.dmg, ACCENT.XDR, true); if (Math.random() < 0.5) burst(e.x, e.y, ACCENT.XDR, 3, 70); if (Math.random() < 0.18) shock(e.x, e.y, '#eaffc0', e.r * 3.2); if (e.hp <= 0) killEnemy(e, true); } }
       if (b.life <= 0) S.beam = null;
     }
 
@@ -351,7 +404,8 @@ export function createStandGame(canvas, opts = {}) {
     const visor = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.1), std(col, col, 1.4, 0.3, 0.2)); visor.position.set(0, 1.98, 0.3); g.add(visor);
     const gun = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 1.15), std(col, col, 1.1, 0.4, 0.5)); gun.position.set(0.28, 1.35, 0.5); g.add(gun);
     const flash = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 10), new THREE.MeshBasicMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); flash.position.set(0.28, 1.35, 1.15); flash.visible = false; g.add(flash);
-    const dom = dominant(); if (dom) { const b = makeBadge(dom, 0.8); b.position.set(0, 1.25, -0.34); g.add(b); g.userData.badge = b; }
+    const dom = dominant(); if (dom) { const b = makeBadge(dom, 0.95); b.position.set(0, 1.2, -0.34); g.add(b); g.userData.badge = b; }
+    const tag = makeTag('op'); tag.position.set(0, 2.62, 0); g.add(tag); g.userData.tag = tag;
     g.userData.flash = flash; return g;
   }
   function buildTurret() {
@@ -361,7 +415,8 @@ export function createStandGame(canvas, opts = {}) {
     const dome = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 16), std(col, col, 0.4, 0.4, 0.5)); dome.position.y = 0.85; dome.castShadow = true; g.add(dome);
     for (const s of [-1, 1]) { const bar = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.95), std(col, col, 1.2, 0.4, 0.5)); bar.position.set(s * 0.2, 0.95, 0.5); g.add(bar); }
     const flash = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), new THREE.MeshBasicMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); flash.position.set(0, 0.95, 1.05); flash.visible = false; g.add(flash);
-    const b = makeBadge('EDR', 0.78); b.position.set(0, 1.7, 0); g.add(b); g.userData.badge = b; g.userData.flash = flash;
+    const b = makeBadge('EDR', 0.92); b.position.set(0, 1.62, 0); g.add(b); g.userData.badge = b; g.userData.flash = flash;
+    const tag = makeTag('EDR'); tag.position.set(0, 2.35, 0); g.add(tag); g.userData.tag = tag;
     return g;
   }
   function buildAlly() {
@@ -372,7 +427,8 @@ export function createStandGame(canvas, opts = {}) {
     const visor = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.14, 0.1), std(col, col, 1.3, 0.3, 0.2)); visor.position.set(0, 1.73, 0.26); g.add(visor);
     const gun = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 1.0), std(col, col, 1.1, 0.4, 0.5)); gun.position.set(0.26, 1.2, 0.45); g.add(gun);
     const flash = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), new THREE.MeshBasicMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); flash.position.set(0.26, 1.2, 1.05); flash.visible = false; g.add(flash);
-    const b = makeBadge('MDR', 0.72); b.position.set(0, 1.15, -0.3); g.add(b); g.userData.badge = b; g.userData.flash = flash;
+    const b = makeBadge('MDR', 0.88); b.position.set(0, 1.1, -0.3); g.add(b); g.userData.badge = b; g.userData.flash = flash;
+    const tag = makeTag('MDR'); tag.position.set(0, 2.3, 0); g.add(tag); g.userData.tag = tag;
     return g;
   }
   function buildRadar() {
@@ -380,14 +436,16 @@ export function createStandGame(canvas, opts = {}) {
     const base2 = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.5, 14), std(0x223246, 0x05070e, 0.1, 0.6, 0.6)); base2.position.y = 0.25; base2.castShadow = true; g.add(base2);
     const dish = new THREE.Mesh(new THREE.SphereGeometry(0.55, 18, 12, 0, TAU, 0, Math.PI / 2), std(col, col, 0.5, 0.4, 0.4)); dish.scale.set(1, 0.4, 1); dish.position.y = 0.85; dish.rotation.x = -0.5; g.add(dish);
     const sweep = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.6), new THREE.MeshBasicMaterial({ color: col })); sweep.position.set(0, 0.9, 0); g.add(sweep); radarSweep = sweep;
-    const b = makeBadge('NDR', 0.68); b.position.set(0, 1.55, 0); g.add(b); g.userData.badge = b;
+    const b = makeBadge('NDR', 0.84); b.position.set(0, 1.5, 0); g.add(b); g.userData.badge = b;
+    const tag = makeTag('NDR'); tag.position.set(0, 2.15, 0); g.add(tag); g.userData.tag = tag;
     return g;
   }
   function buildCore() {
     const g = new THREE.Group(); const col = ACC.HCI;
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.7, 20), std(0x12324a, col, 0.6, 0.3, 0.6)); body.position.y = 0.45; body.castShadow = true; g.add(body);
     for (let i = 0; i < 3; i++) { const ringm = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.04, 8, 24), new THREE.MeshBasicMaterial({ color: col })); ringm.rotation.x = Math.PI / 2; ringm.position.y = 0.3 + i * 0.22; g.add(ringm); }
-    const b = makeBadge('HCI', 0.64); b.position.set(0, 1.3, 0); g.add(b); g.userData.badge = b;
+    const b = makeBadge('HCI', 0.8); b.position.set(0, 1.25, 0); g.add(b); g.userData.badge = b;
+    const tag = makeTag('HCI'); tag.position.set(0, 1.95, 0); g.add(tag); g.userData.tag = tag;
     return g;
   }
 
@@ -422,8 +480,13 @@ export function createStandGame(canvas, opts = {}) {
     m.rotation.x = -Math.PI / 2; m.position.y = 0.04; m.visible = false; scene.add(m); return m;
   }
   function buildBeam() {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(1, 3.2, LEN + 10), new THREE.MeshBasicMaterial({ color: 0xbaff78, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false }));
-    m.visible = false; scene.add(m); return m;
+    const g = new THREE.Group();
+    const mk = (h, col, op) => { const m = new THREE.Mesh(new THREE.BoxGeometry(1, h, LEN + 12), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false })); g.add(m); return m; };
+    const halo = mk(5.6, 0x7bff4a, 0.16);     // wide soft green halo
+    const mid = mk(3.0, 0xbaff78, 0.4);       // inner green glow
+    const core = mk(1.2, 0xffffff, 0.85);     // hot white core
+    const muzzle = new THREE.Mesh(new THREE.SphereGeometry(1.15, 18, 14), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })); g.add(muzzle);
+    g.userData = { halo, mid, core, muzzle }; g.visible = false; scene.add(g); return g;
   }
   function buildShield() {
     const m = new THREE.Mesh(new THREE.SphereGeometry(1.6, 24, 16, 0, TAU, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: ACC.ASTOR, transparent: true, opacity: 0.22, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -440,8 +503,11 @@ export function createStandGame(canvas, opts = {}) {
     const body = new THREE.Mesh(enemyGeo(e), std(col, col, 0.45, 0.35, 0.2)); body.castShadow = true;
     const glow = new THREE.Color(col).lerp(new THREE.Color(0xffffff), 0.45);
     const core = new THREE.Mesh(new THREE.SphereGeometry(wR(e.r) * 0.3, 10, 8), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
-    const g = new THREE.Group(); g.add(body); g.add(core); enemyGroup.add(g);
-    return { group: g, body, core, bodyMat: body.material, baseEmissive: 0.45 };
+    const gs = wR(e.r) * (e.spec.boss ? 1.5 : 1.75);
+    const glyph = new THREE.Mesh(new THREE.PlaneGeometry(gs, gs), new THREE.MeshBasicMaterial({ map: threatTex(e.type), transparent: true, depthWrite: false, depthTest: false }));
+    glyph.renderOrder = 3;
+    const g = new THREE.Group(); g.add(body); g.add(core); g.add(glyph); enemyGroup.add(g);
+    return { group: g, body, core, glyph, bodyMat: body.material, baseEmissive: 0.45 };
   }
   function makeBullet() {
     const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.8, depthWrite: false }));
@@ -457,9 +523,10 @@ export function createStandGame(canvas, opts = {}) {
       m.position.set(wX(unitX(sh)), 0, wZ(unitY(sh)));
       if (m.userData.flash) { const f = m.userData.flash; f.visible = sh.muzzle > 0.05; if (f.visible) { f.scale.setScalar(0.5 + sh.muzzle * 0.7); f.material.opacity = sh.muzzle * 0.85; } }
       if (m.userData.badge) billboard(m.userData.badge);
+      if (m.userData.tag) billboard(m.userData.tag);
     }
-    if (coreObj) { coreObj.position.set(wX(op.x), 0, wZ(op.y + 20)); coreObj.children.forEach(c => { if (c.geometry && c.geometry.type === 'TorusGeometry') c.rotation.z = t * 2; }); if (coreObj.userData.badge) billboard(coreObj.userData.badge); }
-    if (radarObj) { radarObj.position.set(wX(clamp(fieldR - 34, fieldL + 30, fieldR - 30)), 0, wZ(baseY - 30)); if (radarSweep) radarSweep.rotation.y = -S.radarAng; if (radarObj.userData.badge) billboard(radarObj.userData.badge); }
+    if (coreObj) { coreObj.position.set(wX(op.x), 0, wZ(op.y + 20)); coreObj.children.forEach(c => { if (c.geometry && c.geometry.type === 'TorusGeometry') c.rotation.z = t * 2; }); if (coreObj.userData.badge) billboard(coreObj.userData.badge); if (coreObj.userData.tag) billboard(coreObj.userData.tag); }
+    if (radarObj) { radarObj.position.set(wX(clamp(fieldR - 34, fieldL + 30, fieldR - 30)), 0, wZ(baseY - 30)); if (radarSweep) radarSweep.rotation.y = -S.radarAng; if (radarObj.userData.badge) billboard(radarObj.userData.badge); if (radarObj.userData.tag) billboard(radarObj.userData.tag); }
 
     // barrier
     if (barrierObj) {
@@ -476,10 +543,18 @@ export function createStandGame(canvas, opts = {}) {
     }
     // band
     if (bandObj) { bandObj.visible = sq.iagBand; if (sq.iagBand) bandObj.position.set(0, 0.04, wZ(bandY)); }
-    // beam
+    // beam (the XDR correlation lance - layered electric column)
     if (beamObj) {
-      if (S.beam) { const b = S.beam; beamObj.visible = true; const w = Math.abs(wX(op.x + b.width / 2) - wX(op.x - b.width / 2)); beamObj.scale.x = Math.max(0.4, w); beamObj.position.set(wX(b.x), 1.6, wZ(op.y) + LEN / 2); beamObj.material.opacity = 0.35 * Math.max(0, b.life) + 0.2; }
-      else beamObj.visible = false;
+      if (S.beam) {
+        const b = S.beam, life = Math.max(0, b.life), ud = beamObj.userData;
+        const w = Math.max(0.5, Math.abs(wX(op.x + b.width / 2) - wX(op.x - b.width / 2)));
+        const flick = 0.82 + 0.18 * Math.sin(t * 55);
+        beamObj.visible = true; beamObj.position.set(wX(b.x), 1.75, wZ(op.y) + LEN / 2);
+        ud.halo.scale.set(w * (1.6 + 0.3 * Math.sin(t * 7)), 1, 1); ud.halo.material.opacity = (0.1 + 0.12 * life) * flick;
+        ud.mid.scale.set(w, 1, 1); ud.mid.material.opacity = (0.3 + 0.25 * life) * flick;
+        ud.core.scale.set(Math.max(0.35, w * 0.45), 1, 1); ud.core.material.opacity = (0.65 + 0.3 * life) * flick;
+        ud.muzzle.position.set(0, 0, -(LEN + 12) / 2 + 0.5); ud.muzzle.scale.setScalar((1 + 0.7 * life) * flick); ud.muzzle.material.opacity = 0.8 * life + 0.2;
+      } else beamObj.visible = false;
     }
     // shield
     if (shieldObj) { shieldObj.visible = S.shield > 0; if (S.shield > 0) shieldObj.position.set(wX(op.x), 0.1, wZ(op.y)); }
@@ -491,12 +566,13 @@ export function createStandGame(canvas, opts = {}) {
       let em = enemyMeshes.get(e.id); if (!em) { em = makeEnemyMesh(e); enemyMeshes.set(e.id, em); }
       const r = wR(e.r);
       em.group.position.set(wX(e.x), r + 0.35, wZ(e.y));
-      em.group.rotation.y = e.wob * 0.6; em.group.rotation.x = e.wob * 0.3;
-      const cloaked = e.spec.cloak && !sq.ndrReveal;
+      em.body.rotation.y = e.wob * 0.6; em.body.rotation.x = e.wob * 0.3;
+      const cloaked = e.spec.cloak && !revealed();
       em.body.material.opacity = cloaked ? 0.4 : 1; em.body.material.transparent = cloaked;
       em.body.material.emissiveIntensity = e.hit > 0 ? 1.1 : em.baseEmissive;
       if (e.hit > 0) em.body.material.emissive.setHex(0xffffff); else em.body.material.emissive.setHex(hexNum(e.spec.color));
       const pulse = 0.6 + 0.4 * Math.sin(t * 6 + e.wob); em.core.material.opacity = (cloaked ? 0.2 : 0.5) * pulse; em.core.scale.setScalar(0.7 + pulse * 0.2);
+      billboard(em.glyph); em.glyph.position.set(0, 0, -r * 0.7); em.glyph.material.opacity = cloaked ? 0.3 : (e.marked ? 1 : 0.92);
     }
     for (const [id, em] of enemyMeshes) { if (!seen.has(id)) { enemyGroup.remove(em.group); disposeTree(em.group); enemyMeshes.delete(id); } }
 
@@ -525,6 +601,7 @@ export function createStandGame(canvas, opts = {}) {
     }
     // rings + zaps
     fctx.globalCompositeOperation = 'lighter';
+    if (S.beam) drawBeam(S.beam);
     for (const f of S.fxr) {
       const a = Math.max(0, f.life);
       if (f.t === 'ring') { const p = proj(f.x, f.y, 0.3); fctx.strokeStyle = rgba(f.color, a); fctx.lineWidth = Math.max(1, f.w * p.s); fctx.beginPath(); fctx.ellipse(p.x, p.y, Math.max(0, f.r * p.s * 0.5), Math.max(0, f.r * p.s * 0.28), 0, 0, TAU); fctx.stroke(); }
@@ -539,8 +616,29 @@ export function createStandGame(canvas, opts = {}) {
     fctx.textAlign = 'start';
     // full-screen flash
     if (S.flash > 0) { fctx.fillStyle = `rgba(${S.flashCol},${S.flash * 0.26})`; fctx.fillRect(0, 0, W, H); }
+    // active-skill auras
+    if (S.rtT > 0) { const p = proj(S.op.x, S.op.y, 0.35); const rr = (28 + 7 * Math.sin(S.elapsed * 13)) * p.s; fctx.globalCompositeOperation = 'lighter'; fctx.strokeStyle = rgba('#ff8a5a', 0.45 + 0.3 * Math.sin(S.elapsed * 13)); fctx.lineWidth = 3; fctx.beginPath(); fctx.ellipse(p.x, p.y, rr, rr * 0.5, 0, 0, TAU); fctx.stroke(); fctx.globalCompositeOperation = 'source-over'; }
+    if (S.ptT > 0) { fctx.fillStyle = `rgba(255,209,102,${0.05 + 0.03 * Math.sin(S.elapsed * 8)})`; fctx.fillRect(0, 0, W, H); }
   }
   function rgba(hex, a) { const c = hex.replace('#', ''); const r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16); return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a))})`; }
+  // XDR correlation lance: a flickering electric column drawn in screen space
+  function drawBeam(b) {
+    const a = Math.max(0, b.life);
+    const p0 = proj(b.x, baseY - 8, 1.2), p1 = proj(b.x, -80, 1.2);
+    const midx = (p0.x + p1.x) / 2, bw = Math.max(14, 30 * p0.s);
+    const grad = fctx.createLinearGradient(midx, p1.y, midx, p0.y);
+    grad.addColorStop(0, rgba('#9be85a', 0)); grad.addColorStop(0.5, rgba('#bfff7a', 0.18 * a + 0.12)); grad.addColorStop(1, rgba('#eaffc0', 0.28 * a + 0.16));
+    fctx.fillStyle = grad; fctx.fillRect(midx - bw, p1.y, bw * 2, p0.y - p1.y);
+    for (let k = 0; k < 3; k++) {
+      const amp = (k === 0 ? 4 : 15) * p0.s;
+      fctx.strokeStyle = rgba(k === 0 ? '#ffffff' : '#c8ff8a', (k === 0 ? 0.95 : 0.55) * (0.6 + 0.4 * Math.random()));
+      fctx.lineWidth = k === 0 ? 4.5 : 2.2; fctx.beginPath();
+      const seg = 16;
+      for (let i = 0; i <= seg; i++) { const tt = i / seg, edge = i === 0 || i === seg; const x = p0.x + (p1.x - p0.x) * tt + (edge ? 0 : rand(-amp, amp)); const y = p0.y + (p1.y - p0.y) * tt; i === 0 ? fctx.moveTo(x, y) : fctx.lineTo(x, y); }
+      fctx.stroke();
+    }
+    fctx.strokeStyle = rgba('#eaffc0', a); fctx.lineWidth = 3; fctx.beginPath(); fctx.ellipse(p0.x, p0.y, bw * 1.7, bw * 0.75, 0, 0, TAU); fctx.stroke();
+  }
 
   function render() {
     if (S.shake > 0) camera.position.set(CAM_BASE.x + rand(-1, 1) * S.shake * 0.5, CAM_BASE.y + rand(-1, 1) * S.shake * 0.4, CAM_BASE.z);
@@ -561,9 +659,58 @@ export function createStandGame(canvas, opts = {}) {
     const tx = new THREE.CanvasTexture(c); tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.colorSpace = THREE.SRGBColorSpace; return tx;
   }
 
+  // ---- threat glyphs: each enemy wears a recognizable cyber-threat icon ----
+  const threatTexCache = {};
+  function roundRectPath(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  function threatTex(type) {
+    if (threatTexCache[type]) return threatTexCache[type];
+    const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+    g.translate(64, 64); g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineWidth = 9; g.lineCap = 'round'; g.lineJoin = 'round';
+    if (type === 'recon') {            // scanning probe: eye + crosshair
+      g.beginPath(); g.ellipse(0, 0, 40, 26, 0, 0, TAU); g.stroke();
+      g.beginPath(); g.arc(0, 0, 12, 0, TAU); g.fill();
+    } else if (type === 'malware') {   // bug
+      g.beginPath(); g.ellipse(0, 4, 20, 26, 0, 0, TAU); g.fill();
+      for (const s of [-1, 1]) { for (const yy of [-10, 2, 14]) { g.beginPath(); g.moveTo(s * 18, yy); g.lineTo(s * 40, yy - 8); g.stroke(); } g.beginPath(); g.moveTo(s * 8, -22); g.lineTo(s * 22, -40); g.stroke(); }
+    } else if (type === 'worm') {      // linked chain segments
+      for (let i = -1; i <= 1; i++) { g.beginPath(); g.arc(i * 26, (i % 2 ? 12 : -12), 14, 0, TAU); g.stroke(); }
+    } else if (type === 'apt') {       // stealth hood / mask
+      g.beginPath(); g.moveTo(0, -42); g.quadraticCurveTo(38, -30, 30, 20); g.quadraticCurveTo(0, 40, -30, 20); g.quadraticCurveTo(-38, -30, 0, -42); g.stroke();
+      for (const s of [-1, 1]) { g.beginPath(); g.ellipse(s * 13, -2, 8, 5, 0, 0, TAU); g.fill(); }
+    } else if (type === 'exfil') {     // data leaving: doc + out-arrow
+      roundRectPath(g, -34, -26, 36, 52, 6); g.stroke();
+      g.beginPath(); g.moveTo(-4, 0); g.lineTo(34, 0); g.moveTo(18, -16); g.lineTo(36, 0); g.lineTo(18, 16); g.stroke();
+    } else if (type === 'ransom') {    // ransomware: padlock
+      roundRectPath(g, -30, -6, 60, 46, 8); g.fill();
+      g.lineWidth = 11; g.beginPath(); g.arc(0, -8, 20, Math.PI, 0); g.stroke();
+      g.fillStyle = '#1a0608'; g.beginPath(); g.arc(0, 14, 7, 0, TAU); g.fill(); g.fillRect(-4, 14, 8, 16);
+    }
+    const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; threatTexCache[type] = tx; return tx;
+  }
+
+  // ---- unit name tags: a crisp product code floats over each Sangfor unit ----
+  const tagTexCache = {};
+  const TAG_LABEL = { op: 'OPERATOR', edr: 'EDR', mdr: 'MDR', EDR: 'EDR', MDR: 'MDR', AF: 'NGAF', NDR: 'NDR', HCI: 'HCI', IAG: 'IAG', XDR: 'XDR', ASTOR: 'aStor' };
+  function tagTex(text, hex) {
+    const key = text + hex; if (tagTexCache[key]) return tagTexCache[key];
+    const c = document.createElement('canvas'); c.width = 256; c.height = 72; const g = c.getContext('2d');
+    g.fillStyle = 'rgba(6,10,18,.9)'; roundRectPath(g, 6, 6, 244, 60, 18); g.fill();
+    g.lineWidth = 5; g.strokeStyle = hex; roundRectPath(g, 6, 6, 244, 60, 18); g.stroke();
+    g.font = '800 40px ui-sans-serif,system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#fff'; g.fillText(text, 128, 38);
+    const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; tagTexCache[key] = tx; return tx;
+  }
+  function makeTag(id) {
+    const label = TAG_LABEL[id] || id; const hex = ACCENT[id] || ACCENT[(id || '').toUpperCase()] || '#72bb38';
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.53), new THREE.MeshBasicMaterial({ map: tagTex(label, hex), transparent: true, depthWrite: false, depthTest: false }));
+    m.renderOrder = 6; return m;
+  }
+
   // ---- hud ----
   function pushHud() {
-    onHud({ base: Math.round(S.base), baseMax: S.baseMax, score: S.score, best: Math.max(S.best, S.score), combo: S.combo, mult: comboMult(S.combo), elapsed: Math.floor(S.elapsed), level: S.level, xp: S.xp, xpNeed: S.xpNeed, tier: WEAPON_ORDER.reduce((a, id) => a + (S.levels[id] || 0), 0), levels: { ...S.levels }, dom: dominant(), sensors: S.squad.sensors, shield: S.shield, shieldMax: S.squad.shieldMax });
+    const abilities = {};
+    for (const id of ABILITY_ORDER) { const spec = ABILITIES[id]; abilities[id] = { cd: S.cd[id], cdMax: spec.cd, ready: S.cd[id] <= 0, active: id === 'pt' ? S.ptT > 0 : id === 'rt' ? S.rtT > 0 : false }; }
+    onHud({ base: Math.round(S.base), baseMax: S.baseMax, score: S.score, best: Math.max(S.best, S.score), combo: S.combo, mult: comboMult(S.combo), elapsed: Math.floor(S.elapsed), level: S.level, xp: S.xp, xpNeed: S.xpNeed, tier: WEAPON_ORDER.reduce((a, id) => a + (S.levels[id] || 0), 0), levels: { ...S.levels }, dom: dominant(), sensors: S.squad.sensors, shield: S.shield, shieldMax: S.squad.shieldMax, abilities });
   }
 
   // ---- lifecycle ----
@@ -572,8 +719,8 @@ export function createStandGame(canvas, opts = {}) {
 
   // ---- input ----
   const toLocal = ev => { const r = canvas.getBoundingClientRect(); const p = ev.touches ? ev.touches[0] : ev; return { x: p.clientX - r.left, y: p.clientY - r.top }; };
-  function onDown(ev) { if (S?.phase !== 'play') return; ev.preventDefault(); const p = toLocal(ev); drag.on = true; drag.x = clamp(p.x, opMinX(), opMaxX()); drag.y = clamp(p.y, baseY - 150, baseY - 12); }
-  function onMove(ev) { if (!drag.on) return; ev.preventDefault(); const p = toLocal(ev); drag.x = clamp(p.x, opMinX(), opMaxX()); drag.y = clamp(p.y, baseY - 150, baseY - 12); }
+  function onDown(ev) { if (S?.phase !== 'play') return; ev.preventDefault(); const p = toLocal(ev); drag.on = true; drag.x = clamp(p.x, opMinX(), opMaxX()); drag.y = clamp(p.y, opMinY(), opMaxY()); }
+  function onMove(ev) { if (!drag.on) return; ev.preventDefault(); const p = toLocal(ev); drag.x = clamp(p.x, opMinX(), opMaxX()); drag.y = clamp(p.y, opMinY(), opMaxY()); }
   function onUp() { drag.on = false; }
   const KMAP = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right', ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down' };
   function onKey(e, down) { const k = KMAP[e.key]; if (k) { if (down) keys.add(k); else keys.delete(k); e.preventDefault(); } }
@@ -585,6 +732,7 @@ export function createStandGame(canvas, opts = {}) {
   return {
     start(best = 0) { S = fresh(); resize(); S.best = best; S.op.x = W / 2; S.op.y = opHome; S.phase = 'play'; recompute(); rebuildUnits(); lastTS = performance.now(); sfx.start(); pushHud(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame); },
     applyUpgrade,
+    useAbility,
     pause() { if (S && S.phase === 'play') S.phase = 'paused'; },
     resume() { if (S && S.phase === 'paused') { S.phase = 'play'; lastTS = performance.now(); } },
     stop() { cancelAnimationFrame(raf); raf = 0; if (S) S.phase = 'idle'; },

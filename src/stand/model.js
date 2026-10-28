@@ -7,12 +7,23 @@
 // that speeds every unit, the XDR correlation beam (scales with your sensors), and
 // an aStor snapshot vault. Honors the design bar; no DOM/canvas/global randomness.
 
-export const START_BASE = 1200;
+export const START_BASE = 1400;
 
 // Fixed weapon constants (straight-up fire only).
 export const OPERATOR = { dmg: 16, rate: 3.4, bulletSpeed: 980, pierce: 1 };
 export const TURRET = { rate: 2.8, bulletSpeed: 940, pierce: 1 };   // EDR endpoint turret
 export const ALLY = { rate: 2.3, bulletSpeed: 980, pierce: 1 };   // MDR teammate
+
+// Active operator skills (player-triggered, on cooldown). Each maps to a real
+// Sangfor security SERVICE engagement, not a product: Incident Response contains
+// an active breach, Penetration Testing exposes weaknesses, Red Team Assessment
+// goes on the offensive. cd = cooldown (s), dur = effect duration (s, 0 = instant).
+export const ABILITIES = {
+  ir: { id: 'ir', cd: 26, dur: 0 },   // Incident Response - contain: nuke every threat + restore integrity
+  pt: { id: 'pt', cd: 22, dur: 6 },   // Penetration Testing - expose: reveal all + amplify all damage
+  rt: { id: 'rt', cd: 34, dur: 8 },   // Red Team Assessment - offensive surge: fire rate + firepower
+};
+export const ABILITY_ORDER = ['ir', 'pt', 'rt'];
 
 // Each product is a deployable. max = max level. sensor = feeds the XDR beam.
 export const WEAPONS = {
@@ -127,12 +138,12 @@ export function upgradeChoices(levels, rng = Math.random) {
 
 // --- enemies (weaker + more numerous than a classic shmup, for a lively feel) --
 export const ENEMIES = {
-  recon:  { id: 'recon',  hp: 10,  speed: 58, dmg: 30,  xp: 1,  score: 10,  r: 13, color: '#8aa0c6' },
-  malware:{ id: 'malware',hp: 28,  speed: 48, dmg: 55,  xp: 2,  score: 16,  r: 17, color: '#ff8a3a' },
-  worm:   { id: 'worm',   hp: 20,  speed: 72, dmg: 42,  xp: 2,  score: 22,  r: 15, color: '#2ee6a0', splits: 2 },
-  apt:    { id: 'apt',    hp: 46,  speed: 54, dmg: 72,  xp: 3,  score: 34,  r: 16, color: '#a98bff', cloak: true },
+  recon:  { id: 'recon',  hp: 10,  speed: 58, dmg: 25,  xp: 1,  score: 10,  r: 13, color: '#8aa0c6' },
+  malware:{ id: 'malware',hp: 28,  speed: 48, dmg: 46,  xp: 2,  score: 16,  r: 17, color: '#ff8a3a' },
+  worm:   { id: 'worm',   hp: 20,  speed: 72, dmg: 35,  xp: 2,  score: 22,  r: 15, color: '#2ee6a0', splits: 2 },
+  apt:    { id: 'apt',    hp: 46,  speed: 54, dmg: 60,  xp: 3,  score: 34,  r: 16, color: '#a98bff', cloak: true },
   exfil:  { id: 'exfil',  hp: 34,  speed: 92, dmg: 0,   xp: 3,  score: 26,  r: 15, color: '#ffd166', steals: 120 },
-  ransom: { id: 'ransom', hp: 680, speed: 30, dmg: 260, xp: 12, score: 150, r: 34, color: '#ff5a6a', boss: true },
+  ransom: { id: 'ransom', hp: 680, speed: 30, dmg: 215, xp: 12, score: 150, r: 34, color: '#ff5a6a', boss: true },
 };
 
 export function threatPool(t) {
@@ -146,11 +157,11 @@ export function threatPool(t) {
 
 export function difficultyAt(t) {
   return {
-    spawnGap: Math.max(230, 950 - t * 7),               // ms between spawn ticks (ramps up)
-    batch: Math.min(4, 1 + Math.floor(t / 22)),          // threats per spawn tick
-    hpMul: 1 + t * 0.05,
-    speedMul: Math.min(1.7, 1 + t * 0.01),
-    bossEvery: 40,
+    spawnGap: Math.max(300, 1000 - t * 6),               // ms between spawn ticks (ramps up)
+    batch: Math.min(4, 1 + Math.floor(t / 24)),          // threats per spawn tick
+    hpMul: 1 + t * 0.042,
+    speedMul: Math.min(1.7, 1 + t * 0.009),
+    bossEvery: 46,
   };
 }
 

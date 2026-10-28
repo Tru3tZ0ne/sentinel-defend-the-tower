@@ -82,11 +82,18 @@ every unit does bonus damage, **IAG** projects a **checkpoint band** that slows 
 **HCI** is a **compute core** that speeds up every unit's fire rate, **aStor** is a **snapshot vault**
 that shields the base, and **XDR** calls the colossal vertical **correlation beam** — weak alone, but
 multiplying with how many sensor units (EDR/NDR/NGAF) you have on the field. Mix and match into a
-squad. The product branding is woven through the whole thing — every on-field unit carries its
-official Sangfor product mark and the base you defend wears the Sangfor logo, as do the upgrade
-cards, weapon chip, loadout rail, and a Product Codex
-pairing each product's real job with its battlefield role and honest limitation. Pure logic is
-unit-tested in `tools/arcade-logic.test.mjs`.
+squad. On top of the passive squad there are three **active operator skills** on cooldown — mapped to
+real Sangfor **service engagements**, not products: **Incident Response** `[Q]` contains the active
+breach (heavy damage to every threat on screen + restores base integrity), **Penetration Testing**
+`[E]` exposes weaknesses (reveals all hidden threats and amplifies every hit for a few seconds), and
+**Red Team Assessment** `[R]` goes on the offensive (surges the whole squad's fire rate and firepower).
+It renders in **real-time 3D with Three.js**: a perspective lane, lit meshes with shadows and bloom,
+the XDR beam as a layered electric lance, and threats that read as specific cyber attacks (ransomware
+wears a padlock, recon an eye, worms a chain, exfil a data-out glyph, APT a stealth hood). The product
+branding is woven through the whole thing — every on-field unit carries its official Sangfor product
+mark **and a floating product name tag**, and the base you defend wears the Sangfor logo, as do the
+upgrade cards, weapon chip, loadout rail, and a Product Codex pairing each product's real job with its
+battlefield role and honest limitation. Pure logic is unit-tested in `tools/arcade-logic.test.mjs`.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your
