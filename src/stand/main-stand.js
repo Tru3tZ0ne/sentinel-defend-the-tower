@@ -67,16 +67,13 @@ const EN = {
   'b.XDR': 'Calls the giant XDR correlation beam. Weak alone - its damage multiplies with the sensor units (EDR/NDR/NGAF) on the field.',
   'b.ASTOR': 'An aStor snapshot vault shields your base from a hit and restores integrity.',
   't.boss': 'Ransomware brute inbound',
-  't.bossBig': 'APT SIEGE ENGINE INBOUND - hold the line',
-  'boss.ransom': 'Ransomware brute',
-  'boss.siege': 'APT siege engine',
   't.exfil': 'Data exfiltrated! An exfil runner slipped through',
   't.absorb': 'aStor snapshot absorbed the hit',
   't.afDown': 'NGAF barrier breached - rebuilding',
   't.xdrIdle': 'XDR beam has no sensors to correlate - add EDR / NDR / NGAF',
   't.irOn': 'Incident Response - breach contained',
-  't.ptOn': 'Penetration Testing - weaknesses exposed',
-  't.rtOn': 'Red Team Assessment - offensive surge',
+  't.ptOn': 'Penetration Testing - pen-test team deployed',
+  't.rtOn': 'Red Team Assessment - attack teams storming in',
   't.corrOn': 'XDR correlation online - kills now chain across your sensors',
   'st.corr': 'CORR',
   // active operator skills
@@ -86,8 +83,8 @@ const EN = {
   'ab.rt': 'Red Team Assessment',
   'ab.ready': 'READY',
   'abd.ir': 'Contain the active breach: heavy damage to every threat on screen, restore base integrity, and brace for the next hit. [Q]',
-  'abd.pt': 'Expose weaknesses: reveal every hidden threat and amplify ALL your damage for a few seconds. [E]',
-  'abd.rt': 'Go on the offensive: surge the fire rate and firepower of your whole squad for a few seconds. [R]',
+  'abd.pt': 'Call in a small, sharp pen-test team - a few extra operatives (piercing fire) join you for a short run. [E]',
+  'abd.rt': 'Launch a red-team assessment: a large surge of temporary attack teams storms the field and fires alongside you. [R]',
   'g.HCI': 'Elastic, pooled cloud compute (HCI): raw capacity and throughput for everything you run.',
   'l.HCI': 'Capacity, not security on its own - it makes everything else run harder and faster.',
 };
@@ -137,16 +134,13 @@ const ZH = {
   'b.XDR': '召唤巨型 XDR 关联光束。单独很弱——伤害随战场上的传感器单位（EDR/NDR/NGAF）数量倍增。',
   'b.ASTOR': '一座 aStor 快照保险库替基地挡下一击，并恢复完整度。',
   't.boss': '勒索软件巨兽来袭',
-  't.bossBig': 'APT 攻城引擎来袭——守住防线',
-  'boss.ransom': '勒索软件巨兽',
-  'boss.siege': 'APT 攻城引擎',
   't.exfil': '数据被窃取！一个外泄跑者溜了过去',
   't.absorb': 'aStor 快照挡下了这一击',
   't.afDown': 'NGAF 屏障被攻破——重建中',
   't.xdrIdle': 'XDR 光束没有可关联的传感器——去加 EDR / NDR / NGAF',
   't.irOn': '应急响应——已遏制入侵',
-  't.ptOn': '渗透测试——已暴露弱点',
-  't.rtOn': '红队评估——进攻爆发',
+  't.ptOn': '渗透测试——渗透小队已入场',
+  't.rtOn': '红队评估——进攻小队大举压上',
   't.corrOn': 'XDR 关联已上线——击杀将在传感器之间链式触发',
   'st.corr': '关联',
   // 主动操作员技能
@@ -156,8 +150,8 @@ const ZH = {
   'ab.rt': '红队评估',
   'ab.ready': '就绪',
   'abd.ir': '遏制正在发生的入侵：对屏幕上每个威胁造成大量伤害，恢复基地完整度，并抵御下一次攻击。[Q]',
-  'abd.pt': '暴露弱点：让所有隐藏威胁现形，并在数秒内放大你的全部伤害。[E]',
-  'abd.rt': '转入进攻：在数秒内提升整支小队的射速与火力。[R]',
+  'abd.pt': '召来一支精干的渗透测试小队——数名额外队员（穿透射击）短时间内与你并肩作战。[E]',
+  'abd.rt': '发起红队评估：大批临时进攻小队涌入战场，与你一同开火。[R]',
   'g.HCI': '弹性、池化的云计算（HCI）：为你运行的一切提供算力与吞吐。',
   'l.HCI': '它本身是算力而非安全——让其它一切跑得更猛、更快。',
 };
@@ -197,10 +191,6 @@ app.innerHTML = `
       <div class="st-xp"><i id="stXpFill"></i></div>
       <div class="st-weap" id="stWeap"></div>
     </div>
-    <div class="st-boss" id="stBoss" hidden>
-      <div class="st-boss-row"><span class="st-boss-name" id="stBossName"></span><span class="st-boss-hp" id="stBossHp"></span></div>
-      <div class="st-boss-bar"><i id="stBossFill"></i></div>
-    </div>
     <div class="st-rail" id="stRail"></div>
     <div class="st-abil" id="stAbil"></div>
     <div class="st-base"><i id="stBaseFill"></i><span class="st-base-txt" id="stBaseTxt"></span></div>
@@ -222,10 +212,6 @@ const el = {
   baseFill: document.getElementById('stBaseFill'),
   baseTxt: document.getElementById('stBaseTxt'),
   abil: document.getElementById('stAbil'),
-  boss: document.getElementById('stBoss'),
-  bossName: document.getElementById('stBossName'),
-  bossHp: document.getElementById('stBossHp'),
-  bossFill: document.getElementById('stBossFill'),
   toasts: document.getElementById('stToasts'),
   overlay: document.getElementById('stOverlay'),
 };
@@ -249,15 +235,6 @@ function buildAbilBar() {
     abilBtns[id] = { btn: b, cd: b.querySelector('.st-ab-cd'), timer: b.querySelector('.st-ab-timer') };
     b.addEventListener('click', () => { if (phase === 'play') game.useAbility(id); });
   }
-}
-function updateBossBar(boss) {
-  if (!el.boss) return;
-  if (!boss) { el.boss.hidden = true; return; }
-  el.boss.hidden = false;
-  el.boss.classList.toggle('mega', !!boss.mega);
-  el.bossName.textContent = t('boss.' + boss.type) || t('boss.ransom');
-  el.bossHp.textContent = `${fmt(boss.hp)} / ${fmt(boss.maxhp)}`;
-  el.bossFill.style.width = Math.max(0, Math.min(100, boss.frac * 100)) + '%';
 }
 function updateAbilBar(abilities) {
   if (!abilities) return;
@@ -291,7 +268,6 @@ const game = createStandGame(el.canvas, {
     paintWeap(el.weap, weapHTML(h));
     paintRail(el.rail, railHTML(h.levels));
     updateAbilBar(h.abilities);
-    updateBossBar(h.boss);
   },
   onToast: (key, kind) => toast(t('t.' + key), kind),
   onLevelUp: (choices, level) => showLevelUp(choices, level),
@@ -426,7 +402,6 @@ function showCodex() {
 async function onGameOver(summary) {
   phase = 'over'; lastSummary = summary; lastResult = null;
   el.abil.innerHTML = '';
-  if (el.boss) el.boss.hidden = true;
   if (summary.best > getBest()) saveBest(summary.best);
   renderOver(summary, null);
   const n = Object.keys(summary.levels).length;
@@ -470,7 +445,6 @@ function resetHud() {
   el.baseFill.style.width = '100%'; el.baseFill.className = 'ok'; el.baseTxt.textContent = START_BASE;
   el.xpFill.style.width = '0%'; el.lvTxt.textContent = `${t('st.lv')} 1`;
   el.weap.innerHTML = ''; el.rail.innerHTML = ''; el.abil.innerHTML = '';
-  if (el.boss) el.boss.hidden = true;
   el.time.textContent = '0s'; el.combo.textContent = 'x1'; el.combo.classList.remove('on');
 }
 

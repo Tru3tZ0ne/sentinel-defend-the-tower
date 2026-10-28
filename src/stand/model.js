@@ -15,13 +15,16 @@ export const TURRET = { rate: 2.8, bulletSpeed: 940, pierce: 1 };   // EDR endpo
 export const ALLY = { rate: 2.3, bulletSpeed: 980, pierce: 1 };   // MDR teammate
 
 // Active operator skills (player-triggered, on cooldown). Each maps to a real
-// Sangfor security SERVICE engagement, not a product: Incident Response contains
-// an active breach, Penetration Testing exposes weaknesses, Red Team Assessment
-// goes on the offensive. cd = cooldown (s), dur = effect duration (s, 0 = instant).
+// Sangfor security SERVICE engagement that CALLS IN temporary expert teams to the
+// field (except Incident Response, which is the emergency containment button):
+//   - Red Team Assessment: a big surge of temporary offensive teams storm in.
+//   - Penetration Testing: a smaller, focused team joins for a probing run.
+//   - Incident Response: contain the active breach now (no standing team).
+// cd = cooldown (s), dur = how long the summoned team stays (s), team = team size.
 export const ABILITIES = {
-  ir: { id: 'ir', cd: 26, dur: 0 },   // Incident Response - contain: nuke every threat + restore integrity
-  pt: { id: 'pt', cd: 22, dur: 6 },   // Penetration Testing - expose: reveal all + amplify all damage
-  rt: { id: 'rt', cd: 34, dur: 8 },   // Red Team Assessment - offensive surge: fire rate + firepower
+  ir: { id: 'ir', cd: 26, dur: 0,  team: 0 },   // Incident Response - contain: nuke every threat + restore integrity
+  pt: { id: 'pt', cd: 22, dur: 8,  team: 3 },   // Penetration Testing - a small expert team joins the fight
+  rt: { id: 'rt', cd: 34, dur: 10, team: 6 },   // Red Team Assessment - a large surge of temporary attack teams
 };
 export const ABILITY_ORDER = ['ir', 'pt', 'rt'];
 
@@ -143,21 +146,8 @@ export const ENEMIES = {
   worm:   { id: 'worm',   hp: 20,  speed: 72, dmg: 35,  xp: 2,  score: 22,  r: 15, color: '#2ee6a0', splits: 2 },
   apt:    { id: 'apt',    hp: 46,  speed: 54, dmg: 60,  xp: 3,  score: 34,  r: 16, color: '#a98bff', cloak: true },
   exfil:  { id: 'exfil',  hp: 34,  speed: 92, dmg: 0,   xp: 3,  score: 26,  r: 15, color: '#ffd166', steals: 120 },
-  // recurring brute boss: a ransomware wrecking ball
   ransom: { id: 'ransom', hp: 680, speed: 30, dmg: 215, xp: 12, score: 150, r: 34, color: '#ff5a6a', boss: true },
-  // flagship boss: an APT siege engine - huge armored core that keeps spawning
-  // malware payloads as it grinds toward your base. The real fight of a run.
-  siege:  { id: 'siege',  hp: 2400, speed: 18, dmg: 320, xp: 46, score: 700, r: 52, color: '#b36bff', boss: true, mega: true, emit: 'malware', emitEvery: 2.4 },
 };
-
-// Which boss arrives on the Nth boss wave: every third wave escalates to the
-// APT siege engine, the others are ransomware brutes.
-export function bossFor(index) { return index % 3 === 2 ? 'siege' : 'ransom'; }
-
-// The base is a fortified Sangfor platform with TWIN heavy cannons that fire a
-// coordinated salvo straight up the lane - big, slow shells that burst on impact
-// (an area response). They fire faster while a boss is on the field.
-export const CANNON = { every: 7.6, bossEvery: 3.6, dmg: 115, splash: 92, speed: 560 };
 
 export function threatPool(t) {
   const pool = ['recon'];

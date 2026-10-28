@@ -16,7 +16,6 @@ import {
   START_BASE, OPERATOR, TURRET, ALLY, WEAPON_ORDER, deriveSquad, damageTo,
   xpToLevel, upgradeChoices, ENEMIES, threatPool, difficultyAt,
   comboMult, killScore, SURVIVE_PER_SEC, STEAL_PENALTY, ABILITIES, ABILITY_ORDER,
-  bossFor, CANNON,
 } from './model.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { sfx } from '../rush/audio.js';
@@ -33,6 +32,13 @@ export const ACCENT = {
 const ACC = Object.fromEntries(Object.entries(ACCENT).map(([k, v]) => [k, parseInt(v.slice(1), 16)]));
 const hexNum = h => parseInt(h.replace('#', ''), 16);
 const BAR_OFFSET = 74;
+
+// Temporary SERVICE teams summoned by the active skills. Red Team = many basic
+// attackers; Pen Test = a smaller, sharper (piercing) crew.
+const TEAM = {
+  rt: { hex: '#ff5a6a', col: 0xff5a6a, label: 'RED TEAM', dmg: 20, rate: 3.0, speed: 960, pierce: 1 },
+  pt: { hex: '#ffd166', col: 0xffd166, label: 'PEN TEST', dmg: 34, rate: 2.7, speed: 980, pierce: 2 },
+};
 
 // world mapping constants (sim stays in pixels; render maps to these world units)
 const HALFW = 9, LEN = 34, RS = 0.06;
@@ -99,35 +105,23 @@ export function createStandGame(canvas, opts = {}) {
 
   // base rampart behind the operator, carrying the SANGFOR corporate logo
   const base = new THREE.Group();
-  const baseWall = new THREE.Mesh(new THREE.BoxGeometry(laneW, 2.9, 1.7), new THREE.MeshStandardMaterial({ color: 0x2a3446, roughness: 0.7, metalness: 0.4 }));
-  baseWall.position.set(0, 1.45, 0); baseWall.castShadow = true; baseWall.receiveShadow = true; base.add(baseWall);
-  // armored skirt + bevel for a more solid fortress read
-  const skirt = new THREE.Mesh(new THREE.BoxGeometry(laneW + 0.6, 0.7, 2.1), new THREE.MeshStandardMaterial({ color: 0x1b2334, roughness: 0.8, metalness: 0.3 }));
-  skirt.position.set(0, 0.35, 0); skirt.castShadow = true; base.add(skirt);
-  const baseTop = new THREE.Mesh(new THREE.BoxGeometry(laneW, 0.18, 1.9), new THREE.MeshBasicMaterial({ color: 0x3f7a22 })); baseTop.position.set(0, 2.95, 0); base.add(baseTop);
-  // backlit SANGFOR sign standing on the rampart, facing + tilted toward the
-  // overhead camera so the corporate logo reads big and bright.
-  const sign = new THREE.Group(); sign.position.set(0, 3.35, -0.5); sign.rotation.set(0.62, Math.PI, 0); base.add(sign);
-  const signBack = new THREE.Mesh(new THREE.BoxGeometry(5.9, 1.74, 0.14), new THREE.MeshStandardMaterial({ color: 0x0b1420, roughness: 0.6, metalness: 0.5 }));
-  signBack.castShadow = true; sign.add(signBack);
-  const signEdge = new THREE.Mesh(new THREE.BoxGeometry(6.2, 2.0, 0.08), new THREE.MeshBasicMaterial({ color: 0x72bb38, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false }));
-  signEdge.position.z = -0.05; sign.add(signEdge);
-  const logo = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 1.44), new THREE.MeshBasicMaterial({ map: brandTex, transparent: true, side: THREE.DoubleSide }));
-  logo.position.z = 0.09; sign.add(logo);
-  for (const s of [-1, 1]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 2.0, 10), new THREE.MeshStandardMaterial({ color: 0x2a3446, roughness: 0.6, metalness: 0.5 })); post.position.set(s * 2.9, 1.7, -0.5); base.add(post); }
+  const baseWall = new THREE.Mesh(new THREE.BoxGeometry(laneW, 2.6, 1.6), new THREE.MeshStandardMaterial({ color: 0x2a3446, roughness: 0.7, metalness: 0.35 }));
+  baseWall.position.set(0, 1.3, 0); baseWall.castShadow = true; baseWall.receiveShadow = true; base.add(baseWall);
+  const baseTop = new THREE.Mesh(new THREE.BoxGeometry(laneW, 0.18, 1.8), new THREE.MeshBasicMaterial({ color: 0x72bb38 })); baseTop.position.set(0, 2.6, 0); base.add(baseTop);
+  const logo = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.7), new THREE.MeshBasicMaterial({ map: brandTex, transparent: true }));
+  logo.position.set(0, 1.95, -0.82); logo.rotation.y = Math.PI; base.add(logo);   // faces the camera (-Z)
   base.position.set(0, 0, -1.6); scene.add(base);
 
   // dynamic groups
   const unitsGroup = new THREE.Group(); scene.add(unitsGroup);
+  const tempsGroup = new THREE.Group(); scene.add(tempsGroup);   // summoned service teams (survive unit rebuilds)
   const enemyGroup = new THREE.Group(); scene.add(enemyGroup);
   const bulletGroup = new THREE.Group(); scene.add(bulletGroup);
   let opMesh = null, allyMesh = null;
   const enemyMeshes = new Map();         // id -> { group, body, core, type }
+  const tempMeshes = new Map();          // temp-team unit id -> mesh
   const bulletPool = [];                 // reusable glow bullets
-  const shellPool = [];                  // reusable giant cannon shells
-  let cannons = [];                      // the base's twin heavy cannons
   let barrierObj = null, bandObj = null, beamObj = null, shieldObj = null, coreObj = null, radarObj = null, radarSweep = null;
-  buildCannons();   // the base's twin heavy cannons (static fixtures, built once)
 
   // ---- geometry (pixel space for the sim) ----
   let W = 0, H = 0, dpr = 1, barH = 0, baseY = 0, opHome = 0, bandY = 0;
@@ -159,8 +153,6 @@ export function createStandGame(canvas, opts = {}) {
   const wX = gx => -((gx - cx()) / (fieldW / 2)) * HALFW;
   const wZ = gy => ((baseY - gy) / baseY) * LEN;
   const wR = pr => pr * 0.055;    // pixel radius -> world radius
-  // the two base cannons sit symmetric about the lane centre
-  const cannonSimX = i => clamp(cx() + (i ? 1 : -1) * fieldW * 0.19, fieldL + 20, fieldR - 20);
 
   let S = null, raf = 0, lastTS = 0, nextId = 1, unitsDirty = false;
   const keys = new Set();
@@ -173,11 +165,10 @@ export function createStandGame(canvas, opts = {}) {
       levels: {}, squad: deriveSquad({}), shooters: [], shield: 0, pendingLevels: 0,
       afHp: 0, afMax: 0, afDown: false, afDownT: 0, radarAng: 0,
       op: { x: W / 2, y: opHome, muzzle: 0 },
-      enemies: [], shots: [], shells: [], parts: [], texts: [], fxr: [], beam: null,
-      spawnAcc: 0, beamAcc: 0, shieldAcc: 0, lastBoss: -28, bossCount: 0,
-      cannonAcc: 0, cannonKick: [0, 0],              // base twin-cannon salvo timer + recoil
+      enemies: [], shots: [], parts: [], texts: [], fxr: [], beam: null, temps: [],
+      spawnAcc: 0, beamAcc: 0, shieldAcc: 0, lastBoss: -28,
       shake: 0, flash: 0, flashCol: '255,90,106', hudAcc: 0,
-      cd: { ir: 0, pt: 0, rt: 0 }, ptT: 0, rtT: 0,   // active-skill cooldowns + effect timers
+      cd: { ir: 0, pt: 0, rt: 0 }, ptT: 0, rtT: 0,   // active-skill cooldowns + team-summon timers
       hitStop: 0, corrAnnounced: false,              // brief time-freeze for impact; correlation teach
     };
   }
@@ -209,17 +200,8 @@ export function createStandGame(canvas, opts = {}) {
   // ---- enemies ----
   function spawnEnemy(type) {
     const d = difficultyAt(S.elapsed), spec = ENEMIES[type];
-    // bosses don't ride the normal hp curve; the APT siege engine scales lightly with time
-    const hp = Math.round(spec.hp * (spec.mega ? 1 + S.elapsed * 0.006 : spec.boss ? 1 : d.hpMul));
-    S.enemies.push({ id: nextId++, type, spec, x: rand(fieldL + spec.r + 4, fieldR - spec.r - 4), y: -spec.r - rand(2, 40), r: spec.r, hp, maxhp: hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false, emitAcc: 0 });
-  }
-  function spawnBoss() {
-    const type = bossFor(S.bossCount++);
-    spawnEnemy(type);
-    const mega = ENEMIES[type].mega;
-    onToast(mega ? 'bossBig' : 'boss', 'bad');
-    S.flash = mega ? 0.9 : 0.6; S.flashCol = mega ? '179,107,255' : '255,90,106'; S.shake = Math.min(1, mega ? 1 : 0.7);
-    sfx.boss();
+    const hp = Math.round(spec.hp * (spec.boss ? 1 : d.hpMul));
+    S.enemies.push({ id: nextId++, type, spec, x: rand(fieldL + spec.r + 4, fieldR - spec.r - 4), y: -spec.r - rand(2, 40), r: spec.r, hp, maxhp: hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false });
   }
   function killEnemy(e, viaBeam) {
     e.dead = true;
@@ -229,12 +211,7 @@ export function createStandGame(canvas, opts = {}) {
     burst(e.x, e.y, e.spec.color, e.spec.boss ? 40 : 12, e.spec.boss ? 300 : 170);
     ring(e.x, e.y, e.spec.color, e.r * (e.spec.boss ? 5 : 2.2));
     ring(e.x, e.y, '#ffffff', e.r * (e.spec.boss ? 3 : 1.7), 2);   // crisp white death pop
-    if (e.spec.boss) {
-      S.shake = 1; S.flash = e.spec.mega ? 1 : 0.8; S.flashCol = e.spec.mega ? '179,107,255' : '255,90,106';
-      S.hitStop = Math.max(S.hitStop, e.spec.mega ? 0.24 : 0.13);
-      if (e.spec.mega) { shock(e.x, e.y, '#eadcff', e.r * 10); ring(e.x, e.y, e.spec.color, e.r * 7, 7); for (let i = 0; i < 6; i++) ring(e.x + rand(-e.r, e.r), e.y + rand(-e.r, e.r), '#ffffff', e.r * (2 + i), 2); }
-      sfx.boss();
-    }
+    if (e.spec.boss) { S.shake = 1; S.flash = 0.8; S.flashCol = '255,90,106'; S.hitStop = Math.max(S.hitStop, 0.13); sfx.boss(); }
     else if (!viaBeam) sfx.hit(S.combo);
     if (e.spec.splits) for (let i = 0; i < e.spec.splits; i++) { const r2 = ENEMIES.recon; S.enemies.push({ id: nextId++, type: 'recon', spec: r2, x: e.x + rand(-14, 14), y: e.y, r: r2.r, hp: r2.hp, maxhp: r2.hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false }); }
     // XDR CORRELATION CHAINS (the signature): with 2+ sensors on the field, a kill
@@ -267,12 +244,12 @@ export function createStandGame(canvas, opts = {}) {
     }
     if (depth === 0) sfx.ability();
   }
-  // cloaked APTs are only fully seen once NDR is deployed OR a pen-test is live
-  const revealed = () => S.squad.ndrReveal || S.ptT > 0;
-  // damage with the NDR mark bonus, stealth, and the live Penetration Testing amp
+  // cloaked APTs are only fully seen once NDR (network visibility) is deployed
+  const revealed = () => S.squad.ndrReveal;
+  // damage with the NDR mark bonus + stealth
   function dealDamage(e, raw) {
     const mark = e.spec.cloak && !revealed() ? 0.5 : 1;
-    const bonus = (S.squad.ndrMark ? 1 + S.squad.ndrMark : 1) * (S.ptT > 0 ? 1.7 : 1);
+    const bonus = S.squad.ndrMark ? 1 + S.squad.ndrMark : 1;
     const dealt = raw * mark * bonus;
     e.hp -= dealt; e.hit = 1;
     return dealt;
@@ -327,10 +304,23 @@ export function createStandGame(canvas, opts = {}) {
     const spec = ABILITIES[id]; if (!spec || S.cd[id] > 0) return false;
     S.cd[id] = spec.cd;
     if (id === 'ir') abilityIR();
-    else if (id === 'pt') { S.ptT = spec.dur; onToast('ptOn', 'good'); ring(S.op.x, S.op.y, ACCENT.IAG, 150, 6); shock(S.op.x, S.op.y, '#ffe08a', 240); sfx.ability(); }
-    else if (id === 'rt') { S.rtT = spec.dur; onToast('rtOn', 'good'); ring(S.op.x, S.op.y, ACCENT.EDR, 150, 6); shock(S.op.x, S.op.y, '#ffb48a', 240); S.flash = 0.4; S.flashCol = '255,138,90'; sfx.ability(); }
+    else if (id === 'pt') { S.ptT = spec.dur; summonTeam('pt', spec); onToast('ptOn', 'good'); }
+    else if (id === 'rt') { S.rtT = spec.dur; summonTeam('rt', spec); onToast('rtOn', 'good'); S.flash = 0.4; S.flashCol = '255,90,106'; }
     pushHud();
     return true;
+  }
+  // Summon a temporary SERVICE team: `spec.team` operatives fan out beside the
+  // operator and fire straight up for `spec.dur` seconds, then withdraw.
+  function summonTeam(id, spec) {
+    const cfg = TEAM[id], n = spec.team; if (!cfg || n <= 0) return;
+    const spacing = Math.min(56, (fieldW * 0.82) / (n + 1));
+    for (let i = 0; i < n; i++) {
+      const off = (i - (n - 1) / 2) * spacing;
+      S.temps.push({ id: nextId++, team: id, off, yoff: -(12 + (i % 2) * 24), dmg: cfg.dmg, rate: cfg.rate, speed: cfg.speed, pierce: cfg.pierce, color: cfg.hex, acc: 0, muzzle: 0, life: spec.dur, dur: spec.dur, born: 0.35 });
+      const sx = clamp(S.op.x + off, fieldL + 16, fieldR - 16);
+      burst(sx, S.op.y - 12, cfg.hex, 10, 150); ring(sx, S.op.y - 12, cfg.hex, 70, 4);
+    }
+    ring(S.op.x, S.op.y, cfg.hex, 170, 6); shock(S.op.x, S.op.y, cfg.hex, 240); sfx.ability();
   }
   function abilityIR() {
     // Incident Response: contain the active breach - heavy damage to every threat,
@@ -369,30 +359,32 @@ export function createStandGame(canvas, opts = {}) {
     op.x = clamp(op.x, opMinX(), opMaxX()); op.y = clamp(op.y, opMinY(), opMaxY());
     op.muzzle = Math.max(0, op.muzzle - dt * 6);
 
-    // active-skill cooldowns + effect timers
+    // active-skill cooldowns + summoned-team duration timers (drive the HUD glow)
     for (const k in S.cd) if (S.cd[k] > 0) S.cd[k] = Math.max(0, S.cd[k] - dt);
     if (S.ptT > 0) S.ptT = Math.max(0, S.ptT - dt);
     if (S.rtT > 0) S.rtT = Math.max(0, S.rtT - dt);
-    const rtFire = S.rtT > 0 ? 1.85 : 1, rtDmg = S.rtT > 0 ? 1.4 : 1;
 
     S.spawnAcc += dt * 1000;
     if (S.spawnAcc >= d.spawnGap) { S.spawnAcc = 0; const pool = threatPool(S.elapsed); for (let i = 0; i < d.batch; i++) spawnEnemy(pool[Math.floor(Math.random() * pool.length)]); }
-    if (S.elapsed - S.lastBoss > d.bossEvery) { S.lastBoss = S.elapsed; spawnBoss(); }
+    if (S.elapsed - S.lastBoss > d.bossEvery) { S.lastBoss = S.elapsed; spawnEnemy('ransom'); onToast('boss', 'bad'); }
 
     for (const sh of S.shooters) {
-      sh.acc += dt * 1000; const interval = 1000 / (sh.rate * sq.fireRateMul * rtFire);
-      while (sh.acc >= interval) { sh.acc -= interval; const x = unitX(sh), uy = unitY(sh); fireUp(x, uy - 16, sh.dmg * rtDmg, sh.speed, sh.pierce, sh.kind === 'op' ? dominantColor() : ACCENT[sh.kind === 'edr' ? 'EDR' : 'MDR']); if (sh.kind === 'op') op.muzzle = 1; sh.muzzle = 1; }
+      sh.acc += dt * 1000; const interval = 1000 / (sh.rate * sq.fireRateMul);
+      while (sh.acc >= interval) { sh.acc -= interval; const x = unitX(sh), uy = unitY(sh); fireUp(x, uy - 16, sh.dmg, sh.speed, sh.pierce, sh.kind === 'op' ? dominantColor() : ACCENT[sh.kind === 'edr' ? 'EDR' : 'MDR']); if (sh.kind === 'op') op.muzzle = 1; sh.muzzle = 1; }
       if (sh.muzzle) sh.muzzle = Math.max(0, sh.muzzle - dt * 6);
+    }
+    // summoned service teams fire straight up alongside you until they withdraw
+    for (const u of S.temps) {
+      if (u.born > 0) u.born = Math.max(0, u.born - dt);
+      u.life -= dt; if (u.life <= 0) { u.dead = true; continue; }
+      const ux = clamp(op.x + u.off, fieldL + 16, fieldR - 16), uy = op.y + u.yoff;
+      u.acc += dt * 1000; const interval = 1000 / (u.rate * sq.fireRateMul);
+      while (u.acc >= interval) { u.acc -= interval; fireUp(ux, uy - 16, u.dmg, u.speed, u.pierce, u.color); u.muzzle = 1; }
+      if (u.muzzle) u.muzzle = Math.max(0, u.muzzle - dt * 6);
     }
     if (sq.beamOn) { S.beamAcc += dt * 1000; if (S.beamAcc >= sq.beamEvery) { S.beamAcc = 0; fireBeam(); } }
     if (sq.shieldEvery) { S.shieldAcc += dt * 1000; if (S.shieldAcc >= sq.shieldEvery) { S.shieldAcc = 0; S.shield = Math.min(sq.shieldMax, S.shield + 1); } }
     if (sq.regen) S.base = Math.min(S.baseMax, S.base + sq.regen * dt);
-
-    // base twin heavy cannons: a coordinated salvo straight up the lane (faster vs a boss)
-    const bossOn = S.enemies.some(e => e.spec.boss && e.y > -e.r);
-    S.cannonAcc += dt * 1000;
-    if (S.cannonAcc >= (bossOn ? CANNON.bossEvery : CANNON.every) * 1000) { S.cannonAcc = 0; fireCannons(bossOn); }
-    for (let i = 0; i < 2; i++) if (S.cannonKick[i] > 0) S.cannonKick[i] = Math.max(0, S.cannonKick[i] - dt * 4);
 
     const barY = op.y - BAR_OFFSET, halfW = sq.afHalfWidth;
     if (sq.afTier > 0) { if (S.afDown) { S.afDownT -= dt; if (S.afDownT <= 0) { S.afDown = false; S.afHp = S.afMax * 0.5; } } else { S.afHp = Math.min(S.afMax, S.afHp + S.afMax * 0.08 * dt); } }
@@ -401,16 +393,7 @@ export function createStandGame(canvas, opts = {}) {
 
     for (const e of S.enemies) {
       if (e.dead) continue;
-      if (sq.ndrReveal || S.ptT > 0) e.marked = true;
-      // APT siege engine keeps emitting malware payloads as it advances
-      if (e.spec.mega && e.y > 0) {
-        e.emitAcc += dt;
-        if (e.emitAcc >= e.spec.emitEvery) {
-          e.emitAcc = 0; const m = ENEMIES[e.spec.emit];
-          S.enemies.push({ id: nextId++, type: e.spec.emit, spec: m, x: clamp(e.x + rand(-26, 26), fieldL + m.r, fieldR - m.r), y: e.y + e.r * 0.6, r: m.r, hp: m.hp, maxhp: m.hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false, emitAcc: 0 });
-          ring(e.x, e.y, e.spec.color, e.r * 1.4, 4); burst(e.x, e.y + e.r * 0.5, e.spec.color, 8, 130);
-        }
-      }
+      if (sq.ndrReveal) e.marked = true;
       let slowK = e.slow > 0 ? 0.5 : 1; if (e.slow > 0) e.slow -= dt * 1000;
       if (sq.iagBand && e.y > bandY - 24 && e.y < bandY + 24) slowK *= sq.iagSlowMul;
       e.wob += dt * 3;
@@ -458,20 +441,11 @@ export function createStandGame(canvas, opts = {}) {
       }
     }
 
-    // giant cannon shells: travel up, burst on the first threat they touch or in the air
-    for (const sh of S.shells) {
-      if (sh.dead) continue;
-      sh.y += sh.vy * dt;
-      let hit = sh.y <= H * 0.1;
-      if (!hit) for (const e of S.enemies) { if (!e.dead && dist2(sh.x, sh.y, e.x, e.y) <= (e.r + sh.r) ** 2) { hit = true; break; } }
-      if (hit) { explodeShell(sh); sh.dead = true; }
-    }
-
     for (const pt of S.parts) { pt.life -= dt * 1.7; pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.vx *= 0.94; pt.vy = pt.vy * 0.94 + 40 * dt; }
     for (const tx of S.texts) { tx.life -= dt * 1.3; tx.y += tx.vy * dt; tx.x += tx.vx * dt; tx.vy *= 0.92; }
     for (const f of S.fxr) { f.life -= dt * (f.t === 'zap' ? 5 : 2.6); if (f.r !== undefined && f.max) f.r += (f.max - f.r) * Math.min(1, dt * 9); }
     S.radarAng += dt * 2.4;
-    S.enemies = S.enemies.filter(e => !e.dead); S.shots = S.shots.filter(p => !p.dead); S.shells = S.shells.filter(s => !s.dead);
+    S.enemies = S.enemies.filter(e => !e.dead); S.shots = S.shots.filter(p => !p.dead); S.temps = S.temps.filter(u => !u.dead);
     S.parts = S.parts.filter(p => p.life > 0); S.texts = S.texts.filter(t => t.life > 0); S.fxr = S.fxr.filter(f => f.life > 0);
     S.shake = Math.max(0, S.shake - dt * 2.4); S.flash = Math.max(0, S.flash - dt * 2.2);
     S.score += SURVIVE_PER_SEC * dt;
@@ -524,6 +498,18 @@ export function createStandGame(canvas, opts = {}) {
     const flash = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), new THREE.MeshBasicMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); flash.position.set(0.26, 1.2, 1.05); flash.visible = false; g.add(flash);
     const b = makeBadge('MDR', 0.88); b.position.set(0, 1.1, -0.3); g.add(b); g.userData.badge = b; g.userData.flash = flash;
     const tag = makeTag('MDR'); tag.position.set(0, 2.3, 0); g.add(tag); g.userData.tag = tag;
+    return g;
+  }
+  function buildOperative(team) {
+    const cfg = TEAM[team], g = new THREE.Group(), col = cfg.col;
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.9, 0.5), std(0x141a28, col, 0.35, 0.6, 0.3)); torso.position.y = 1.0; torso.castShadow = true; g.add(torso);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.27, 16, 12), std(0xe7c9a0, 0x000000, 0, 0.7, 0)); head.position.y = 1.6; head.castShadow = true; g.add(head);
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.13, 0.1), std(col, col, 1.4, 0.3, 0.2)); visor.position.set(0, 1.62, 0.23); g.add(visor);
+    const gun = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.92), std(col, col, 1.2, 0.4, 0.5)); gun.position.set(0.24, 1.12, 0.42); g.add(gun);
+    const flash = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), new THREE.MeshBasicMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); flash.position.set(0.24, 1.12, 0.98); flash.visible = false; g.add(flash);
+    const aura = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.03, 20), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false })); aura.position.y = 0.03; g.add(aura);
+    const tag = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 0.58), new THREE.MeshBasicMaterial({ map: tagTex(cfg.label, cfg.hex), transparent: true, depthWrite: false, depthTest: false })); tag.position.set(0, 2.05, 0); tag.renderOrder = 6; g.add(tag);
+    g.userData = { flash, tag };
     return g;
   }
   function buildRadar() {
@@ -587,55 +573,6 @@ export function createStandGame(canvas, opts = {}) {
     const m = new THREE.Mesh(new THREE.SphereGeometry(1.6, 24, 16, 0, TAU, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: ACC.ASTOR, transparent: true, opacity: 0.22, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
     m.visible = false; scene.add(m); return m;
   }
-  // ---- the base's twin heavy cannons (the "Red Alert" salvo) ----
-  function buildCannon() {
-    const g = new THREE.Group();
-    const steel = (c, r = 0.5, mtl = 0.75) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: mtl });
-    const pivot = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.78, 0.6, 20), steel(0x323c52)); pivot.position.y = 0.3; pivot.castShadow = true; g.add(pivot);
-    const yaw = new THREE.Group(); yaw.position.y = 0.62; g.add(yaw);
-    const housing = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.7, 1.25), steel(0x3b4760)); housing.position.set(0, 0.2, -0.1); housing.castShadow = true; yaw.add(housing);
-    // the recoiling barrel assembly, tilted up the lane
-    const recoil = new THREE.Group(); recoil.position.set(0, 0.34, 0.2); recoil.rotation.x = -0.32; yaw.add(recoil);
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 2.2, 20), steel(0x273146, 0.45)); barrel.rotation.x = Math.PI / 2; barrel.position.z = 1.0; barrel.castShadow = true; recoil.add(barrel);
-    for (const bz of [0.55, 1.15, 1.6]) { const band = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.07, 10, 20), steel(0x556384, 0.4)); band.position.z = bz; recoil.add(band); }
-    const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.34, 20), steel(0x1c2536, 0.4)); muzzle.rotation.x = Math.PI / 2; muzzle.position.z = 2.05; recoil.add(muzzle);
-    const glowRing = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.05, 10, 24), new THREE.MeshBasicMaterial({ color: 0x9be85a })); glowRing.position.z = 2.05; recoil.add(glowRing);
-    const flash = new THREE.Mesh(new THREE.SphereGeometry(0.4, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffe6b0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); flash.position.z = 2.25; flash.visible = false; recoil.add(flash);
-    g.userData = { yaw, recoil, flash, z0: 0.2 };
-    scene.add(g); return g;
-  }
-  function buildCannons() { cannons = [buildCannon(), buildCannon()]; }
-  function makeShell() {
-    const g = new THREE.Group();
-    const core = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
-    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.62, 14, 12), new THREE.MeshBasicMaterial({ color: 0xffb24a, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
-    const trail = new THREE.Mesh(new THREE.ConeGeometry(0.42, 2.6, 14), new THREE.MeshBasicMaterial({ color: 0xffce7a, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
-    trail.rotation.x = -Math.PI / 2; trail.position.z = -1.4; g.add(trail); g.add(halo); g.add(core);
-    g.visible = false; bulletGroup.add(g); return g;
-  }
-  function fireCannons(bossOn) {
-    if (!S.enemies.length) return;
-    for (let i = 0; i < 2; i++) {
-      const x = cannonSimX(i), y = baseY - 14;
-      S.shells.push({ x, y, vy: -CANNON.speed, dmg: CANNON.dmg * (bossOn ? 1.25 : 1), splash: CANNON.splash, r: 11 });
-      S.cannonKick[i] = 1;
-      burst(x, y - 8, '#ffd9a0', 12, 170); shock(x, y - 8, '#ffe6b0', 64); zap(x, y, x, y - 46, '#ffce7a');
-    }
-    S.shake = Math.min(1, S.shake + 0.24); S.flash = Math.max(S.flash, 0.3); S.flashCol = '255,200,120'; sfx.ability();
-  }
-  function explodeShell(sh) {
-    shock(sh.x, sh.y, '#ffe6b0', sh.splash * 2.6); ring(sh.x, sh.y, '#ffb24a', sh.splash * 2.2, 6); ring(sh.x, sh.y, '#ffffff', sh.splash * 1.3, 3);
-    burst(sh.x, sh.y, '#ffd9a0', 28, 300); S.shake = Math.min(1, S.shake + 0.3); S.flash = Math.max(S.flash, 0.42); S.flashCol = '255,190,110';
-    const R2 = sh.splash ** 2;
-    for (const e of S.enemies) {
-      if (e.dead) continue;
-      if (dist2(sh.x, sh.y, e.x, e.y) <= R2) {
-        const dealt = dealDamage(e, sh.dmg); dmgText(e.x, e.y - e.r, dealt, '#ffce7a', true);
-        if (e.hp <= 0 && !e.dead) killEnemy(e, true);
-      }
-    }
-    sfx.hit(1);
-  }
 
   function enemyGeo(e) {
     const r = wR(e.r);
@@ -644,25 +581,14 @@ export function createStandGame(canvas, opts = {}) {
   }
   function makeEnemyMesh(e) {
     const col = hexNum(e.spec.color);
-    const r = wR(e.r);
     const body = new THREE.Mesh(enemyGeo(e), std(col, col, 0.45, 0.35, 0.2)); body.castShadow = true;
     const glow = new THREE.Color(col).lerp(new THREE.Color(0xffffff), 0.45);
-    const core = new THREE.Mesh(new THREE.SphereGeometry(r * 0.3, 10, 8), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
-    const gs = r * (e.spec.boss ? 1.5 : 1.75);
+    const core = new THREE.Mesh(new THREE.SphereGeometry(wR(e.r) * 0.3, 10, 8), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const gs = wR(e.r) * (e.spec.boss ? 1.5 : 1.75);
     const glyph = new THREE.Mesh(new THREE.PlaneGeometry(gs, gs), new THREE.MeshBasicMaterial({ map: threatTex(e.type), transparent: true, depthWrite: false, depthTest: false }));
     glyph.renderOrder = 3;
-    const g = new THREE.Group(); g.add(body); g.add(core); g.add(glyph);
-    let shell = null, orbit = null;
-    if (e.spec.mega) {
-      // the APT siege engine: an armored core caged by a rotating spiked shell + plasma halo
-      shell = new THREE.Mesh(new THREE.IcosahedronGeometry(r * 1.32, 1), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.6, roughness: 0.3, metalness: 0.8, wireframe: true }));
-      orbit = new THREE.Mesh(new THREE.TorusGeometry(r * 1.5, r * 0.09, 10, 36), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
-      orbit.rotation.x = Math.PI / 2.4;
-      const aura = new THREE.Mesh(new THREE.SphereGeometry(r * 1.1, 16, 12), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
-      g.add(aura); g.add(shell); g.add(orbit);
-    }
-    enemyGroup.add(g);
-    return { group: g, body, core, glyph, shell, orbit, bodyMat: body.material, baseEmissive: e.spec.mega ? 0.6 : 0.45 };
+    const g = new THREE.Group(); g.add(body); g.add(core); g.add(glyph); enemyGroup.add(g);
+    return { group: g, body, core, glyph, bodyMat: body.material, baseEmissive: 0.45 };
   }
   function makeBullet() {
     const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.8, depthWrite: false }));
@@ -680,6 +606,19 @@ export function createStandGame(canvas, opts = {}) {
       if (m.userData.badge) billboard(m.userData.badge);
       if (m.userData.tag) billboard(m.userData.tag);
     }
+    // summoned service teams (red team / pen test) - pop in, fire, withdraw
+    const seenT = new Set();
+    for (const u of S.temps) {
+      seenT.add(u.id);
+      let tm = tempMeshes.get(u.id); if (!tm) { tm = buildOperative(u.team); tempsGroup.add(tm); tempMeshes.set(u.id, tm); }
+      const ux = clamp(op.x + u.off, fieldL + 16, fieldR - 16), uy = op.y + u.yoff;
+      const appear = u.born > 0 ? 1 - u.born / 0.35 : (u.life < 0.6 ? Math.max(0.12, u.life / 0.6) : 1);
+      tm.position.set(wX(ux), 0, wZ(uy)); tm.scale.setScalar(0.82 * clamp(appear, 0.05, 1));
+      if (tm.userData.flash) { const f = tm.userData.flash; f.visible = u.muzzle > 0.05; if (f.visible) { f.scale.setScalar(0.5 + u.muzzle * 0.6); f.material.opacity = u.muzzle * 0.85; } }
+      billboard(tm.userData.tag);
+    }
+    for (const [id, tm] of tempMeshes) { if (!seenT.has(id)) { tempsGroup.remove(tm); disposeTree(tm); tempMeshes.delete(id); } }
+
     if (coreObj) { coreObj.position.set(wX(op.x), 0, wZ(op.y + 20)); coreObj.children.forEach(c => { if (c.geometry && c.geometry.type === 'TorusGeometry') c.rotation.z = t * 2; }); if (coreObj.userData.badge) billboard(coreObj.userData.badge); if (coreObj.userData.tag) billboard(coreObj.userData.tag); }
     if (radarObj) { radarObj.position.set(wX(clamp(fieldR - 34, fieldL + 30, fieldR - 30)), 0, wZ(baseY - 30)); if (radarSweep) radarSweep.rotation.y = -S.radarAng; if (radarObj.userData.badge) billboard(radarObj.userData.badge); if (radarObj.userData.tag) billboard(radarObj.userData.tag); }
 
@@ -714,25 +653,6 @@ export function createStandGame(canvas, opts = {}) {
     // shield
     if (shieldObj) { shieldObj.visible = S.shield > 0; if (S.shield > 0) shieldObj.position.set(wX(op.x), 0.1, wZ(op.y)); }
 
-    // twin base cannons: sit on the rampart, aim slightly at the frontmost threat, recoil on fire
-    let front = null; for (const e of S.enemies) if (!e.dead && (!front || e.y > front.y)) front = e;
-    for (let i = 0; i < cannons.length; i++) {
-      const c = cannons[i]; if (!c) continue;
-      c.position.set(wX(cannonSimX(i)), 1.95, -0.3);
-      const ud = c.userData, kick = S.cannonKick[i];
-      if (front) ud.yaw.rotation.y = clamp((wX(front.x) - c.position.x) * 0.06, -0.5, 0.5);
-      ud.recoil.position.z = ud.z0 - kick * 0.55;
-      ud.flash.visible = kick > 0.08;
-      if (ud.flash.visible) { ud.flash.scale.setScalar(0.7 + kick * 1.3); ud.flash.material.opacity = kick; }
-    }
-    // giant shells in flight
-    for (let i = 0; i < S.shells.length; i++) {
-      let m = shellPool[i]; if (!m) { m = makeShell(); shellPool[i] = m; }
-      const sh = S.shells[i]; m.visible = true; m.position.set(wX(sh.x), 1.1, wZ(sh.y));
-      const pulse = 0.85 + 0.15 * Math.sin(t * 40 + i); m.children[0].material.opacity = 0.35 + 0.2 * pulse; m.children[2].scale.setScalar(pulse);
-    }
-    for (let i = S.shells.length; i < shellPool.length; i++) shellPool[i].visible = false;
-
     // enemies
     const seen = new Set();
     for (const e of S.enemies) {
@@ -746,7 +666,6 @@ export function createStandGame(canvas, opts = {}) {
       em.body.material.emissiveIntensity = e.hit > 0 ? 1.5 : em.baseEmissive;
       if (e.hit > 0) em.body.material.emissive.setHex(0xffffff); else em.body.material.emissive.setHex(hexNum(e.spec.color));
       const pulse = 0.6 + 0.4 * Math.sin(t * 6 + e.wob); em.core.material.opacity = (cloaked ? 0.2 : 0.5) * pulse; em.core.scale.setScalar(0.7 + pulse * 0.2);
-      if (em.shell) { em.shell.rotation.y = t * 0.8; em.shell.rotation.x = t * 0.5; em.orbit.rotation.z = t * 1.7; }
       billboard(em.glyph); em.glyph.position.set(0, 0, -r * 0.7); em.glyph.material.opacity = cloaked ? 0.3 : (e.marked ? 1 : 0.92);
     }
     for (const [id, em] of enemyMeshes) { if (!seen.has(id)) { enemyGroup.remove(em.group); disposeTree(em.group); enemyMeshes.delete(id); } }
@@ -796,9 +715,9 @@ export function createStandGame(canvas, opts = {}) {
     fctx.textAlign = 'start';
     // full-screen flash
     if (S.flash > 0) { fctx.fillStyle = `rgba(${S.flashCol},${S.flash * 0.26})`; fctx.fillRect(0, 0, W, H); }
-    // active-skill auras
-    if (S.rtT > 0) { const p = proj(S.op.x, S.op.y, 0.35); const rr = (28 + 7 * Math.sin(S.elapsed * 13)) * p.s; fctx.globalCompositeOperation = 'lighter'; fctx.strokeStyle = rgba('#ff8a5a', 0.45 + 0.3 * Math.sin(S.elapsed * 13)); fctx.lineWidth = 3; fctx.beginPath(); fctx.ellipse(p.x, p.y, rr, rr * 0.5, 0, 0, TAU); fctx.stroke(); fctx.globalCompositeOperation = 'source-over'; }
-    if (S.ptT > 0) { fctx.fillStyle = `rgba(255,209,102,${0.05 + 0.03 * Math.sin(S.elapsed * 8)})`; fctx.fillRect(0, 0, W, H); }
+    // summoned-team auras: a red-team rally ring, a pen-test amber tint
+    if (S.rtT > 0) { const p = proj(S.op.x, S.op.y, 0.35); const rr = (30 + 7 * Math.sin(S.elapsed * 13)) * p.s; fctx.globalCompositeOperation = 'lighter'; fctx.strokeStyle = rgba('#ff5a6a', 0.45 + 0.3 * Math.sin(S.elapsed * 13)); fctx.lineWidth = 3; fctx.beginPath(); fctx.ellipse(p.x, p.y, rr, rr * 0.5, 0, 0, TAU); fctx.stroke(); fctx.globalCompositeOperation = 'source-over'; }
+    if (S.ptT > 0) { fctx.fillStyle = `rgba(255,209,102,${0.04 + 0.025 * Math.sin(S.elapsed * 8)})`; fctx.fillRect(0, 0, W, H); }
   }
   function rgba(hex, a) { const c = hex.replace('#', ''); const r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16); return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a))})`; }
   // XDR correlation lance: a flickering electric column drawn in screen space
@@ -864,11 +783,6 @@ export function createStandGame(canvas, opts = {}) {
       roundRectPath(g, -30, -6, 60, 46, 8); g.fill();
       g.lineWidth = 11; g.beginPath(); g.arc(0, -8, 20, Math.PI, 0); g.stroke();
       g.fillStyle = '#1a0608'; g.beginPath(); g.arc(0, 14, 7, 0, TAU); g.fill(); g.fillRect(-4, 14, 8, 16);
-    } else if (type === 'siege') {      // APT siege engine: a skull (the headline threat)
-      g.beginPath(); g.moveTo(-30, 10); g.quadraticCurveTo(-34, -40, 0, -40); g.quadraticCurveTo(34, -40, 30, 10); g.quadraticCurveTo(26, 24, 12, 24); g.lineTo(-12, 24); g.quadraticCurveTo(-26, 24, -30, 10); g.fill();
-      g.fillStyle = '#1a0624'; g.beginPath(); g.ellipse(-13, -6, 9, 11, 0, 0, TAU); g.fill(); g.beginPath(); g.ellipse(13, -6, 9, 11, 0, 0, TAU); g.fill();
-      g.beginPath(); g.moveTo(0, 2); g.lineTo(-6, 16); g.lineTo(6, 16); g.closePath(); g.fill();
-      g.fillStyle = '#1a0624'; for (let i = -2; i <= 2; i++) g.fillRect(i * 7 - 2, 24, 4, 10);
     }
     const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; threatTexCache[type] = tx; return tx;
   }
@@ -895,9 +809,7 @@ export function createStandGame(canvas, opts = {}) {
   function pushHud() {
     const abilities = {};
     for (const id of ABILITY_ORDER) { const spec = ABILITIES[id]; abilities[id] = { cd: S.cd[id], cdMax: spec.cd, ready: S.cd[id] <= 0, active: id === 'pt' ? S.ptT > 0 : id === 'rt' ? S.rtT > 0 : false }; }
-    let boss = null; for (const e of S.enemies) if (e.spec.boss && !e.dead && (!boss || e.y > boss.y)) boss = e;
-    const bossHud = boss ? { type: boss.type, hp: Math.max(0, Math.round(boss.hp)), maxhp: boss.maxhp, frac: clamp(boss.hp / boss.maxhp, 0, 1), mega: !!boss.spec.mega } : null;
-    onHud({ base: Math.round(S.base), baseMax: S.baseMax, score: S.score, best: Math.max(S.best, S.score), combo: S.combo, mult: comboMult(S.combo), elapsed: Math.floor(S.elapsed), level: S.level, xp: S.xp, xpNeed: S.xpNeed, tier: WEAPON_ORDER.reduce((a, id) => a + (S.levels[id] || 0), 0), levels: { ...S.levels }, dom: dominant(), sensors: S.squad.sensors, shield: S.shield, shieldMax: S.squad.shieldMax, corr: correlationLinks(), abilities, boss: bossHud });
+    onHud({ base: Math.round(S.base), baseMax: S.baseMax, score: S.score, best: Math.max(S.best, S.score), combo: S.combo, mult: comboMult(S.combo), elapsed: Math.floor(S.elapsed), level: S.level, xp: S.xp, xpNeed: S.xpNeed, tier: WEAPON_ORDER.reduce((a, id) => a + (S.levels[id] || 0), 0), levels: { ...S.levels }, dom: dominant(), sensors: S.squad.sensors, shield: S.shield, shieldMax: S.squad.shieldMax, corr: correlationLinks(), abilities });
   }
 
   // ---- lifecycle ----
