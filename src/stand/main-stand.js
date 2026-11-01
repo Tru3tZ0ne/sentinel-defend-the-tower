@@ -310,7 +310,7 @@ const paintRail = painter();
 let phase = 'start', lastSummary = null, lastResult = null;
 
 const artModule = useArt
-  ? await import('./sangfor-art.js?art=v2') : null;
+  ? await import('./sangfor-art.js?art=v3') : null;
 const game = createStandGame(el.canvas, {
   artFactory: artModule?.createSangforArt,
   deckTexture: artModule?.createDeckTexture,
