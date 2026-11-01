@@ -1,5 +1,50 @@
 # Last Stand: Sangfor equipment art preview
 
+## Version 2: product-referenced hardware
+
+Current review tag: `stand-sangfor-visuals-v2`.
+
+- [Play the updated preview](https://tru3tz0ne.github.io/sentinel-defend-the-tower/stand-sangfor.html?review=stand-sangfor-visuals-v2)
+- [Inspect the actual models in 3D](https://tru3tz0ne.github.io/sentinel-defend-the-tower/stand-showroom.html)
+
+The initial white miniature appliances did not convey recognizable Sangfor hardware. This revision starts with the official NGFW and HCI photographs rather than a generic white/green equipment palette.
+
+Research sources, visited in a browser on 2026-11-01:
+
+- [Athena NGFW product page](https://www.sangfor.com/cybersecurity/sangfor-athena-foundation/next-generation-firewall-ngfw) and its appliance photograph: dark low-profile case, silver front panel, dense network ports, vents and rack fittings.
+- [HCI product page](https://www.sangfor.com/cloud-and-infrastructure/products/hci-hyper-converged-infrastructure) and its aServer photograph: graphite rack server, drive carriers, cyan release tabs, ventilation and rack handles.
+- [Athena EPP product page](https://www.sangfor.com/cybersecurity/sangfor-athena-foundation/endpoint-protection-platform-epp): endpoint protection software, represented by an endpoint console and official product artwork on the game turret.
+- [aStor product page](https://www.sangfor.com/cloud-and-infrastructure/products/astor-hybrid-flash-enterprise-data-storage-solution): storage positioning; the game storage chassis uses the reviewed rack-server design language, not a verified aStor appliance SKU.
+- [NGFW NSF-7500A-I datasheet](https://www.sangfor.com/downloads/sangfor-athena-ngfw-datasheet-model-nsf7500a-i): public hardware form-factor and IO reference. The models are not dimensionally exact CAD reproductions.
+
+### Changes
+
+- Replaced the generic white cases with low graphite chassis, silver port panels, recessed contacts, link LEDs, rack ears, handle bars, vent openings and drive carriers.
+- Added physical corporate wordmarks and product nameplates where the elevated game camera can see them. EDR has an endpoint console; XDR has a correlation display. These screens are authored game schematics, not screenshots of real deployments.
+- Rebuilt the NGAF barrier around two recognizable network appliances with fictional emitter attachments. Replaced wireless-looking IAG antennas with wired ports and optical uplinks.
+- Added studio reflections generated once at initialization, with no external HDR download and no new full-screen pass. Kept low reflection intensity on the battlefield floor and creatures so the hardware highlights do not wash out the playfield.
+- Used simple box geometry for tiny contacts, vents and indicator lights. Beveled chassis silhouettes and merged material groups remain; fine detail does not require a separate mesh per screw or port.
+- Added `stand-showroom.html`: one product at a time, drag/keyboard rotation, wheel/keyboard zoom, reset, EN/ZH, all eight products, and official NGFW/HCI reference photographs. It renders only on interaction/resize, has no animation loop, and is not instantiated inside the game.
+- Regenerated the nine equipment images at higher resolution. Versioned script, stylesheet and thumbnail URLs avoid reusing the earlier preview from the browser cache.
+
+The original `stand.html`, simulation, product rules and scoring remain unchanged. Tags v1 and v1.1 remain available as historical source snapshots.
+
+### Review
+
+![NGFW model and official reference](screenshots/stand-sangfor/showroom-ngfw.png)
+
+![HCI model and official reference](screenshots/stand-sangfor/showroom-hci.png)
+
+The browser suite now also selects every showroom product, verifies stable geometry after a second complete selection cycle, checks that keyboard rotation changes the actual canvas image, switches language, checks phone overflow, and follows the return-to-game link. The existing game integration checks still cover all products and threats, shooting/XP/upgrade, abilities, pause, restart and phone movement. All 65 existing pure-rule checks pass. Full unrelated tower browser suites were not rerun locally.
+
+V2 renderer counters from the paused inspection fixture: 168 draw calls, 62,142 triangles, 118 geometries and 22 textures. Geometry remains 118 after six warmed unit rebuilds. The isolated HCI showroom measures 10 draw calls and 2,526 triangles. Repeated complete showroom selection cycles do not increase geometry allocation. These counters describe the named fixtures; hardware FPS has not been measured.
+
+See `assets/stand-sangfor/ASSETS.md` for the exact official image sources, excerpts and usage. The two reference photographs load only in the optional showroom. The rest of this document records the initial preview architecture and its historical measurements; v1 measurements below should not be treated as v2 performance results.
+
+---
+
+## Initial preview record
+
 - Review tag: `stand-sangfor-visuals-v1.1`
 - Branch: `feat/stand-sangfor-visuals`
 - Baseline: `abb6797` on `main`
@@ -65,11 +110,11 @@ Original battlefield:
 
 ![Original Last Stand](screenshots/stand-sangfor/before.png)
 
-New equipment and all threats, paused inspection fixture:
+Current v2 equipment and all threats, paused inspection fixture:
 
 ![Equipment and threat inspection fixture](screenshots/stand-sangfor/after-fixture.png)
 
-New equipment cards:
+Current v2 equipment cards:
 
 ![Equipment upgrade cards](screenshots/stand-sangfor/upgrades.png)
 

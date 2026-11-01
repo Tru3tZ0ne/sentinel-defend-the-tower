@@ -101,7 +101,7 @@ export function createStandGame(canvas, opts = {}) {
   // portrait phones (set in resize) so the operator's range always stays on-screen.
   const laneW = HALFW * 2;
   const laneFrame = new THREE.Group(); scene.add(laneFrame);
-  const floorMat = new THREE.MeshStandardMaterial({ map: opts.deckTexture ? opts.deckTexture() : makeFloorTex(), roughness: 0.92, metalness: 0.1 });
+  const floorMat = new THREE.MeshStandardMaterial({ map: opts.deckTexture ? opts.deckTexture() : makeFloorTex(), roughness: 0.92, metalness: 0.1, envMapIntensity: sculpted ? .06 : 1 });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(laneW, LEN + 12), floorMat);
   floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, LEN / 2 - 3); floor.receiveShadow = true; laneFrame.add(floor);
 
@@ -121,7 +121,7 @@ export function createStandGame(canvas, opts = {}) {
   logo.position.set(0, 1.95, -0.82); logo.rotation.y = Math.PI; base.add(logo);   // faces the camera (-Z)
   base.position.set(0, 0, -1.6); scene.add(base);
   }
-  const art = opts.artFactory?.({ scene, laneFrame, camera, markTex, brandTex, laneW, length: LEN });
+  const art = opts.artFactory?.({ scene, laneFrame, renderer, camera, markTex, brandTex, laneW, length: LEN });
 
   // dynamic groups
   const unitsGroup = new THREE.Group(); scene.add(unitsGroup);

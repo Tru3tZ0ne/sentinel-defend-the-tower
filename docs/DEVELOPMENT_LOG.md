@@ -1,3 +1,30 @@
+# Last Stand product-referenced hardware v2 - 2026-11-01
+
+Review tag: `stand-sangfor-visuals-v2`. Continues the isolated visual branch from
+`d73e222`; the original Last Stand entry is preserved.
+
+Visited the official NGFW, HCI, EPP and aStor product pages, inspected the NGFW
+and aServer photographs, and reviewed the public NSF-7500A-I datasheet. Rebuilt
+the product models around silver network-port panels, graphite rack chassis,
+drive carriers, rack handles and visible official corporate wordmarks. Software
+products retain explicitly game-oriented consoles and attachments.
+
+Added an optional 3D showroom with all eight products, on-demand rendering,
+rotation/zoom, EN/ZH, and two credited official reference photographs. It does
+not add an in-game renderer or animation loop. Added one-time studio reflections
+and cheaper geometry for microdetails; regenerated higher-resolution previews.
+
+Validation: 65 pure-rule tests pass. The Last Stand browser check additionally
+exercises all showroom models, resource reuse, rendered-image rotation, language,
+phone layout and return navigation. See `STAND_SANGFOR_VISUALS.md` for the review
+images and `assets/stand-sangfor/ASSETS.md` for primary sources and image processing.
+Final v2 inspection counters: 168 draws / 62,142 triangles, with warmed geometry
+stable at 118 before/after rebuilds. HCI showroom: 10 draws / 2,526 triangles.
+Repeated complete showroom selection cycles retain stable geometry allocation.
+No hardware FPS measurement or unrelated tower browser rerun is claimed.
+
+---
+
 # Last Stand equipment preview - 2026-11-01
 
 Review branch: `feat/stand-sangfor-visuals`. Review tag: `stand-sangfor-visuals-v1.1`.

@@ -1,19 +1,22 @@
 // Original arcade equipment and threat sculptures. Brand decals remain official
 // artwork; these silhouettes do not describe commercial appliance specifications.
 import * as THREE from 'three';
+import { createStudioEnvironment } from './studio-light.js';
 
 const TAU = Math.PI * 2;
-const COLORS = { white: 0xdce3e4, metal: 0x86999f, dark: 0x172831, black: 0x07141c,
-  green: 0x71c744, cyan: 0x57c8d8, amber: 0xeab66a, red: 0xea5260 };
+const COLORS = { white: 0xcbd0d4, metal: 0x89929c, dark: 0x252a31, black: 0x0d1015,
+  green: 0x72bb38, cyan: 0x32a8ce, amber: 0xcaa261, red: 0xea5260 };
 
-export function createSangforArt({ scene, laneFrame, camera, markTex, brandTex, laneW, length }) {
+export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex, laneW, length }) {
+  const studio = createStudioEnvironment(renderer);
+  scene.environment = studio.texture; scene.environmentIntensity = .6;
   const templates = new Map(), geometries = new Set(), originals = new Set();
   const textures = new Set(), pendingFits = new Set(), labels = new Map(), planes = new Map();
   const palette = Object.fromEntries(Object.entries(COLORS).map(([id, color]) => [id,
-    new THREE.MeshStandardMaterial({ color, roughness: id === 'white' ? .4 : .58,
-      metalness: id === 'metal' ? .72 : .24,
+    new THREE.MeshStandardMaterial({ color, roughness: id === 'white' ? .32 : id === 'metal' ? .28 : .43,
+      metalness: id === 'metal' ? .82 : id === 'dark' ? .55 : .22,
       emissive: ['green', 'cyan', 'red', 'amber'].includes(id) ? color : 0,
-      emissiveIntensity: ['green', 'cyan'].includes(id) ? .65 : .18 })]));
+      emissiveIntensity: ['green', 'cyan'].includes(id) ? .4 : .12 })]));
   Object.values(palette).forEach(m => originals.add(m));
 
   function kit(materials = palette) {
@@ -28,6 +31,10 @@ export function createSangforArt({ scene, laneFrame, camera, markTex, brandTex, 
       parts.get(material).push(geometry);
     }
     function box(w, h, d, x, y, z, material = 'dark', bevel = .04, rotation) {
+      // Contacts, vent slits and LEDs do not need bevel topology at game scale.
+      if (Math.min(w, h, d) < .035 || bevel < .01) {
+        add(new THREE.BoxGeometry(w, h, d), material, [x, y, z], rotation); return;
+      }
       const r = Math.min(bevel, w * .18, h * .18, d * .18);
       const shape = new THREE.Shape();
       const x0 = -w / 2 + r, x1 = w / 2 - r, y0 = -h / 2 + r, y1 = h / 2 - r;
@@ -90,9 +97,9 @@ export function createSangforArt({ scene, laneFrame, camera, markTex, brandTex, 
   function labelTexture(text) {
     if (labels.has(text)) return labels.get(text);
     const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 96;
-    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#e1e8e8'; ctx.fillRect(0, 0, 512, 96);
-    ctx.fillStyle = '#72ba42'; ctx.fillRect(0, 0, 10, 96);
-    ctx.fillStyle = '#16313a'; ctx.font = '700 47px "Segoe UI",sans-serif'; ctx.textAlign = 'center';
+    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#10161d'; ctx.fillRect(0, 0, 512, 96);
+    ctx.fillStyle = '#72bb38'; ctx.fillRect(0, 0, 6, 96);
+    ctx.fillStyle = '#e8edf1'; ctx.font = '600 42px "Segoe UI",sans-serif'; ctx.textAlign = 'center';
     ctx.fillText(text, 257, 65);
     const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
     textures.add(texture); labels.set(text, texture); return texture;
@@ -111,11 +118,6 @@ export function createSangforArt({ scene, laneFrame, camera, markTex, brandTex, 
     plane.userData.fitTexture = { w, h }; pendingFits.add(plane);
     root.add(plane); return plane;
   }
-  function identify(root, id, width = 1.1, height = .28, y = .57, z = -.73) {
-    decal(root, labelTexture(id === 'ASTOR' ? 'aStor' : id), width, height, 0, y, z);
-    if (markTex[id]) decal(root, markTex[id], .31, .31, -.45, y + .4, z - .015);
-    return root;
-  }
   function flash(root, x = 0, y = 1.1, z = 1.25, color = COLORS.green) {
     if (!planes.has('muzzle')) { const geo = new THREE.OctahedronGeometry(.18); planes.set('muzzle', geo); geometries.add(geo); }
     const geometry = planes.get('muzzle');
@@ -125,80 +127,148 @@ export function createSangforArt({ scene, laneFrame, camera, markTex, brandTex, 
     mesh.position.set(x, y, z); mesh.visible = false; root.add(mesh); root.userData.flash = mesh;
     return root;
   }
+  // Hardware proportions follow the official NGFW and HCI product photographs.
+  // Guns, radar and mobile mounts are explicitly fictional gameplay attachments.
+  function networkChassis(k, y = .42, width = 1.9, depth = 1.42) {
+    const sx = width / 1.9;
+    k.box(width, .32, depth, 0, y, 0, 'dark', .035);
+    k.box(width - .06, .045, depth - .06, 0, y + .18, 0, 'black', .012);
+    k.box(width - .07, .275, .045, 0, y, -depth / 2 - .022, 'white', .012);
+    for (const side of [-1, 1]) {
+      k.box(.13, .34, .07, side * (width / 2 + .015), y, -depth / 2, 'metal', .018);
+      k.rod([side * width / 2, y - .1, -depth / 2 - .06],
+        [side * width / 2, y + .1, -depth / 2 - .06], .026, .026, 'dark');
+      for (let j = 0; j < 7; j++) k.box(.025, .07, .075,
+        side * (width / 2 + .003), y + .025, -.42 + j * .13, 'black', .002);
+    }
+    // Recessed copper ports with metal rims, link LEDs and contact strips.
+    for (let i = 0; i < 8; i++) {
+      const x = (-.35 + i * .135) * sx, z = -depth / 2 - .05;
+      k.box(.105 * sx, .1, .028, x, y, z, 'metal', .007);
+      k.box(.077 * sx, .065, .02, x, y + .003, z - .02, 'black', .003);
+      k.box(.054 * sx, .013, .008, x, y - .022, z - .034, 'amber', .002);
+      k.box(.017 * sx, .014, .008, x - .033 * sx, y + .067, z - .03, 'green', .002);
+    }
+    k.box(.32 * sx, .1, .025, -.68 * sx, y, -depth / 2 - .055, 'black', .006);
+    k.box(.09 * sx, .043, .028, -.68 * sx, y - .088, -depth / 2 - .06, 'dark', .003);
+  }
+  function serverChassis(k, storage = false) {
+    const h = storage ? 1.38 : 1.02, cols = storage ? 5 : 4, rows = storage ? 4 : 3;
+    k.box(1.94, h, 1.48, 0, .26 + h / 2, 0, 'dark', .045);
+    k.box(1.82, h - .1, .045, 0, .26 + h / 2, -.77, 'black', .01);
+    for (const side of [-1, 1]) {
+      k.box(.09, h + .04, .09, side * 1.02, .26 + h / 2, -.72, 'metal', .012);
+      k.rod([side * 1.01, .39, -.87], [side * 1.01, h + .11, -.87], .045, .045, 'dark');
+    }
+    const dx = 1.73 / cols, dy = (h - .15) / rows;
+    for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) {
+      const x = (col - (cols - 1) / 2) * dx, y = .35 + dy * (row + .5);
+      k.box(dx - .035, dy - .03, .07, x, y, -.8, 'metal', .012);
+      k.box(dx - .085, dy - .075, .022, x + .01, y, -.85, 'black', .006);
+      k.box(.033, dy - .075, .024, x - dx / 2 + .04, y, -.87, 'cyan', .004);
+      for (let n = 0; n < 3; n++) k.box(dx - .14, .015, .012,
+        x + .02, y - .048 + n * .048, -.871, 'dark', .001);
+      k.box(.018, .018, .01, x + dx / 2 - .05, y - .045, -.88, 'green', .002);
+    }
+    return h + .28;
+  }
+  function screenTexture(id) {
+    const key = 'console:' + id; if (labels.has(key)) return labels.get(key);
+    const c = document.createElement('canvas'); c.width = 512; c.height = 288;
+    const g = c.getContext('2d'); g.fillStyle = '#061b25'; g.fillRect(0, 0, 512, 288);
+    g.fillStyle = '#72bb38'; g.fillRect(0, 0, 512, 5);
+    g.fillStyle = '#edf4f5'; g.font = '600 23px Segoe UI'; g.fillText(id === 'EDR' ? 'ENDPOINT SECURE' : 'ATHENA XDR', 20, 38);
+    g.fillStyle = '#344c56'; g.fillRect(20, 51, 470, 1);
+    for (let i = 0; i < 3; i++) {
+      g.fillStyle = '#102c38'; g.fillRect(20 + i * 159, 68, 147, 50);
+      g.fillStyle = '#78c94d'; g.font = '600 21px Segoe UI'; g.fillText(['PROTECTED', 'ONLINE', 'ACTIVE'][i], 28 + i * 159, 101);
+    }
+    for (let i = 0; i < 5; i++) {
+      g.fillStyle = i === 1 ? '#1d4651' : '#102b36'; g.fillRect(20, 137 + i * 27, 470, 20);
+      g.fillStyle = '#59c49a'; g.fillRect(30, 143 + i * 27, 7, 7);
+      g.fillStyle = '#7394a3'; g.fillRect(50, 143 + i * 27, 110 + i * 14, 5);
+      g.fillStyle = '#376b7c'; g.fillRect(300, 143 + i * 27, 130 - i * 12, 5);
+    }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    textures.add(t); labels.set(key, t); return t;
+  }
   function equipment(id) {
+    let roof = .62;
     const root = instantiate('equipment:' + id, () => {
       const k = kit();
-      k.box(1.65, .18, 1.65, 0, .12, 0, 'dark', .09);
-      for (const s of [-1, 1]) {
-        k.box(.23, .3, 1.35, s * .62, .29, 0, 'metal');
-        k.box(.07, .07, .85, s * .755, .38, 0, 'green');
-      }
-      if (id === 'EDR' || id === 'COMMAND') {
-        k.rod([0, .3, 0], [0, .65, 0], .48, .43, 'metal', 18);
-        k.box(1.3, .5, 1.25, 0, .82, -.06, 'white', .13);
-        k.box(.7, .35, .9, 0, 1.08, .12, 'dark', .09);
-        for (const s of [-1, 1]) {
-          k.rod([s * .27, 1.1, .2], [s * .27, 1.1, 1.23], .13, .105, 'metal', 12);
-          k.rod([s * .27, 1.1, 1.2], [s * .27, 1.1, 1.36], .14, .14, 'dark', 12);
-          k.rod([s * .27, 1.1, 1.355], [s * .27, 1.1, 1.37], .072, .072, 'green', 10);
-          for (let i = 0; i < 4; i++) k.box(.08, .16, .08, s * .27, 1.2, .3 + i * .16, 'dark', .012);
-          k.box(.14, .11, .66, s * .57, 1.02, -.1, 'green');
-        }
-        k.box(.55, .13, .13, 0, 1.16, -.52, 'black');
-        k.box(.37, .055, .03, 0, 1.16, -.598, 'cyan');
-      } else if (id === 'NDR') {
-        k.box(.95, .7, .95, 0, .62, 0, 'white', .09);
-        k.rod([0, .9, 0], [0, 1.35, 0], .1, .09, 'metal');
-        k.sphere(.62, 0, 1.54, .08, 'white', [1, .43, 1], 2);
-        k.ring(.53, .035, 0, 1.59, .08, 'cyan');
-        k.rod([0, 1.55, 0], [0, 1.95, .35], .06, .025, 'metal');
-        k.sphere(.085, 0, 1.95, .35, 'cyan');
-      } else if (id === 'IAG') {
-        k.box(1.6, .53, 1.16, 0, .56, 0, 'white', .08);
-        k.box(1.39, .3, .06, 0, .55, -.63, 'dark');
-        for (let i = 0; i < 6; i++) {
-          k.box(.12, .09, .025, -.5 + i * .2, .57, -.68, 'metal', .008);
-          k.box(.04, .025, .025, -.5 + i * .2, .65, -.7, 'green', .004);
-        }
-        for (const side of [-1, 1]) k.rod([side * .65, .75, .3], [side * .72, 1.55, .4], .04, .025, 'dark');
-        k.box(.8, .04, .2, 0, .85, 0, 'green');
+      k.box(2.08, .14, 1.7, 0, .1, 0, 'black', .045);
+      for (const side of [-1, 1]) k.box(.055, .025, 1.1, side * .96, .19, .04, 'green', .007);
+      if (id === 'HCI' || id === 'ASTOR') {
+        serverChassis(k, id === 'ASTOR');
       } else {
-        const h = id === 'ASTOR' ? 1.45 : 1.23;
-        k.box(1.24, h, 1.15, 0, h / 2 + .24, 0, 'white', .09);
-        k.box(1.06, h - .14, .06, 0, h / 2 + .26, -.61, 'dark');
-        const count = id === 'ASTOR' ? 5 : 3;
-        for (let i = 0; i < count; i++) {
-          const yy = .45 + i * (h - .32) / count;
-          k.box(.85, .13, .07, 0, yy, -.65, 'metal', .018);
-          k.box(.055, .035, .025, -.31, yy, -.7, 'green', .005);
-          k.box(.34, .025, .02, .1, yy, -.7, 'black', .003);
-        }
-        k.box(.055, h - .22, .1, .52, h / 2 + .24, -.63, id === 'XDR' ? 'cyan' : 'green');
-        if (id === 'XDR') {
-          k.rod([0, h + .22, 0], [0, h + .8, 0], .1, .08, 'metal');
-          k.ring(.32, .045, 0, h + .65, 0, 'cyan', [0, 0, 0]);
+        networkChassis(k);
+        if (id === 'EDR' || id === 'COMMAND') {
+          k.rod([0, .62, .14], [0, .81, .14], .46, .4, 'metal', 20);
+          k.box(.94, .34, .76, 0, .94, .19, 'dark', .07);
+          k.box(.69, .045, .56, 0, 1.13, .18, 'white', .016);
+          for (const side of [-1, 1]) {
+            k.rod([side * .25, .97, .42], [side * .25, .97, 1.34], .1, .085, 'metal', 14);
+            k.rod([side * .25, .97, 1.27], [side * .25, .97, 1.46], .12, .12, 'black', 14);
+            k.rod([side * .25, .97, 1.46], [side * .25, .97, 1.475], .062, .062, 'green', 12);
+            for (let j = 0; j < 5; j++) k.box(.09, .055, .045, side * .25, 1.06, .58 + j * .12, 'black', .006);
+            k.box(.085, .04, .42, side * .43, 1.06, .18, 'green', .012);
+          }
+          if (id === 'EDR') {
+            k.box(.62, .38, .075, -.58, .87, -.34, 'black', .035, [-.3, 0, 0]);
+            k.rod([-.58, .58, -.26], [-.58, .8, -.29], .055, .04, 'metal');
+          }
+        } else if (id === 'NDR') {
+          k.rod([0, .6, .22], [0, 1.15, .22], .09, .075, 'metal');
+          k.sphere(.58, 0, 1.34, .22, 'metal', [1, .2, 1], 2);
+          k.sphere(.51, 0, 1.38, .22, 'dark', [1, .13, 1], 2);
+          k.ring(.5, .018, 0, 1.4, .22, 'cyan');
+          for (const side of [-1, 1]) k.rod([side * .44, 1.4, .22], [0, 1.73, .22], .025, .018, 'metal');
+          k.rod([0, 1.39, .22], [0, 1.76, .22], .025, .018, 'metal');
+          k.sphere(.06, 0, 1.77, .22, 'cyan');
+        } else if (id === 'XDR') {
+          k.box(.13, .44, .12, 0, .82, .2, 'metal');
+          k.box(1.55, .88, .1, 0, 1.26, .22, 'black', .045);
+          k.box(1.38, .025, .015, 0, .78, .155, 'green', .004);
+        } else if (id === 'IAG') {
+          // A wired perimeter appliance, with two optical uplinks above copper ports.
+          for (const x of [-.28, -.08]) {
+            k.box(.12, .065, .025, x, .52, -.77, 'black', .004);
+            k.box(.055, .028, .01, x, .52, -.789, 'cyan', .002);
+          }
+          for (let j = 0; j < 8; j++) k.box(.025, .015, .35, -.7 + j * .07, .627, .24, 'metal', .003);
         }
       }
       return k.finish('sangfor:' + id);
     });
-    identify(root, id, .85, .21, .33, id === 'EDR' || id === 'COMMAND' ? -.71 : -.72);
-    if (id === 'EDR' || id === 'COMMAND') flash(root);
+    roof = id === 'ASTOR' ? 1.68 : id === 'HCI' ? 1.32 : .63;
+    const title = { EDR: 'Endpoint Secure', NDR: 'Cyber Command', IAG: 'Secure Web Gateway',
+      HCI: 'aServer HCI', ASTOR: 'aStor', XDR: 'Athena XDR', COMMAND: 'SANGFOR COMMAND' }[id] || id;
+    decal(root, brandTex, .84, .22, .28, roof + .006, -.4, true);
+    decal(root, labelTexture(title), 1.13, .16, .12, roof + .009, -.6, true);
+    if (markTex[id]) decal(root, markTex[id], .3, .3, -.67, roof + .013, -.33, true);
+    if (id === 'EDR') {
+      const screen = decal(root, screenTexture(id), .53, .3, -.58, .875, -.385);
+      screen.rotation.x = -.3;
+    }
+    if (id === 'XDR') decal(root, screenTexture(id), 1.41, .77, 0, 1.26, .16);
+    if (id === 'HCI' || id === 'ASTOR') decal(root, brandTex, .82, .12, 0, .305, -.885);
+    if (id === 'EDR' || id === 'COMMAND') {
+      decal(root, brandTex, .74, .21, 0, .96, -.206);
+      flash(root, 0, .97, 1.49);
+    }
     return root;
   }
 
-  function operator(id = 'COMMAND') {
-    // A mobile command chassis is an arcade avatar, never a fictional product SKU.
+  function operator() {
     const root = equipment('COMMAND'); root.name = 'sangfor:operator';
     const tracks = instantiate('command-tracks', () => {
-    const k = kit();
-    for (const s of [-1, 1]) {
-      k.box(.35, .38, 1.7, s * .88, .32, -.15, 'dark', .12);
-      for (let i = 0; i < 5; i++) k.rod([s * 1.04, .3, -.75 + i * .3], [s * 1.08, .3, -.75 + i * .3], .12, .12, 'metal');
-    }
-    return k.finish('command-tracks');
-    }); root.add(tracks);
-    decal(root, brandTex, .95, .24, 0, .82, -.72);
-    return root;
+      const k = kit();
+      for (const side of [-1, 1]) {
+        k.box(.23, .3, 1.57, side * .97, .23, .02, 'black', .08);
+        for (let i = 0; i < 7; i++) k.box(.25, .055, .09, side * .97, .4, -.59 + i * .2, 'metal', .009);
+      }
+      return k.finish('command-tracks');
+    }); root.add(tracks); return root;
   }
   function operative(team = 'MDR') {
     const root = instantiate('operative:' + team, () => {
@@ -206,11 +276,11 @@ export function createSangforArt({ scene, laneFrame, camera, markTex, brandTex, 
       for (const s of [-1, 1]) {
         k.box(.24, .24, .53, s * .27, .14, .12, 'dark', .05);
         k.rod([s * .25, .28, 0], [s * .29, .79, -.04], .14, .15, 'dark');
-        k.box(.2, .29, .19, s * .28, .53, -.17, 'white');
-        k.sphere(.24, s * .46, 1.18, .01, 'white', [1, 1.1, .8]);
+        k.box(.2, .29, .19, s * .28, .53, -.17, 'metal');
+        k.sphere(.24, s * .46, 1.18, .01, 'dark', [1, 1.1, .8]);
         k.rod([s * .47, 1.15, .02], [s * .34, .96, .43], .12, .105, 'dark');
       }
-      k.box(.74, .65, .48, 0, 1.08, -.04, 'white', .1);
+      k.box(.74, .65, .48, 0, 1.08, -.04, 'dark', .08);
       k.box(.42, .39, .16, 0, 1.09, -.32, 'dark');
       k.box(.36, .045, .025, 0, 1.17, -.42, accent, .01);
       k.sphere(.3, 0, 1.68, 0, 'dark', [1, 1.1, 1], 2);
@@ -220,6 +290,8 @@ export function createSangforArt({ scene, laneFrame, camera, markTex, brandTex, 
       return k.finish('sangfor:operative:' + team);
     });
     flash(root, .32, 1.04, 1.12, team === 'rt' ? COLORS.red : COLORS.green);
+    decal(root, brandTex, .52, .15, 0, 1.29, -.31);
+    if (team === 'MDR') decal(root, markTex.MDR, .21, .21, 0, 1.01, -.41);
     // The existing team synchronization expects a tag; keep it compact and readable.
     const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(team.toUpperCase()), depthWrite: false }));
     tag.scale.set(.95, .19, 1); tag.position.y = 2.15; root.add(tag); root.userData.tag = tag;
@@ -236,13 +308,15 @@ export function createSangforArt({ scene, laneFrame, camera, markTex, brandTex, 
     const posts = [-1, 1].map(side => {
       const grp = instantiate('AF-post', () => {
         const k = kit();
-        k.box(.85, .22, 1.05, 0, .13, 0, 'dark');
-        k.box(.55, 1.45, .65, 0, .92, 0, 'white', .07);
-        k.box(.22, 1.12, .05, 0, .97, -.36, 'dark');
-        for (let i = 0; i < 4; i++) k.box(.11, .13, .025, 0, .6 + i * .22, -.4, 'green');
+        k.box(1.4, .16, 1.35, 0, .1, 0, 'black');
+        networkChassis(k, .4, 1.28, 1.16);
+        k.rod([0, .59, .35], [0, 1.48, .35], .06, .045, 'metal');
+        for (let i = 0; i < 4; i++) k.ring(.09, .025, 0, .8 + i * .16, .35, 'green');
         return k.finish('sangfor:AF-emitter');
       });
-      identify(grp, 'AF', .4, .16, 1.45, -.4); root.add(grp); return { grp, side };
+      decal(grp, brandTex, .77, .19, 0, .625, -.24, true);
+      decal(grp, labelTexture('Athena NGFW'), .9, .13, 0, .627, -.47, true);
+      root.add(grp); return { grp, side };
     });
     root.userData = { wall, top, posts }; root.visible = false; scene.add(root); return root;
   }
@@ -257,6 +331,7 @@ export function createSangforArt({ scene, laneFrame, camera, markTex, brandTex, 
       jaw: new THREE.MeshStandardMaterial({ color: 0x271c2b, roughness: .3, metalness: .6 }),
       eye: new THREE.MeshStandardMaterial({ color: 0xffdfaf, emissive: 0xff7b55, emissiveIntensity: 1.1 }),
     };
+    Object.values(threatMaterials).forEach(material => { material.envMapIntensity = .12; });
     const group = instantiate('threat:' + type, () => {
       Object.values(threatMaterials).forEach(m => originals.add(m));
       const k = kit(threatMaterials), boss = !!e.spec.boss;
@@ -353,14 +428,18 @@ export function createSangforArt({ scene, laneFrame, camera, markTex, brandTex, 
     const fortress = kit();
     fortress.box(laneW + .5, .6, 2.3, 0, .28, -2, 'dark', .12);
     for (let i = -3; i <= 3; i++) {
-      fortress.box(2.25, 1.18, 1.65, i * 2.5, 1.05, -2.1, 'white', .12);
-      fortress.box(1.98, .74, .08, i * 2.5, 1.07, -2.99, 'dark');
-      for (let j = 0; j < 5; j++) fortress.box(.22, .09, .04, i * 2.5 - .65 + j * .31, .96, -3.05, 'metal');
-      fortress.box(1.35, .045, .05, i * 2.5, 1.45, -3.02, 'green', .01);
+      fortress.box(2.25, .67, 1.65, i * 2.5, .8, -2.1, 'dark', .045);
+      fortress.box(1.98, .48, .07, i * 2.5, .8, -2.99, 'black');
+      for (let j = 0; j < 6; j++) {
+        fortress.box(.25, .31, .045, i * 2.5 - .8 + j * .32, .8, -3.05, 'metal', .008);
+        fortress.box(.18, .22, .025, i * 2.5 - .8 + j * .32, .8, -3.09, 'black', .006);
+        fortress.box(.025, .1, .015, i * 2.5 - .87 + j * .32, .8, -3.11, 'cyan', .003);
+      }
+      fortress.box(1.55, .025, .025, i * 2.5, 1.1, -3.02, 'green', .005);
     }
     const base = fortress.finish('sangfor:fortress');
     base.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
-    decal(base, brandTex, 3.35, .65, 0, 1.1, -3.12); laneFrame.add(base);
+    decal(base, brandTex, 3.35, .65, 0, 1.15, -2.2, true); laneFrame.add(base);
   }
   environment();
   const aux = new THREE.Group(); aux.name = 'sangfor:installed-products'; scene.add(aux);
@@ -395,7 +474,8 @@ export function createSangforArt({ scene, laneFrame, camera, markTex, brandTex, 
   }
   return { operator, turret: () => equipment('EDR'), ally: () => operative('MDR'), operative,
     radar: () => equipment('NDR'), core: () => equipment('HCI'), barrier, enemy, sync, animateEnemy,
-    dispose() { geometries.forEach(g => g.dispose()); originals.forEach(m => m.dispose()); textures.forEach(t => t.dispose()); } };
+    product: id => id === 'AF' ? barrier() : id === 'MDR' ? operative('MDR') : equipment(id),
+    dispose() { studio.dispose(); geometries.forEach(g => g.dispose()); originals.forEach(m => m.dispose()); textures.forEach(t => t.dispose()); } };
 }
 
 export function createDeckTexture() {

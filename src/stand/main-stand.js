@@ -4,7 +4,7 @@
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
 const { createStandGame, ACCENT } = await import(document.body.dataset.art === 'sangfor'
-  ? './engine.js?art=stand-sangfor-visuals-v1.1' : './engine.js');
+  ? './engine.js?art=stand-sangfor-visuals-v2' : './engine.js');
 import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER } from './model.js';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
@@ -179,6 +179,7 @@ if (equipmentPreview) {
     'st.h2': 'Clear threats, level up, then choose one of three upgrades. The equipment shown on the card appears on your battlefield. Combine EDR, NDR and NGAF to power XDR correlation.',
     'st.h3': 'Q / E / R activate your support services. Protect base integrity to survive. Equipment and creatures are original arcade designs inspired by product roles.',
     'st.codexSub': 'Product roles inspire these arcade mechanics. Equipment models are game concepts; they are not commercial appliance designs.',
+    'st.inspect': 'Inspect equipment in 3D',
   });
   Object.assign(ZH, {
     'st.tag': '构筑你的防线：部署终端炮台、雷达与网关，阻止病毒群突破深信服防线。',
@@ -186,6 +187,7 @@ if (equipmentPreview) {
     'st.h2': '清除威胁以升级，从三项装备中选择一项；卡片中的设备会出现在战场上。组合 EDR、NDR 与 NGAF，强化 XDR 关联。',
     'st.h3': '按 Q / E / R 或点击技能按钮呼叫支援。守住基地完整度，尽可能生存。装备与病毒均为根据产品职责创作的游戏造型。',
     'st.codexSub': '产品职责启发游戏机制。装备是原创游戏概念造型，不代表商用设备外观。',
+    'st.inspect': '近距离查看 3D 装备',
   });
 }
 const i18n = makeI18n(EN, ZH);
@@ -304,7 +306,7 @@ const paintRail = painter();
 let phase = 'start', lastSummary = null, lastResult = null;
 
 const artModule = equipmentPreview
-  ? await import('./sangfor-art.js') : null;
+  ? await import('./sangfor-art.js?art=v2') : null;
 const game = createStandGame(el.canvas, {
   artFactory: artModule?.createSangforArt,
   deckTexture: artModule?.createDeckTexture,
@@ -363,7 +365,7 @@ function toast(msg, kind = '') {
 function cardHTML(ch) {
   const id = ch.id, isNew = ch.toLevel === 1, maxed = ch.toLevel >= ch.max;
   return `<button class="st-card cap-${id}" data-up="${id}">
-    ${artModule ? `<img class="st-equipment-preview" src="assets/stand-sangfor/${id.toLowerCase()}.webp" alt="" />` : ''}
+    ${artModule ? `<img class="st-equipment-preview" src="assets/stand-sangfor/${id.toLowerCase()}.webp?art=v2" alt="" />` : ''}
     <span class="st-card-top">
       <span class="st-card-ico">${MARK(id)}</span>
       ${isNew ? `<span class="st-card-tag">${esc(t('st.new'))}</span>` : `<span class="st-card-tag lv">${esc(t('st.to', { a: ch.toLevel - 1, b: ch.toLevel }))}${maxed ? ' · ' + esc(t('st.max')) : ''}</span>`}
@@ -400,7 +402,7 @@ async function showStart() {
   el.overlay.innerHTML = `
     <div class="ar-overlay">
       <div class="ar-card st-start-card">
-        ${artModule ? `<img class="st-art-hero" src="assets/stand-sangfor/equipment-preview.webp" alt="" />` : ''}
+        ${artModule ? `<img class="st-art-hero" src="assets/stand-sangfor/equipment-preview.webp?art=v2" alt="" />` : ''}
         ${brandHTML('Last Stand')}
         <h1 class="ar-title">Last <span class="em">Stand</span></h1>
         <p class="ar-tag">${esc(t('st.tag'))}</p>
@@ -415,6 +417,7 @@ async function showStart() {
           <button class="btn ghost" data-act="codex">${esc(t('st.codex'))}</button>
           <button class="btn primary" data-act="play">${esc(t('ui.play'))}</button>
         </div>
+        ${artModule ? `<a class="st-inspect-link" href="./stand-showroom.html">${esc(t('st.inspect'))} &rarr;</a>` : ''}
         ${boardBlock(b)}
         ${footerHTML(t, { muted: isMuted(), links: LINKS })}
       </div>

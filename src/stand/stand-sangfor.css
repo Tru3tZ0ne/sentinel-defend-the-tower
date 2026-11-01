@@ -27,6 +27,8 @@ body[data-art="sangfor"]::before { display: none; }
 [data-art="sangfor"] .st-card:hover,
 [data-art="sangfor"] .st-card:focus-visible { background: #2b444a; box-shadow: 0 0 0 2px #93c96c; border-color: #93c96c; }
 [data-art="sangfor"] .st-lv-badge { background: #9bd769; box-shadow: none; border-radius: 5px; }
+[data-art="sangfor"] .st-inspect-link { display: block; margin-top: 13px; text-align: center; color: #b6d98d; font-size: 12px; text-decoration: none; }
+[data-art="sangfor"] .st-inspect-link:hover { text-decoration: underline; }
 @media (max-width: 560px) {
   [data-art="sangfor"] .st-start-card { padding: 146px 16px 16px; }
   [data-art="sangfor"] .st-art-hero { height: 130px; }

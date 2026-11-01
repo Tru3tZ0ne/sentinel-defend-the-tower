@@ -100,6 +100,35 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     assert.equal(await page.evaluate(() => window.__stand.game.diagnostics.art), 'legacy');
     assert.equal(await page.locator('.st-art-hero').count(), 0);
     await page.evaluate(() => window.__stand.game.pause());
+    // The optional showroom shares the actual game models and renders on input.
+    await page.goto(url + '/stand-showroom.html');
+    await page.waitForFunction(() => window.__showroom?.selected === 'AF');
+    assert.ok(await page.locator('#reference img').evaluate(i => i.complete && i.naturalWidth > 0));
+    await page.screenshot({ path: shots + '/stand-showroom-ngfw.png' });
+    const ids = ['AF', 'EDR', 'NDR', 'IAG', 'HCI', 'XDR', 'ASTOR', 'MDR'];
+    for (const id of ids) {
+      await page.locator(`[data-model="${id}"]`).click();
+      assert.equal(await page.evaluate(() => window.__showroom.selected), id);
+      assert.ok(await page.evaluate(() => window.__showroom.diagnostics.triangles > 100));
+    }
+    const galleryWarm = await page.evaluate(() => window.__showroom.diagnostics.geometries);
+    for (const id of ids) await page.locator(`[data-model="${id}"]`).click();
+    assert.equal(await page.evaluate(() => window.__showroom.diagnostics.geometries), galleryWarm);
+    await page.locator('[data-model="HCI"]').click();
+    await page.screenshot({ path: shots + '/stand-showroom-hci.png' });
+    await page.locator('#model').focus();
+    const beforeRotation = await page.locator('#model').screenshot();
+    await page.keyboard.press('ArrowRight');
+    const afterRotation = await page.locator('#model').screenshot();
+    assert.notDeepEqual(beforeRotation, afterRotation, 'Model rotation must change the rendered view');
+    await page.locator('#reset').click();
+    await page.locator('#language').click();
+    assert.match(await page.locator('#subtitle').innerText(), /近距离/);
+    await page.setViewportSize({ width: 390, height: 844 }); await settle();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.screenshot({ path: shots + '/stand-showroom-mobile-zh.png', fullPage: true });
+    metrics.showroom = await page.evaluate(() => window.__showroom.diagnostics);
+    await page.locator('#back').click(); await page.locator('[data-act="play"]').waitFor();
     assert.deepEqual(errors, []); assert.deepEqual(badResources, []);
     return metrics;
   } finally {
