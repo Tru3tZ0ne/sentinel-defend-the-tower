@@ -1,4 +1,4 @@
-Continue Last Stand from tag stand-sangfor-visuals-v1 and branch feat/stand-sangfor-visuals.
+Continue Last Stand from tag stand-sangfor-visuals-v1.1 and branch feat/stand-sangfor-visuals.
 
 Read docs/STAND_SANGFOR_VISUALS.md first, including the comparison screenshots and fixture limitations. Fetch the latest repository state before making changes. Preserve any subsequent commits.
 

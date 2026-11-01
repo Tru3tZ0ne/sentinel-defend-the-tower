@@ -3,7 +3,8 @@
 // level-up CHOICE CARDS (where you pick which Sangfor product upgrades your weapon,
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
-import { createStandGame, ACCENT } from './engine.js';
+const { createStandGame, ACCENT } = await import(document.body.dataset.art === 'sangfor'
+  ? './engine.js?art=stand-sangfor-visuals-v1.1' : './engine.js');
 import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER } from './model.js';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';

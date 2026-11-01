@@ -1,6 +1,6 @@
 # Last Stand equipment preview - 2026-11-01
 
-Review branch: `feat/stand-sangfor-visuals`. Review tag: `stand-sangfor-visuals-v1`.
+Review branch: `feat/stand-sangfor-visuals`. Review tag: `stand-sangfor-visuals-v1.1`.
 Baseline: current `main` at `abb6797`; no older feature branch is substituted.
 
 Added an opt-in `stand-sangfor.html` entry with original 3D equipment and nine
@@ -8,6 +8,8 @@ creature silhouettes, official brand decals, equipment-render upgrade cards,
 clearer lighting/camera, a quieter HUD and restrained impact effects. The
 original `stand.html` art remains available. Rules, balance and bilingual support
 are preserved. No new runtime dependency is introduced.
+The v1.1 tag also versions the preview's script URLs to bypass cached legacy
+orchestrator/engine scripts; the initial v1 source tag is preserved.
 
 Validation: 65 existing pure-rule checks passed; the new Last Stand browser
 integration suite passed (EN/ZH, shooting-to-upgrade, all products/threats,

@@ -1,6 +1,6 @@
 # Last Stand: Sangfor equipment art preview
 
-- Review tag: `stand-sangfor-visuals-v1`
+- Review tag: `stand-sangfor-visuals-v1.1`
 - Branch: `feat/stand-sangfor-visuals`
 - Baseline: `abb6797` on `main`
 - Preview: [stand-sangfor.html](../stand-sangfor.html)
@@ -29,6 +29,7 @@ The deck has panel seams, mechanical borders and a segmented base. A steeper cam
 ## Isolation and implementation
 
 - `stand.html` keeps the original art. The opt-in `stand-sangfor.html` entry uses the same orchestrator, simulation, input, scoring, leaderboard and product codex.
+- The v1.1 preview versions its orchestrator and engine URLs so cached scripts from an earlier visit to the original game cannot silently select the old renderer. The initial v1 tag remains an immutable source snapshot.
 - `model.js` is unchanged. No balancing changes, new abilities, monetization or external services were introduced.
 - `engine.js` accepts an optional art factory and delegates model creation/animation. Legacy camera, lights and bloom remain the defaults.
 - `sangfor-art.js` builds native Three.js geometry, merges parts by material and caches model templates. Instances share geometry and own their materials. Removed units release instance materials; shared geometry is released when the game is destroyed.
