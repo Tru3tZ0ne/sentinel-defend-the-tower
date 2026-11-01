@@ -4,10 +4,10 @@
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
 const { createStandGame, ACCENT } = await import(
-  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2'
-  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1'
-  : './engine.js');
-import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER } from './model.js';
+  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&balance=short-rounds-v1'
+  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&balance=short-rounds-v1'
+  : './engine.js?balance=short-rounds-v1');
+import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER } from './model.js?balance=short-rounds-v1';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
@@ -24,6 +24,7 @@ const MARK = id => { const m = PRODUCT_MARKS[id]; return m ? `<img class="st-mar
 
 const EN = {
   'st.title': 'Last Stand',
+  'st.pace': 'Threats grow tougher after the first minute. Save support services for pressure spikes.',
   'st.tag': 'Hold the line. Threats pour straight down at you and your base; you and every unit fire straight up. Each level you DEPLOY a Sangfor product that shows up on the field and fights the way it really works - EDR endpoint turrets beside you, an NGAF barrier that blocks + weakens, MDR teammates, an NDR radar, the XDR correlation beam. Build your squad, survive, climb the board.',
   'st.h1': 'Move along the bottom with A/D (or arrows), or just drag. You and all your units auto-fire straight up - line threats up in your columns.',
   'st.h2': 'Clear threats to level up fast. Each level, choose 1 of 3 Sangfor products - it DEPLOYS as a real unit on the field. Stack them into a squad. With 2+ sensors (EDR / NDR / NGAF) your kills CHAIN XDR correlation across nearby threats - set up cascades.',
@@ -70,6 +71,7 @@ const EN = {
   'b.XDR': 'Calls the giant XDR correlation beam. Weak alone - its damage multiplies with the sensor units (EDR/NDR/NGAF) on the field.',
   'b.ASTOR': 'An aStor snapshot vault shields your base from a hit and restores integrity.',
   't.boss_ransom': 'BOSS - Ransomware brute inbound',
+  't.pressure': 'Threat escalation - tougher waves incoming',
   't.boss_botnet': 'BOSS - Botnet controller inbound (it spews bots)',
   't.boss_wraith': 'BOSS - Zero-day wraith inbound (cloaked + fast)',
   't.boss_siege': 'APEX BOSS - APT Siege Engine inbound',
@@ -100,6 +102,7 @@ const EN = {
 };
 const ZH = {
   'st.title': '最后防线',
+  'st.pace': '第一分钟后威胁会逐渐变强，请留好支援技能应对高压波次。',
   'st.tag': '守住防线。威胁笔直向你和基地压下，你和每一个单位都笔直向上开火。每次升级都会在战场上部署一件深信服产品，它按照真实功能作战——EDR 终端炮塔、拦截并削弱敌人的 NGAF 屏障、MDR 队友、NDR 雷达、XDR 关联光束。组建你的小队，活下去，冲上排行榜。',
   'st.h1': '用 A/D（或方向键）在底部移动，或直接拖动。你和所有单位都会笔直向上自动开火——把敌人排进你的射击纵列。',
   'st.h2': '清除威胁快速升级。每次升级从 3 件深信服产品中选 1 件——它会作为真实单位部署到战场。把它们叠成一支小队。当你拥有 2 个以上传感器（EDR / NDR / NGAF）时，击杀会在附近威胁间触发 XDR 关联链——制造连锁清场。',
@@ -144,6 +147,7 @@ const ZH = {
   'b.XDR': '召唤巨型 XDR 关联光束。单独很弱——伤害随战场上的传感器单位（EDR/NDR/NGAF）数量倍增。',
   'b.ASTOR': '一座 aStor 快照保险库替基地挡下一击，并恢复完整度。',
   't.boss_ransom': 'BOSS——勒索软件巨兽来袭',
+  't.pressure': '威胁升级——更强的敌人正在逼近',
   't.boss_botnet': 'BOSS——僵尸网络控制器来袭（不断释放肉鸡）',
   't.boss_wraith': 'BOSS——零日幽灵来袭（隐身且高速）',
   't.boss_siege': '终极 BOSS——APT 攻城引擎来袭',
@@ -416,7 +420,7 @@ async function showStart() {
         <ol class="ar-how">
           <li><span class="n">1</span><span>${esc(t('st.h1'))}</span></li>
           <li><span class="n">2</span><span>${esc(t('st.h2'))}</span></li>
-          <li><span class="n">3</span><span>${esc(t('st.h3'))}</span></li>
+          <li><span class="n">3</span><span>${esc(t('st.h3'))} ${esc(t('st.pace'))}</span></li>
         </ol>
         <div class="ar-row">
           <button class="btn ghost" data-act="codex">${esc(t('st.codex'))}</button>

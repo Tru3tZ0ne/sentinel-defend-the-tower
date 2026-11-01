@@ -17,10 +17,12 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(url + '/stand-sangfor.html');
     await page.locator('[data-act="play"]').waitFor();
+    assert.match(await page.locator('.ar-how').innerText(), /first minute/);
     await page.screenshot({ path: shots + '/stand-sangfor-menu-en.png' });
     await page.locator('[data-act="lang"]').click();
     await page.locator('[data-act="play"]').waitFor();
     assert.match(await page.locator('.ar-tag').innerText(), /EDR|部署|防线/);
+    assert.match(await page.locator('.ar-how').innerText(), /第一分钟/);
     await page.screenshot({ path: shots + '/stand-sangfor-menu-zh.png' });
     await page.locator('[data-act="lang"]').click();
     await page.locator('[data-act="play"]').click();
@@ -100,6 +102,27 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.waitForFunction(() => window.__stand.game.state.elapsed > .1);
     assert.equal(await page.evaluate(() => window.__stand.game.diagnostics.art), 'combined');
     assert.equal(await page.locator('.st-art-hero').count(), 0);
+    // Transition fixture: the real frame loop announces pressure and handles defeat/replay.
+    await page.evaluate(() => {
+      const s = window.__stand.game.state;
+      s.elapsed = 59.98; s.lastBoss = 60; s.enemies = []; s.spawnAcc = 0;
+    });
+    await page.locator('.ar-toast').filter({ hasText: 'Threat escalation' }).waitFor();
+    await page.evaluate(async () => {
+      const g = window.__stand.game, s = g.state;
+      const { ENEMIES, MAX_ACTIVE_THREATS, difficultyAt } = await import(new URL('src/stand/model.js?balance=short-rounds-v1', location.href));
+      if (MAX_ACTIVE_THREATS !== 64 || difficultyAt(120).hpMul < 30) throw new Error('Stale balance rules');
+      const canvas = document.querySelector('#stCanvas'), h = canvas.clientHeight;
+      const baseY = h - Math.max(52, h * .09), spec = ENEMIES.recon;
+      s.base = 1; s.shield = 0;
+      s.enemies = [{ id: 99000, type: 'recon', spec, x: s.op.x, y: baseY - 5,
+        r: spec.r, hp: 1000, maxhp: 1000, slow: 0, hit: 0, wob: 0, spawnAcc: 0 }];
+    });
+    await page.locator('[data-act="again"]').waitFor();
+    assert.equal(await page.evaluate(() => window.__stand.game.phase), 'over');
+    await page.locator('[data-act="again"]').click();
+    await page.waitForFunction(() => window.__stand.game.state.elapsed > .1 && window.__stand.game.state.elapsed < 5);
+    assert.equal(await page.evaluate(() => window.__stand.game.state.base), 1200);
     await page.evaluate(() => window.__stand.game.pause());
     // The optional showroom shares the actual game models and renders on input.
     await page.goto(url + '/stand-showroom.html');

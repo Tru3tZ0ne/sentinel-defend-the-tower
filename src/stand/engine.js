@@ -13,11 +13,11 @@ import { RenderPass } from '../../vendor/three/addons/postprocessing/RenderPass.
 import { UnrealBloomPass } from '../../vendor/three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../../vendor/three/addons/postprocessing/OutputPass.js';
 import {
-  START_BASE, OPERATOR, TURRET, ALLY, WEAPON_ORDER, deriveSquad, damageTo,
+  START_BASE, MAX_ACTIVE_THREATS, OPERATOR, TURRET, ALLY, WEAPON_ORDER, deriveSquad, damageTo,
   xpToLevel, upgradeChoices, ENEMIES, threatPool, difficultyAt,
   comboMult, killScore, SURVIVE_PER_SEC, STEAL_PENALTY, ABILITIES, ABILITY_ORDER,
   bossFor, bossHpScale,
-} from './model.js';
+} from './model.js?balance=short-rounds-v1';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { sfx } from '../rush/audio.js';
 
@@ -233,17 +233,21 @@ export function createStandGame(canvas, opts = {}) {
 
   // ---- enemies ----
   function spawnEnemy(type) {
+    if (S.enemies.length >= MAX_ACTIVE_THREATS) return false;
     const d = difficultyAt(S.elapsed), spec = ENEMIES[type];
     const hp = Math.round(spec.hp * (spec.boss ? bossHpScale(S.elapsed, spec.mega) : d.hpMul));
     S.enemies.push({ id: nextId++, type, spec, x: rand(fieldL + spec.r + 4, fieldR - spec.r - 4), y: -spec.r - rand(2, 40), r: spec.r, hp, maxhp: hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false, spawnAcc: 0 });
+    return true;
   }
   // Bosses arrive on a rotation (model BOSS_ORDER). Each entrance is telegraphed.
   function spawnBoss() {
-    const type = bossFor(S.bossCount++), mega = !!ENEMIES[type].mega;
-    spawnEnemy(type);
+    const type = bossFor(S.bossCount), mega = !!ENEMIES[type].mega;
+    if (!spawnEnemy(type)) return false;
+    S.bossCount++;
     onToast('boss_' + type, 'bad');
     S.flash = mega ? 0.9 : 0.6; S.flashCol = hexToRGB(ENEMIES[type].color); S.shake = Math.min(1, mega ? 1 : 0.7);
     sfx.boss();
+    return true;
   }
   function killEnemy(e, viaBeam) {
     e.dead = true;
@@ -260,7 +264,7 @@ export function createStandGame(canvas, opts = {}) {
       sfx.boss();
     }
     else if (!viaBeam) sfx.hit(S.combo);
-    if (e.spec.splits) for (let i = 0; i < e.spec.splits; i++) { const r2 = ENEMIES.recon; S.enemies.push({ id: nextId++, type: 'recon', spec: r2, x: e.x + rand(-14, 14), y: e.y, r: r2.r, hp: r2.hp, maxhp: r2.hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false }); }
+    if (e.spec.splits) for (let i = 0; i < e.spec.splits && S.enemies.length < MAX_ACTIVE_THREATS; i++) { const r2 = ENEMIES.recon; S.enemies.push({ id: nextId++, type: 'recon', spec: r2, x: e.x + rand(-14, 14), y: e.y, r: r2.r, hp: r2.hp, maxhp: r2.hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false }); }
     // XDR CORRELATION CHAINS (the signature): with 2+ sensors on the field, a kill
     // correlates across them and arcs lightning to nearby threats, which can cascade.
     const links = correlationLinks();
@@ -401,6 +405,7 @@ export function createStandGame(canvas, opts = {}) {
   // ---- sim ----
   function update(dt) {
     S.elapsed += dt;
+    if (S.elapsed - dt < 60 && S.elapsed >= 60) onToast('pressure', 'bad');
     const d = difficultyAt(S.elapsed), sq = S.squad, op = S.op;
     const mv = 380 * dt;
     if (keys.has('left')) op.x -= mv; if (keys.has('right')) op.x += mv;
@@ -416,7 +421,7 @@ export function createStandGame(canvas, opts = {}) {
 
     S.spawnAcc += dt * 1000;
     if (S.spawnAcc >= d.spawnGap) { S.spawnAcc = 0; const pool = threatPool(S.elapsed); for (let i = 0; i < d.batch; i++) spawnEnemy(pool[Math.floor(Math.random() * pool.length)]); }
-    if (S.elapsed - S.lastBoss > d.bossEvery) { S.lastBoss = S.elapsed; spawnBoss(); }
+    if (S.elapsed - S.lastBoss > d.bossEvery && spawnBoss()) S.lastBoss = S.elapsed;
 
     for (const sh of S.shooters) {
       sh.acc += dt * 1000; const interval = 1000 / (sh.rate * sq.fireRateMul);
@@ -448,7 +453,7 @@ export function createStandGame(canvas, opts = {}) {
         e.spawnAcc += dt;
         if (e.spawnAcc >= e.spec.spawnEvery) {
           e.spawnAcc = 0; const m = ENEMIES[e.spec.spawn];
-          for (let k = 0; k < (e.spec.spawnCount || 1); k++) S.enemies.push({ id: nextId++, type: e.spec.spawn, spec: m, x: clamp(e.x + rand(-30, 30), fieldL + m.r, fieldR - m.r), y: e.y + e.r * 0.5, r: m.r, hp: m.hp, maxhp: m.hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false, spawnAcc: 0 });
+          for (let k = 0; k < (e.spec.spawnCount || 1) && S.enemies.length < MAX_ACTIVE_THREATS; k++) S.enemies.push({ id: nextId++, type: e.spec.spawn, spec: m, x: clamp(e.x + rand(-30, 30), fieldL + m.r, fieldR - m.r), y: e.y + e.r * 0.5, r: m.r, hp: m.hp, maxhp: m.hp, slow: 0, hit: 0, wob: Math.random() * TAU, marked: false, afWeakened: false, spawnAcc: 0 });
           ring(e.x, e.y, e.spec.color, e.r * 1.5, 4); burst(e.x, e.y + e.r * 0.4, e.spec.color, 8, 130);
         }
       }

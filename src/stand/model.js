@@ -8,6 +8,7 @@
 // an aStor snapshot vault. Honors the design bar; no DOM/canvas/global randomness.
 
 export const START_BASE = 1200;
+export const MAX_ACTIVE_THREATS = 64;
 
 // Fixed weapon constants (straight-up fire only).
 export const OPERATOR = { dmg: 16, rate: 3.4, bulletSpeed: 980, pierce: 1 };
@@ -156,9 +157,12 @@ export const ENEMIES = {
 // Bosses arrive on a rotation so each run cycles through all four archetypes.
 export const BOSS_ORDER = ['ransom', 'botnet', 'wraith', 'siege'];
 export function bossFor(index) { return BOSS_ORDER[((index % BOSS_ORDER.length) + BOSS_ORDER.length) % BOSS_ORDER.length]; }
-// bosses don't ride the normal hp curve, but scale lightly with time so late waves
-// stay threatening (the apex siege engine scales a bit harder).
-export function bossHpScale(t, mega) { return 1 + t * (mega ? 0.007 : 0.004); }
+// Preserve the opening minute, then outpace mature defense/recovery builds.
+// Pressure comes from tougher threats rather than ever larger rendered crowds.
+const latePressure = t => Math.max(0, t - 60) / 45;
+export function bossHpScale(t, mega) {
+  return (1 + t * (mega ? 0.007 : 0.004)) * (1 + latePressure(t) ** 2);
+}
 
 export function threatPool(t) {
   const pool = ['recon'];
@@ -171,9 +175,9 @@ export function threatPool(t) {
 
 export function difficultyAt(t) {
   return {
-    spawnGap: Math.max(250, 940 - t * 7.5),              // ms between spawn ticks (ramps up faster)
-    batch: Math.min(5, 1 + Math.floor(t / 19)),          // threats per spawn tick (denser, up to 5)
-    hpMul: 1 + t * 0.052,                                // threats get tankier quicker
+    spawnGap: Math.max(300, 940 - t * 7.5),              // bounded density: fewer late-game actors
+    batch: Math.min(4, 1 + Math.floor(t / 19)),
+    hpMul: (1 + t * 0.052) * (1 + 2 * latePressure(t) ** 2),
     speedMul: Math.min(1.7, 1 + t * 0.011),
     bossEvery: 38,                                       // bosses arrive more often
   };

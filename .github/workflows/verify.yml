@@ -30,7 +30,7 @@ jobs:
           - name: deployments
             cmd: node tools/deployments.test.mjs
           - name: stand-art
-            cmd: node tools/stand-art.test.mjs
+            cmd: npm run test:stand-art
     name: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4

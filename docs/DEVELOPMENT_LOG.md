@@ -1,3 +1,24 @@
+# Last Stand shorter sessions - 2026-11-01
+
+Review tag: `stand-short-rounds-v1`. Builds on latest `main` at `29775de`,
+preserving the combined cinematic stage and updated Endpoint Secure appliance.
+
+Retained the opening minute, then increased normal/boss durability progressively.
+Reduced maximum regular spawn density and capped all threat paths at 64 actors;
+capacity-delayed bosses retain their rotation slot. Added EN/ZH escalation feedback
+through existing instructions/toasts and versioned both entries' rules loading.
+
+Validation: 65 existing rule tests and five new combat regression groups pass.
+48 seeded desktop/phone sessions average 116.8-146.8 seconds of active play by
+policy. With an assumed 1.5 seconds per upgrade choice, estimated group means
+are 146.6-182.7 seconds (combined mean approximately 2:44). These are simulation
+probes and decision-time estimates, not measured human average session lengths.
+No forced timed loss, runtime dependency, new visual asset or extra render pass.
+
+See [short-session evidence and continuation notes](STAND_SHORT_ROUNDS.md).
+
+---
+
 # Last Stand product-referenced hardware v2 - 2026-11-01
 
 Review tag: `stand-sangfor-visuals-v2`. Continues the isolated visual branch from
