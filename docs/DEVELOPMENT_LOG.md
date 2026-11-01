@@ -1,3 +1,27 @@
+# Last Stand equipment preview - 2026-11-01
+
+Review branch: `feat/stand-sangfor-visuals`. Review tag: `stand-sangfor-visuals-v1`.
+Baseline: current `main` at `abb6797`; no older feature branch is substituted.
+
+Added an opt-in `stand-sangfor.html` entry with original 3D equipment and nine
+creature silhouettes, official brand decals, equipment-render upgrade cards,
+clearer lighting/camera, a quieter HUD and restrained impact effects. The
+original `stand.html` art remains available. Rules, balance and bilingual support
+are preserved. No new runtime dependency is introduced.
+
+Validation: 65 existing pure-rule checks passed; the new Last Stand browser
+integration suite passed (EN/ZH, shooting-to-upgrade, all products/threats,
+abilities, pause, rebuild resource stability, restart, phone movement and legacy
+entry). Inspection fixture: about 137 draws / 58,218 triangles; warmed geometry
+103 -> 103 after six rebuilds. No FPS claim; unrelated tower browser suites were
+not rerun locally. The Last Stand check is included in CI and `npm test`.
+
+See [the complete review record](STAND_SANGFOR_VISUALS.md) for screenshots,
+architecture, asset provenance and fixture limits, and
+[the continuation prompt](CLAUDE_STAND_VISUALS_HANDOFF.txt) for development guidance.
+
+---
+
 # Development record - 2026-10-14
 
 Branch: `feat/architectural-command-gameplay`

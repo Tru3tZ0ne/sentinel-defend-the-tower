@@ -1,0 +1,42 @@
+/* Opt-in equipment preview. Shared game rules and DOM stay in main-stand.js. */
+body[data-art="sangfor"] { --brand-2: #8dce55; --good: #8dce55; --line: #344b53; --panel: #14252d; background: #111e25; }
+body[data-art="sangfor"]::before { display: none; }
+[data-art="sangfor"] .ar-top { background: #14252d; border-bottom: 1px solid #42575b; backdrop-filter: none; }
+[data-art="sangfor"] .ar-overlay { background: rgba(8,18,24,.86); backdrop-filter: blur(3px); }
+[data-art="sangfor"] .ar-card { border-radius: 12px; background: #14252d; border-color: #41565b; box-shadow: 0 22px 80px #0008; }
+[data-art="sangfor"] .st-start-card { position: relative; width: min(680px,100%); padding-top: 200px; overflow: hidden; }
+[data-art="sangfor"] .st-art-hero { position: absolute; top: 0; left: 0; width: 100%; height: 180px; object-fit: cover; border-bottom: 1px solid #57715e; }
+[data-art="sangfor"] .ar-title { font-size: 36px; letter-spacing: -.8px; }
+[data-art="sangfor"] .ar-tag { margin-bottom: 12px; }
+[data-art="sangfor"] .ar-how { gap: 6px; }
+[data-art="sangfor"] .ar-lb { margin-top: 12px; padding-top: 10px; }
+[data-art="sangfor"] .st-weap,
+[data-art="sangfor"] .st-rail-item { background: #14252df0; border-color: #52675f; border-radius: 7px; box-shadow: 0 3px 8px #0004; backdrop-filter: none; }
+[data-art="sangfor"] .st-weap-ico,
+[data-art="sangfor"] .st-rail-ico,
+[data-art="sangfor"] .st-card-ico { box-shadow: none; border-radius: 6px; }
+[data-art="sangfor"] .st-lvbadge { color: #17271e; background: #9bd769; border-radius: 4px; box-shadow: none; }
+[data-art="sangfor"] .st-xp { height: 7px; box-shadow: none; border-color: #456056; }
+[data-art="sangfor"] .st-xp i { background: #9bd769; box-shadow: none; }
+[data-art="sangfor"] .st-ab { background: #152931ed; border-radius: 9px; box-shadow: none; }
+[data-art="sangfor"] .st-ab.ready { animation: none; border-color: #94bd87; }
+[data-art="sangfor"] .st-ab-code { text-shadow: none; }
+[data-art="sangfor"] .st-card { border-radius: 10px; background: #1d323a; box-shadow: none; }
+[data-art="sangfor"] .st-equipment-preview { width: calc(100% + 20px); height: 110px; object-fit: cover; margin: -16px -10px 4px; }
+[data-art="sangfor"] .st-card::before { height: 3px; background: var(--cap); }
+[data-art="sangfor"] .st-card:hover,
+[data-art="sangfor"] .st-card:focus-visible { background: #2b444a; box-shadow: 0 0 0 2px #93c96c; border-color: #93c96c; }
+[data-art="sangfor"] .st-lv-badge { background: #9bd769; box-shadow: none; border-radius: 5px; }
+@media (max-width: 560px) {
+  [data-art="sangfor"] .st-start-card { padding: 146px 16px 16px; }
+  [data-art="sangfor"] .st-art-hero { height: 130px; }
+  [data-art="sangfor"] .ar-title { font-size: 29px; }
+  [data-art="sangfor"] .ar-tag { font-size: 12px; }
+}
+@media (max-width: 480px) {
+  [data-art="sangfor"] .st-equipment-preview { width: 64px; height: 66px; flex: none; margin: -5px 0 -5px -6px; border-radius: 6px; }
+  [data-art="sangfor"] .st-card-top { flex-direction: column; gap: 4px; }
+  [data-art="sangfor"] .st-card-ico { width: 29px; height: 29px; padding: 4px; }
+  [data-art="sangfor"] .st-card { flex-wrap: wrap; gap: 7px; }
+  [data-art="sangfor"] .st-card-dd { flex-basis: 100%; }
+}

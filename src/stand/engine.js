@@ -47,6 +47,7 @@ const HALFW = 9, LEN = 34, RS = 0.06;
 const fmtNum = n => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'K' : String(Math.round(n)));
 
 export function createStandGame(canvas, opts = {}) {
+  const sculpted = !!opts.artFactory;
   const onHud = opts.onHud || (() => {});
   const onToast = opts.onToast || (() => {});
   const onLevelUp = opts.onLevelUp || (() => {});
@@ -65,43 +66,46 @@ export function createStandGame(canvas, opts = {}) {
   const brandTex = texLoader.load('assets/brand/sangfor-logo-white.png'); brandTex.colorSpace = THREE.SRGBColorSpace;
 
   // ---- renderer / scene / camera ----
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: !sculpted, powerPreference: 'high-performance' });
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.18;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x05070e);
-  scene.fog = new THREE.Fog(0x05070e, LEN * 0.72, LEN * 1.5);
+  scene.background = new THREE.Color(sculpted ? 0x14232b : 0x05070e);
+  scene.fog = new THREE.Fog(sculpted ? 0x14232b : 0x05070e, LEN * (sculpted ? 1.1 : .72), LEN * (sculpted ? 1.8 : 1.5));
   const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 200);
-  const CAM_BASE = new THREE.Vector3(0, 12.5, -12.5);
-  const CAM_LOOK = new THREE.Vector3(0, 2.1, 15);
+  const CAM_BASE = new THREE.Vector3(0, sculpted ? 27 : 12.5, sculpted ? -10 : -12.5);
+  const CAM_LOOK = new THREE.Vector3(0, sculpted ? 0 : 2.1, sculpted ? 13 : 15);
   camera.position.copy(CAM_BASE); camera.lookAt(CAM_LOOK);
 
   // lights
-  const hemi = new THREE.HemisphereLight(0x9fc0ff, 0x0a0e18, 0.75); scene.add(hemi);
-  const key = new THREE.DirectionalLight(0xffffff, 1.5); key.position.set(-8, 20, 2); key.castShadow = true;
+  const hemi = new THREE.HemisphereLight(sculpted ? 0xb9d5e6 : 0x9fc0ff, sculpted ? 0x26352d : 0x0a0e18, sculpted ? 2.1 : .75); scene.add(hemi);
+  const key = new THREE.DirectionalLight(0xffffff, sculpted ? 3.2 : 1.5); key.position.set(-8, 20, 2); key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024); key.shadow.camera.near = 1; key.shadow.camera.far = 60;
   key.shadow.camera.left = -16; key.shadow.camera.right = 16; key.shadow.camera.top = 10; key.shadow.camera.bottom = -40; key.shadow.bias = -0.0008;
   scene.add(key); scene.add(key.target); key.target.position.set(0, 0, 16);
   const rim = new THREE.DirectionalLight(0x66ff9e, 0.4); rim.position.set(6, 6, 24); scene.add(rim);
 
   // bloom for the premium glow (bullets, beam, barrier, product accents)
-  const composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.6, 0.55, 0.78);
-  composer.addPass(bloom);
-  composer.addPass(new OutputPass());
+  // Equipment preview: one sharp scene pass, without full-screen bloom.
+  const composer = sculpted ? null : new EffectComposer(renderer);
+  if (composer) {
+    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), .6, .55, .78));
+    composer.addPass(new OutputPass());
+  }
 
   // ---- static world: floor, walls, base + Sangfor logo, lane edges ----
   // The floor/walls/edges live in a group whose X-scale narrows the whole lane on
   // portrait phones (set in resize) so the operator's range always stays on-screen.
   const laneW = HALFW * 2;
   const laneFrame = new THREE.Group(); scene.add(laneFrame);
-  const floorMat = new THREE.MeshStandardMaterial({ map: makeFloorTex(), roughness: 0.92, metalness: 0.1 });
+  const floorMat = new THREE.MeshStandardMaterial({ map: opts.deckTexture ? opts.deckTexture() : makeFloorTex(), roughness: 0.92, metalness: 0.1 });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(laneW, LEN + 12), floorMat);
   floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, LEN / 2 - 3); floor.receiveShadow = true; laneFrame.add(floor);
 
+  if (!sculpted) {
   const wallMat = new THREE.MeshStandardMaterial({ color: 0x0a0f1a, roughness: 1, metalness: 0 });
   for (const s of [-1, 1]) { const wall = new THREE.Mesh(new THREE.BoxGeometry(2.5, 7, LEN + 12), wallMat); wall.position.set(s * (HALFW + 1.25), 3, LEN / 2 - 3); wall.receiveShadow = true; laneFrame.add(wall); }
   // glowing lane edges
@@ -116,6 +120,8 @@ export function createStandGame(canvas, opts = {}) {
   const logo = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.7), new THREE.MeshBasicMaterial({ map: brandTex, transparent: true }));
   logo.position.set(0, 1.95, -0.82); logo.rotation.y = Math.PI; base.add(logo);   // faces the camera (-Z)
   base.position.set(0, 0, -1.6); scene.add(base);
+  }
+  const art = opts.artFactory?.({ scene, laneFrame, camera, markTex, brandTex, laneW, length: LEN });
 
   // dynamic groups
   const unitsGroup = new THREE.Group(); scene.add(unitsGroup);
@@ -136,7 +142,7 @@ export function createStandGame(canvas, opts = {}) {
     W = Math.max(1, r.width); H = Math.max(1, r.height);
     dpr = Math.min(2, window.devicePixelRatio || 1);
     renderer.setPixelRatio(dpr); renderer.setSize(W, H, false);
-    composer.setPixelRatio(dpr); composer.setSize(W, H);
+    if (composer) { composer.setPixelRatio(dpr); composer.setSize(W, H); }
     // Keep the lane's HORIZONTAL field constant so it always fits, and let tall
     // phone screens simply reveal more lane length (widen the vertical FOV).
     camera.aspect = W / H;
@@ -506,6 +512,7 @@ export function createStandGame(canvas, opts = {}) {
   const std = (color, emissive, ei = 0.5, rough = 0.45, metal = 0.6) => new THREE.MeshStandardMaterial({ color, emissive: emissive ?? color, emissiveIntensity: ei, roughness: rough, metalness: metal });
 
   function buildOperator() {
+    if (art) return art.operator();
     const g = new THREE.Group();
     const legs = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.6), std(0x1c2436, 0x000000, 0, 0.8, 0.3)); legs.position.y = 0.35; legs.castShadow = true; g.add(legs);
     const torso = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.05, 0.62), std(0x334766, 0x0a1830, 0.25)); torso.position.y = 1.2; torso.castShadow = true; g.add(torso);
@@ -519,6 +526,7 @@ export function createStandGame(canvas, opts = {}) {
     g.userData.flash = flash; return g;
   }
   function buildTurret() {
+    if (art) return art.turret();
     const g = new THREE.Group();
     const col = ACC.EDR;
     const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.68, 0.55, 16), std(0x2c3650, 0x05070e, 0.1, 0.5, 0.7)); ped.position.y = 0.28; ped.castShadow = true; g.add(ped);
@@ -530,6 +538,7 @@ export function createStandGame(canvas, opts = {}) {
     return g;
   }
   function buildAlly() {
+    if (art) return art.ally();
     const g = new THREE.Group();
     const col = ACC.MDR;
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.95, 0.55), std(0x1f5a40, 0x08221a, 0.3)); torso.position.y = 1.05; torso.castShadow = true; g.add(torso);
@@ -542,6 +551,7 @@ export function createStandGame(canvas, opts = {}) {
     return g;
   }
   function buildOperative(team) {
+    if (art) return art.operative(team);
     const cfg = TEAM[team], g = new THREE.Group(), col = cfg.col;
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.9, 0.5), std(0x141a28, col, 0.35, 0.6, 0.3)); torso.position.y = 1.0; torso.castShadow = true; g.add(torso);
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.27, 16, 12), std(0xe7c9a0, 0x000000, 0, 0.7, 0)); head.position.y = 1.6; head.castShadow = true; g.add(head);
@@ -554,6 +564,7 @@ export function createStandGame(canvas, opts = {}) {
     return g;
   }
   function buildRadar() {
+    if (art) return art.radar();
     const g = new THREE.Group(); const col = ACC.NDR;
     const base2 = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.5, 14), std(0x223246, 0x05070e, 0.1, 0.6, 0.6)); base2.position.y = 0.25; base2.castShadow = true; g.add(base2);
     const dish = new THREE.Mesh(new THREE.SphereGeometry(0.55, 18, 12, 0, TAU, 0, Math.PI / 2), std(col, col, 0.5, 0.4, 0.4)); dish.scale.set(1, 0.4, 1); dish.position.y = 0.85; dish.rotation.x = -0.5; g.add(dish);
@@ -563,6 +574,7 @@ export function createStandGame(canvas, opts = {}) {
     return g;
   }
   function buildCore() {
+    if (art) return art.core();
     const g = new THREE.Group(); const col = ACC.HCI;
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.7, 20), std(0x12324a, col, 0.6, 0.3, 0.6)); body.position.y = 0.45; body.castShadow = true; g.add(body);
     for (let i = 0; i < 3; i++) { const ringm = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.04, 8, 24), new THREE.MeshBasicMaterial({ color: col })); ringm.rotation.x = Math.PI / 2; ringm.position.y = 0.3 + i * 0.22; g.add(ringm); }
@@ -573,7 +585,7 @@ export function createStandGame(canvas, opts = {}) {
 
   function rebuildUnits() {
     unitsDirty = false;
-    while (unitsGroup.children.length) { const c = unitsGroup.children.pop(); disposeTree(c); }
+    while (unitsGroup.children.length) { const c = unitsGroup.children[0]; unitsGroup.remove(c); disposeTree(c); }
     opMesh = null; allyMesh = null; coreObj = null; radarObj = null; radarSweep = null;
     if ((S.levels.HCI || 0) > 0) { coreObj = buildCore(); unitsGroup.add(coreObj); }
     if ((S.levels.NDR || 0) > 0) { radarObj = buildRadar(); unitsGroup.add(radarObj); }
@@ -590,6 +602,7 @@ export function createStandGame(canvas, opts = {}) {
   }
 
   function buildBarrier() {
+    if (art) return art.barrier();
     const g = new THREE.Group();
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(1, 2.2), new THREE.MeshBasicMaterial({ color: ACC.AF, transparent: true, opacity: 0.4, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
     wall.position.y = 1.1; g.add(wall); g.userData.wall = wall;
@@ -621,6 +634,7 @@ export function createStandGame(canvas, opts = {}) {
     return new THREE.SphereGeometry(r, 18, 14);
   }
   function makeEnemyMesh(e) {
+    if (art) { const mesh = art.enemy(e, wR(e.r)); enemyGroup.add(mesh.group); return mesh; }
     const col = hexNum(e.spec.color), r = wR(e.r);
     const body = new THREE.Mesh(enemyGeo(e), std(col, col, 0.45, 0.35, 0.2)); body.castShadow = true;
     const glow = new THREE.Color(col).lerp(new THREE.Color(0xffffff), 0.45);
@@ -655,6 +669,7 @@ export function createStandGame(canvas, opts = {}) {
   function syncScene(dt) {
     if (unitsDirty) rebuildUnits();
     const sq = S.squad, op = S.op, t = S.elapsed;
+    art?.sync(S, { wX, wZ, fieldL, fieldR, baseY, bandY });
     // movers + muzzle + badge billboarding
     for (const sh of S.shooters) {
       const m = sh._mesh; if (!m) continue;
@@ -675,7 +690,7 @@ export function createStandGame(canvas, opts = {}) {
     }
     for (const [id, tm] of tempMeshes) { if (!seenT.has(id)) { tempsGroup.remove(tm); disposeTree(tm); tempMeshes.delete(id); } }
 
-    if (coreObj) { coreObj.position.set(wX(op.x), 0, wZ(op.y + 20)); coreObj.children.forEach(c => { if (c.geometry && c.geometry.type === 'TorusGeometry') c.rotation.z = t * 2; }); if (coreObj.userData.badge) billboard(coreObj.userData.badge); if (coreObj.userData.tag) billboard(coreObj.userData.tag); }
+    if (coreObj) { coreObj.position.set(wX(art ? fieldL + 65 : op.x), 0, wZ(art ? baseY - 113 : op.y + 20)); coreObj.children.forEach(c => { if (c.geometry && c.geometry.type === 'TorusGeometry') c.rotation.z = t * 2; }); if (coreObj.userData.badge) billboard(coreObj.userData.badge); if (coreObj.userData.tag) billboard(coreObj.userData.tag); }
     if (radarObj) { radarObj.position.set(wX(clamp(fieldR - 34, fieldL + 30, fieldR - 30)), 0, wZ(baseY - 30)); if (radarSweep) radarSweep.rotation.y = -S.radarAng; if (radarObj.userData.badge) billboard(radarObj.userData.badge); if (radarObj.userData.tag) billboard(radarObj.userData.tag); }
 
     // barrier
@@ -687,8 +702,8 @@ export function createStandGame(canvas, opts = {}) {
         const wWorld = Math.abs(wX(op.x + halfW) - wX(op.x - halfW));
         barrierObj.position.set(wX(op.x), 0, wZ(barY));
         barrierObj.userData.wall.scale.x = wWorld; barrierObj.userData.top.scale.x = wWorld;
-        barrierObj.userData.wall.material.opacity = S.afDown ? 0.12 + 0.08 * Math.sin(t * 20) : 0.3 + frac * 0.4;
-        barrierObj.userData.posts.forEach(p => { p.grp.position.x = p.side * wWorld / 2; billboard(p.grp.children[1]); });
+        barrierObj.userData.wall.material.opacity = S.afDown ? 0.12 + 0.08 * Math.sin(t * 20) : (art ? .07 + frac * .07 : .3 + frac * .4);
+        barrierObj.userData.posts.forEach(p => { p.grp.position.x = p.side * wWorld / 2; if (!art) billboard(p.grp.children[1]); });
       }
     }
     // band
@@ -716,6 +731,7 @@ export function createStandGame(canvas, opts = {}) {
       let em = enemyMeshes.get(e.id); if (!em) { em = makeEnemyMesh(e); enemyMeshes.set(e.id, em); }
       const r = wR(e.r);
       em.group.position.set(wX(e.x), r + 0.35, wZ(e.y));
+      if (em.custom) { art.animateEnemy(em, e, t, revealed()); continue; }
       em.body.rotation.y = e.wob * 0.6; em.body.rotation.x = e.wob * 0.3;
       const cloaked = e.spec.cloak && !revealed();
       em.body.material.opacity = cloaked ? 0.4 : 1; em.body.material.transparent = cloaked;
@@ -755,8 +771,8 @@ export function createStandGame(canvas, opts = {}) {
     fctx.globalCompositeOperation = 'lighter';
     if (S.beam) drawBeam(S.beam);
     for (const f of S.fxr) {
-      const a = Math.max(0, f.life);
-      if (f.t === 'ring') { const p = proj(f.x, f.y, 0.3); fctx.strokeStyle = rgba(f.color, a); fctx.lineWidth = Math.max(1, f.w * p.s); fctx.beginPath(); fctx.ellipse(p.x, p.y, Math.max(0, f.r * p.s * 0.5), Math.max(0, f.r * p.s * 0.28), 0, 0, TAU); fctx.stroke(); }
+      const a = Math.max(0, f.life) * (art ? .55 : 1);
+      if (f.t === 'ring') { const p = proj(f.x, f.y, 0.3), radius = art ? Math.min(100, f.r) : f.r; fctx.strokeStyle = rgba(f.color, a); fctx.lineWidth = art ? Math.min(2.5, f.w * p.s) : Math.max(1, f.w * p.s); fctx.beginPath(); fctx.ellipse(p.x, p.y, Math.max(0, radius * p.s * 0.5), Math.max(0, radius * p.s * 0.28), 0, 0, TAU); fctx.stroke(); }
       else if (f.t === 'zap') {
         const a1 = proj(f.x1, f.y1, 0.8), a2 = proj(f.x2, f.y2, 0.8), seg = 7, pts = [];
         for (let i = 0; i <= seg; i++) { const tt = i / seg, edge = i === 0 || i === seg; pts.push({ x: a1.x + (a2.x - a1.x) * tt + (edge ? 0 : rand(-8, 8)), y: a1.y + (a2.y - a1.y) * tt + (edge ? 0 : rand(-8, 8)) }); }
@@ -772,7 +788,7 @@ export function createStandGame(canvas, opts = {}) {
     for (const tx of S.texts) { const p = proj(tx.x, tx.y, 1.4); const a = Math.max(0, Math.min(1, tx.life * 1.4)); const fs = (tx.big ? 23 : 14) * clamp(p.s, 0.6, 1.6); fctx.font = `800 ${fs}px ui-sans-serif,system-ui`; if (tx.big) { fctx.shadowColor = rgba(tx.color, a); fctx.shadowBlur = 10; } fctx.fillStyle = `rgba(0,0,0,${a * 0.6})`; fctx.fillText(tx.text, p.x + 1, p.y + 1); fctx.fillStyle = rgba(tx.color, a); fctx.fillText(tx.text, p.x, p.y); fctx.shadowBlur = 0; }
     fctx.textAlign = 'start';
     // full-screen flash
-    if (S.flash > 0) { fctx.fillStyle = `rgba(${S.flashCol},${S.flash * 0.26})`; fctx.fillRect(0, 0, W, H); }
+    if (S.flash > 0) { fctx.fillStyle = `rgba(${S.flashCol},${S.flash * (art ? .08 : .26)})`; fctx.fillRect(0, 0, W, H); }
     // summoned-team auras: a red-team rally ring, a pen-test amber tint
     if (S.rtT > 0) { const p = proj(S.op.x, S.op.y, 0.35); const rr = (30 + 7 * Math.sin(S.elapsed * 13)) * p.s; fctx.globalCompositeOperation = 'lighter'; fctx.strokeStyle = rgba('#ff5a6a', 0.45 + 0.3 * Math.sin(S.elapsed * 13)); fctx.lineWidth = 3; fctx.beginPath(); fctx.ellipse(p.x, p.y, rr, rr * 0.5, 0, 0, TAU); fctx.stroke(); fctx.globalCompositeOperation = 'source-over'; }
     if (S.ptT > 0) { fctx.fillStyle = `rgba(255,209,102,${0.04 + 0.025 * Math.sin(S.elapsed * 8)})`; fctx.fillRect(0, 0, W, H); }
@@ -800,11 +816,11 @@ export function createStandGame(canvas, opts = {}) {
   function render() {
     if (S.shake > 0) camera.position.set(CAM_BASE.x + rand(-1, 1) * S.shake * 0.5, CAM_BASE.y + rand(-1, 1) * S.shake * 0.4, CAM_BASE.z);
     else camera.position.copy(CAM_BASE);
-    composer.render();
+    if (composer) composer.render(); else renderer.render(scene, camera);
     drawFx();
   }
 
-  function disposeTree(o) { o.traverse(n => { if (n.geometry) n.geometry.dispose(); if (n.material) { const m = Array.isArray(n.material) ? n.material : [n.material]; m.forEach(x => x.dispose()); } }); }
+  function disposeTree(o) { o.traverse(n => { if (n.geometry && !n.userData.sharedStandGeometry) n.geometry.dispose(); if (n.material) { const m = Array.isArray(n.material) ? n.material : [n.material]; m.forEach(x => x.dispose()); } }); }
 
   // ---- floor texture (grid + columns) ----
   function makeFloorTex() {
@@ -909,8 +925,9 @@ export function createStandGame(canvas, opts = {}) {
     pause() { if (S && S.phase === 'play') S.phase = 'paused'; },
     resume() { if (S && S.phase === 'paused') { S.phase = 'play'; lastTS = performance.now(); } },
     stop() { cancelAnimationFrame(raf); raf = 0; if (S) S.phase = 'idle'; },
-    destroy() { cancelAnimationFrame(raf); unbind(); renderer.dispose(); fx.remove(); },
+    destroy() { cancelAnimationFrame(raf); unbind(); disposeTree(scene); art?.dispose(); Object.values(markTex).forEach(t => t.dispose()); brandTex.dispose(); floorMat.map.dispose(); composer?.dispose(); renderer.dispose(); fx.remove(); },
     resize,
+    get diagnostics() { return { art: sculpted ? 'sangfor' : 'legacy', calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }; },
     get phase() { return S ? S.phase : 'idle'; },
     get state() { return S; },
   };

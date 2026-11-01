@@ -170,6 +170,23 @@ const ZH = {
   'l.HCI': '它本身是算力而非安全——让其它一切跑得更猛、更快。',
 };
 
+const equipmentPreview = document.body.dataset.art === 'sangfor';
+if (equipmentPreview) {
+  Object.assign(EN, {
+    'st.tag': 'Build your defense. Deploy endpoint turrets, radar and gateways. Stop the swarm before it reaches the Sangfor line.',
+    'st.h1': 'Move with WASD / arrows, or drag in the lower part of the field. Your squad fires automatically straight up.',
+    'st.h2': 'Clear threats, level up, then choose one of three upgrades. The equipment shown on the card appears on your battlefield. Combine EDR, NDR and NGAF to power XDR correlation.',
+    'st.h3': 'Q / E / R activate your support services. Protect base integrity to survive. Equipment and creatures are original arcade designs inspired by product roles.',
+    'st.codexSub': 'Product roles inspire these arcade mechanics. Equipment models are game concepts; they are not commercial appliance designs.',
+  });
+  Object.assign(ZH, {
+    'st.tag': '构筑你的防线：部署终端炮台、雷达与网关，阻止病毒群突破深信服防线。',
+    'st.h1': '使用 WASD / 方向键，或在战场下方拖动。小队会自动向正前方开火。',
+    'st.h2': '清除威胁以升级，从三项装备中选择一项；卡片中的设备会出现在战场上。组合 EDR、NDR 与 NGAF，强化 XDR 关联。',
+    'st.h3': '按 Q / E / R 或点击技能按钮呼叫支援。守住基地完整度，尽可能生存。装备与病毒均为根据产品职责创作的游戏造型。',
+    'st.codexSub': '产品职责启发游戏机制。装备是原创游戏概念造型，不代表商用设备外观。',
+  });
+}
 const i18n = makeI18n(EN, ZH);
 const { t } = i18n;
 const lang = () => i18n.getLang();
@@ -182,6 +199,7 @@ const getBest = () => { try { return +localStorage.getItem(BEST_KEY) || 0; } cat
 const saveBest = b => { try { localStorage.setItem(BEST_KEY, String(b)); } catch { /* ignore */ } };
 
 const LINKS = [
+  ...(equipmentPreview ? [{ href: 'stand.html', label: 'Original Last Stand' }] : []),
   { href: 'vector.html', label: 'Threat Vector' },
   { href: 'line.html', label: 'Breach Line' },
   { href: 'index.html', label: 'Defend the Tower' },
@@ -284,7 +302,11 @@ const paintWeap = painter();
 const paintRail = painter();
 let phase = 'start', lastSummary = null, lastResult = null;
 
+const artModule = equipmentPreview
+  ? await import('./sangfor-art.js') : null;
 const game = createStandGame(el.canvas, {
+  artFactory: artModule?.createSangforArt,
+  deckTexture: artModule?.createDeckTexture,
   onHud: h => {
     paintScore(el.score, fmt(h.score));
     el.best.textContent = fmt(Math.max(h.best, getBest()));
@@ -340,6 +362,7 @@ function toast(msg, kind = '') {
 function cardHTML(ch) {
   const id = ch.id, isNew = ch.toLevel === 1, maxed = ch.toLevel >= ch.max;
   return `<button class="st-card cap-${id}" data-up="${id}">
+    ${artModule ? `<img class="st-equipment-preview" src="assets/stand-sangfor/${id.toLowerCase()}.webp" alt="" />` : ''}
     <span class="st-card-top">
       <span class="st-card-ico">${MARK(id)}</span>
       ${isNew ? `<span class="st-card-tag">${esc(t('st.new'))}</span>` : `<span class="st-card-tag lv">${esc(t('st.to', { a: ch.toLevel - 1, b: ch.toLevel }))}${maxed ? ' · ' + esc(t('st.max')) : ''}</span>`}
@@ -375,7 +398,8 @@ async function showStart() {
   resetHud();
   el.overlay.innerHTML = `
     <div class="ar-overlay">
-      <div class="ar-card">
+      <div class="ar-card st-start-card">
+        ${artModule ? `<img class="st-art-hero" src="assets/stand-sangfor/equipment-preview.webp" alt="" />` : ''}
         ${brandHTML('Last Stand')}
         <h1 class="ar-title">Last <span class="em">Stand</span></h1>
         <p class="ar-tag">${esc(t('st.tag'))}</p>

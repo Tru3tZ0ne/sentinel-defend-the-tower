@@ -29,6 +29,8 @@ jobs:
             cmd: node tools/characters.test.mjs
           - name: deployments
             cmd: node tools/deployments.test.mjs
+          - name: stand-art
+            cmd: node tools/stand-art.test.mjs
     name: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
