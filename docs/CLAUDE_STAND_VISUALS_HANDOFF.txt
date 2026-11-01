@@ -1,4 +1,14 @@
-Continue Last Stand from tag stand-short-rounds-v1 and branch feat/stand-short-rounds.
+Continue Last Stand from tag stand-performance-v1 and branch perf/stand-late-game.
+
+Read docs/STAND_PERFORMANCE.md for the latest renderer optimization. Preserve
+native resolution, geometry, lighting, shadows, bloom and all effect counts.
+Projectiles and threat parts now use instances.js, retaining per-enemy hit/cloak
+states and motion. Keep pool ownership, buffer disposal and cache reuse across
+waves/restarts. Run npm run test:stand-performance after rendering changes.
+Diagnostics now include complete-frame scene/shadow/postprocessing costs; older
+single-pass figures are historical and cannot be compared directly. The fixed
+late-game fixture improved from 1,069 to 403 draws while retaining visual quality.
+Do not present those counters as measured hardware FPS.
 
 Read docs/STAND_SHORT_ROUNDS.md for the latest pacing change and its evidence.
 This version preserves the subsequent combined stage and branded Endpoint Secure
@@ -47,7 +57,7 @@ Validation:
 - node --test tools/engine.test.mjs tools/rush-logic.test.mjs tools/arcade-logic.test.mjs.
 - Inspect desktop, 390 x 844 phone, both languages, upgrade cards, every product, all bosses, service teams and restart. In the showroom check all eight selections, framing, rotation/zoom/reset, reference loading and return navigation.
 - Inspect real gameplay in addition to scripted fixtures. Do not present fixture screenshots as natural progression, victory or balance evidence.
-- Use game.diagnostics for rendering counters. After the subsequent EDR appliance update, the inspection fixture measures 174 draws / 63,726 triangles; warmed rebuild geometry stays at 120. The isolated HCI showroom measures 10 draws / 2,526 triangles. These are specific fixture counters, not representative gameplay FPS. Report hardware and method before claiming an FPS improvement.
+- Use game.diagnostics for rendering counters. The nine-threat inspection fixture now measures 289 complete-frame draws / 127,050 triangles, including shadows; warmed rebuild geometry stays at 119. The isolated HCI showroom measures 10 draws / 2,526 triangles. The separate 64-threat/256-bullet performance fixture measures 403 complete-frame draws. These are fixture counters, not representative gameplay FPS. Report hardware and method before claiming an FPS improvement.
 - Avoid running several software-WebGL browser suites simultaneously on the same workstation.
 
 Update the English development record with exact changes, checks, screenshots, limits and publication status. Deliver a concrete playable result, not just a plan or a statement that the tests passed.

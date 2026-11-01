@@ -20,6 +20,7 @@ import {
 } from './model.js?balance=short-rounds-v1';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { sfx } from '../rush/audio.js';
+import { createBulletInstances, createEnemyInstances } from './instances.js?perf=instances-v1';
 
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -68,7 +69,8 @@ export function createStandGame(canvas, opts = {}) {
   const brandTex = texLoader.load('assets/brand/sangfor-logo-white.png'); brandTex.colorSpace = THREE.SRGBColorSpace;
 
   // ---- renderer / scene / camera ----
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: !showcase, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+  renderer.info.autoReset = false;
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = showcase ? 1.18 : atmosphere ? 1.28 : 1.22;
@@ -141,7 +143,8 @@ export function createStandGame(canvas, opts = {}) {
   let opMesh = null, allyMesh = null;
   const enemyMeshes = new Map();         // id -> { group, body, core, type }
   const tempMeshes = new Map();          // temp-team unit id -> mesh
-  const bulletPool = [];                 // reusable glow bullets
+  const bullets = createBulletInstances(bulletGroup);
+  const enemies = art ? createEnemyInstances(art, enemyGroup, MAX_ACTIVE_THREATS) : null;
   let barrierObj = null, bandObj = null, beamObj = null, shieldObj = null, coreObj = null, radarObj = null, radarSweep = null;
 
   // ---- geometry (pixel space for the sim) ----
@@ -678,11 +681,6 @@ export function createStandGame(canvas, opts = {}) {
     enemyGroup.add(g);
     return { group: g, body, core, glyph, shell, orbit, nodes, bodyMat: body.material, baseEmissive: e.spec.boss ? 0.6 : 0.45 };
   }
-  function makeBullet() {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.8, depthWrite: false }));
-    m.scale.set(1, 1, 2.6); m.visible = false; bulletGroup.add(m); return m;
-  }
-
   function syncScene(dt) {
     if (unitsDirty) rebuildUnits();
     const sq = S.squad, op = S.op, t = S.elapsed;
@@ -742,6 +740,8 @@ export function createStandGame(canvas, opts = {}) {
     if (shieldObj) { shieldObj.visible = S.shield > 0; if (S.shield > 0) shieldObj.position.set(wX(op.x), 0.1, wZ(op.y)); }
 
     // enemies
+    if (enemies) enemies.sync(S.enemies, t, revealed(), wX, wZ, wR);
+    else {
     const seen = new Set();
     for (const e of S.enemies) {
       seen.add(e.id);
@@ -760,14 +760,10 @@ export function createStandGame(canvas, opts = {}) {
       billboard(em.glyph); em.glyph.position.set(0, 0, -r * 0.7); em.glyph.material.opacity = cloaked ? 0.3 : (e.marked ? 1 : 0.92);
     }
     for (const [id, em] of enemyMeshes) { if (!seen.has(id)) { enemyGroup.remove(em.group); disposeTree(em.group); enemyMeshes.delete(id); } }
+    }
 
     // bullets
-    for (let i = 0; i < S.shots.length; i++) {
-      let m = bulletPool[i]; if (!m) { m = makeBullet(); bulletPool[i] = m; }
-      const p = S.shots[i]; m.visible = true; m.position.set(wX(p.x), 0.9, wZ(p.y));
-      const c = hexNum(p.color); m.material.color.setHex(c);
-    }
-    for (let i = S.shots.length; i < bulletPool.length; i++) bulletPool[i].visible = false;
+    bullets.sync(S.shots, wX, wZ);
   }
 
   // ---- 2D overlay FX ----
@@ -832,6 +828,7 @@ export function createStandGame(canvas, opts = {}) {
   }
 
   function render() {
+    renderer.info.reset();
     if (S.shake > 0) camera.position.set(CAM_BASE.x + rand(-1, 1) * S.shake * 0.5, CAM_BASE.y + rand(-1, 1) * S.shake * 0.4, CAM_BASE.z);
     else camera.position.copy(CAM_BASE);
     if (composer) composer.render(); else renderer.render(scene, camera);
@@ -955,9 +952,12 @@ export function createStandGame(canvas, opts = {}) {
     pause() { if (S && S.phase === 'play') S.phase = 'paused'; },
     resume() { if (S && S.phase === 'paused') { S.phase = 'play'; lastTS = performance.now(); } },
     stop() { cancelAnimationFrame(raf); raf = 0; if (S) S.phase = 'idle'; },
-    destroy() { cancelAnimationFrame(raf); unbind(); disposeTree(scene); art?.dispose(); Object.values(markTex).forEach(t => t.dispose()); brandTex.dispose(); floorMat.map.dispose(); composer?.dispose(); renderer.dispose(); fx.remove(); },
+    destroy() { cancelAnimationFrame(raf); unbind(); enemies?.dispose(); bullets.dispose(); disposeTree(scene); art?.dispose(); Object.values(markTex).forEach(t => t.dispose()); brandTex.dispose(); floorMat.map.dispose(); composer?.dispose(); renderer.dispose(); fx.remove(); },
     resize,
-    get diagnostics() { return { art: atmosphere ? 'combined' : sculpted ? 'sangfor' : 'legacy', calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }; },
+    get diagnostics() { return { art: atmosphere ? 'combined' : sculpted ? 'sangfor' : 'legacy', calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures,
+      enemies: S?.enemies.length || 0, shots: S?.shots.length || 0, bulletCapacity: bullets.capacity,
+      enemyBatches: enemies?.activeBatches || 0, cachedEnemyBatches: enemies?.cachedBatches || 0,
+      programs: renderer.info.programs.length, pixelRatio: renderer.getPixelRatio() }; },
     get phase() { return S ? S.phase : 'idle'; },
     get state() { return S; },
   };

@@ -4,9 +4,9 @@
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
 const { createStandGame, ACCENT } = await import(
-  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&balance=short-rounds-v1'
-  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&balance=short-rounds-v1'
-  : './engine.js?balance=short-rounds-v1');
+  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&balance=short-rounds-v1&perf=instances-v1'
+  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&balance=short-rounds-v1&perf=instances-v1'
+  : './engine.js?balance=short-rounds-v1&perf=instances-v1');
 import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER } from './model.js?balance=short-rounds-v1';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';

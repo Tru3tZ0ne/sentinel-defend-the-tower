@@ -1,3 +1,25 @@
+# Last Stand late-game rendering optimization - 2026-11-02
+
+Review tag: `stand-performance-v1`. Baseline: `180c52c`.
+
+Batched all projectiles with per-instance colors and retained sphere geometry;
+batched threat parts by type/cloak/hit state using their original meshes,
+materials, motion and shadows. Reused instance pools across waves/restarts and
+released resized buffers explicitly. Disabled drawing-buffer preservation and
+corrected diagnostics to include full-frame shadow/postprocessing work.
+
+Fixed-load combined-stage fixture: draws 1,069 -> 403, bullet draws 256 -> 1,
+GPU geometries 366 -> 111. Native resolution, model detail, lighting, shadows,
+bloom and all 2D/3D effect counts are preserved. No adaptive quality reduction.
+65 rule checks and five balance groups pass; all 48 seeded session results stay
+identical. The new browser performance check covers pool reuse, hit/cloak state,
+buffer growth, restart and native 2x pixel ratio. No hardware FPS claim.
+
+See [the performance record](STAND_PERFORMANCE.md) for source comparison, limits
+and continuation instructions.
+
+---
+
 # Last Stand shorter sessions - 2026-11-01
 
 Review tag: `stand-short-rounds-v1`. Builds on latest `main` at `29775de`,
