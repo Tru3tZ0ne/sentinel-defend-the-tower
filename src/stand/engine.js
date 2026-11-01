@@ -47,7 +47,9 @@ const HALFW = 9, LEN = 34, RS = 0.06;
 const fmtNum = n => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'K' : String(Math.round(n)));
 
 export function createStandGame(canvas, opts = {}) {
-  const sculpted = !!opts.artFactory;
+  const sculpted = !!opts.artFactory;                // uses the Sangfor equipment/creature models
+  const atmosphere = !!opts.atmosphere;              // cinematic stage: env sky, bloom, vignette, dramatic camera
+  const showcase = sculpted && !atmosphere;          // the bloom-less equipment PREVIEW (kept byte-for-byte)
   const onHud = opts.onHud || (() => {});
   const onToast = opts.onToast || (() => {});
   const onLevelUp = opts.onLevelUp || (() => {});
@@ -66,33 +68,41 @@ export function createStandGame(canvas, opts = {}) {
   const brandTex = texLoader.load('assets/brand/sangfor-logo-white.png'); brandTex.colorSpace = THREE.SRGBColorSpace;
 
   // ---- renderer / scene / camera ----
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: !sculpted, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: !showcase, powerPreference: 'high-performance' });
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.18;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = showcase ? 1.18 : atmosphere ? 1.28 : 1.22;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(sculpted ? 0x14232b : 0x05070e);
-  scene.fog = new THREE.Fog(sculpted ? 0x14232b : 0x05070e, LEN * (sculpted ? 1.1 : .72), LEN * (sculpted ? 1.8 : 1.5));
+  scene.background = new THREE.Color(showcase ? 0x14232b : 0x070b14);
+  scene.fog = new THREE.Fog(showcase ? 0x14232b : 0x0a1526, LEN * (showcase ? 1.1 : .82), LEN * (showcase ? 1.8 : 1.72));
   const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 200);
-  const CAM_BASE = new THREE.Vector3(0, sculpted ? 27 : 12.5, sculpted ? -10 : -12.5);
-  const CAM_LOOK = new THREE.Vector3(0, sculpted ? 0 : 2.1, sculpted ? 13 : 15);
+  const CAM_BASE = new THREE.Vector3(0, showcase ? 27 : 12.5, showcase ? -10 : -12.5);
+  const CAM_LOOK = new THREE.Vector3(0, showcase ? 0 : 2.1, showcase ? 13 : 15);
   camera.position.copy(CAM_BASE); camera.lookAt(CAM_LOOK);
 
-  // lights
-  const hemi = new THREE.HemisphereLight(sculpted ? 0xb9d5e6 : 0x9fc0ff, sculpted ? 0x26352d : 0x0a0e18, sculpted ? 2.1 : .75); scene.add(hemi);
-  const key = new THREE.DirectionalLight(0xffffff, sculpted ? 3.2 : 1.5); key.position.set(-8, 20, 2); key.castShadow = true;
-  key.shadow.mapSize.set(1024, 1024); key.shadow.camera.near = 1; key.shadow.camera.far = 60;
-  key.shadow.camera.left = -16; key.shadow.camera.right = 16; key.shadow.camera.top = 10; key.shadow.camera.bottom = -40; key.shadow.bias = -0.0008;
+  // lights — showcase keeps the bright, bloom-less product lighting; every other
+  // mode uses a cinematic warm key + cool rim + fill, with an env-map sky.
+  const hemi = new THREE.HemisphereLight(showcase ? 0xb9d5e6 : 0x9fc0ff, showcase ? 0x26352d : 0x0a0e18, showcase ? 2.1 : atmosphere ? .95 : .55); scene.add(hemi);
+  const key = new THREE.DirectionalLight(showcase ? 0xffffff : 0xfff0dc, showcase ? 3.2 : atmosphere ? 2.4 : 1.65); key.position.set(-8, 20, 2); key.castShadow = true;
+  key.shadow.mapSize.set(showcase ? 1024 : 2048, showcase ? 1024 : 2048); key.shadow.camera.near = 1; key.shadow.camera.far = 60;
+  key.shadow.camera.left = -16; key.shadow.camera.right = 16; key.shadow.camera.top = 10; key.shadow.camera.bottom = -40;
+  key.shadow.bias = showcase ? -0.0008 : -0.0006; if (!showcase) { key.shadow.radius = 3; key.shadow.normalBias = 0.02; }
   scene.add(key); scene.add(key.target); key.target.position.set(0, 0, 16);
-  const rim = new THREE.DirectionalLight(0x66ff9e, 0.4); rim.position.set(6, 6, 24); scene.add(rim);
+  const rim = new THREE.DirectionalLight(showcase ? 0x66ff9e : 0x6fd0ff, showcase ? 0.4 : 0.95); rim.position.set(6, showcase ? 6 : 7, showcase ? 24 : 30); scene.add(rim);
+  if (!showcase) { const fill = new THREE.DirectionalLight(0xbcd0ff, 0.3); fill.position.set(0, 9, -16); scene.add(fill); }
+  // procedural environment map doubling as a graded sky backdrop — lights the
+  // metallic chassis/barrels and forms depth behind the lane (offline, no HDRI).
+  // Graded sky backdrop for every cinematic mode. The equipment factory installs
+  // its own studio env for reflections (combined), so only pure-legacy needs ours.
+  if (!showcase) { const envEq = makeEnvTex(); scene.background = envEq; if (!sculpted) { const pmrem = new THREE.PMREMGenerator(renderer); scene.environment = pmrem.fromEquirectangular(envEq).texture; } }
 
-  // bloom for the premium glow (bullets, beam, barrier, product accents)
-  // Equipment preview: one sharp scene pass, without full-screen bloom.
-  const composer = sculpted ? null : new EffectComposer(renderer);
+  // bloom for the premium glow (bullets, beam, barrier, product accents).
+  // The equipment PREVIEW stays a single sharp pass with no full-screen bloom.
+  const composer = showcase ? null : new EffectComposer(renderer);
   if (composer) {
     composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), .6, .55, .78));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), atmosphere ? .55 : .6, atmosphere ? .6 : .55, atmosphere ? .72 : .78));
     composer.addPass(new OutputPass());
   }
 
@@ -101,7 +111,7 @@ export function createStandGame(canvas, opts = {}) {
   // portrait phones (set in resize) so the operator's range always stays on-screen.
   const laneW = HALFW * 2;
   const laneFrame = new THREE.Group(); scene.add(laneFrame);
-  const floorMat = new THREE.MeshStandardMaterial({ map: opts.deckTexture ? opts.deckTexture() : makeFloorTex(), roughness: 0.92, metalness: 0.1, envMapIntensity: sculpted ? .06 : 1 });
+  const floorMat = new THREE.MeshStandardMaterial({ map: opts.deckTexture ? opts.deckTexture() : makeFloorTex(), roughness: showcase ? 0.92 : 0.6, metalness: showcase ? 0.1 : 0.3, envMapIntensity: showcase ? .06 : 1 });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(laneW, LEN + 12), floorMat);
   floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, LEN / 2 - 3); floor.receiveShadow = true; laneFrame.add(floor);
 
@@ -137,6 +147,7 @@ export function createStandGame(canvas, opts = {}) {
   // ---- geometry (pixel space for the sim) ----
   let W = 0, H = 0, dpr = 1, barH = 0, baseY = 0, opHome = 0, bandY = 0;
   let fieldL = 0, fieldR = 0, fieldW = 0, laneHalf = HALFW;   // world half-width (narrows on portrait)
+  let vignette = null;                                        // cached corner darkening (cinematic modes only)
   function resize() {
     const r = canvas.getBoundingClientRect();
     W = Math.max(1, r.width); H = Math.max(1, r.height);
@@ -152,6 +163,7 @@ export function createStandGame(canvas, opts = {}) {
       : baseFov;
     camera.updateProjectionMatrix();
     fx.width = Math.round(W * dpr); fx.height = Math.round(H * dpr); fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (!showcase) { vignette = fctx.createRadialGradient(W / 2, H * 0.5, Math.min(W, H) * 0.28, W / 2, H * 0.52, Math.max(W, H) * 0.72); vignette.addColorStop(0, 'rgba(0,0,0,0)'); vignette.addColorStop(0.72, 'rgba(0,0,0,0)'); vignette.addColorStop(1, 'rgba(3,6,12,0.5)'); }
     barH = Math.max(52, H * 0.09); baseY = H - barH; opHome = baseY - 62; bandY = H * 0.44;
     fieldW = clamp(W * 0.92, 340, 440); fieldL = Math.round((W - fieldW) / 2); fieldR = fieldL + fieldW;
     // adaptive world lane half-width: narrow the whole lane on portrait phones so
@@ -758,6 +770,7 @@ export function createStandGame(canvas, opts = {}) {
   function proj(gx, gy, hy) { _v.set(wX(gx), hy, wZ(gy)); _v.project(camera); return { x: (_v.x * 0.5 + 0.5) * W, y: (-_v.y * 0.5 + 0.5) * H, vis: _v.z < 1, s: clamp(2.1 - (wZ(gy) / LEN) * 1.5, 0.35, 2.1) }; }
   function drawFx() {
     fctx.clearRect(0, 0, W, H);
+    if (!showcase && vignette) { fctx.fillStyle = vignette; fctx.fillRect(0, 0, W, H); }   // cinematic corner darkening, under all fx
     // enemy hp bars + mark ticks
     for (const e of S.enemies) {
       if (e.hp >= e.maxhp && !e.spec.boss) continue;
@@ -830,6 +843,18 @@ export function createStandGame(canvas, opts = {}) {
     for (let i = 0; i <= 7; i++) { const x = i / 7 * 256; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 1024); g.stroke(); }
     for (let i = 0; i <= 40; i++) { const y = i / 40 * 1024; g.beginPath(); g.moveTo(0, y); g.lineTo(256, y); g.stroke(); }
     const tx = new THREE.CanvasTexture(c); tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.colorSpace = THREE.SRGBColorSpace; return tx;
+  }
+  // graded equirectangular sky: lights metals (via PMREM) and sits behind the lane.
+  function makeEnvTex() {
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 512; const g = c.getContext('2d');
+    const grd = g.createLinearGradient(0, 0, 0, 512);
+    grd.addColorStop(0, '#16233e'); grd.addColorStop(0.42, '#0a1322'); grd.addColorStop(0.5, '#0d2340'); grd.addColorStop(0.58, '#070f1e'); grd.addColorStop(1, '#03060c');
+    g.fillStyle = grd; g.fillRect(0, 0, 1024, 512);
+    const hg = g.createLinearGradient(0, 236, 0, 276); hg.addColorStop(0, 'rgba(90,160,255,0)'); hg.addColorStop(0.5, 'rgba(120,190,255,0.55)'); hg.addColorStop(1, 'rgba(90,160,255,0)');
+    g.fillStyle = hg; g.fillRect(0, 236, 1024, 40);
+    g.fillStyle = 'rgba(200,220,255,0.5)';
+    for (let i = 0; i < 60; i++) { const x = Math.random() * 1024, y = Math.random() * 190; g.fillRect(x, y, 1.5, 1.5); }
+    const tx = new THREE.CanvasTexture(c); tx.mapping = THREE.EquirectangularReflectionMapping; tx.colorSpace = THREE.SRGBColorSpace; return tx;
   }
 
   // ---- threat glyphs: each enemy wears a recognizable cyber-threat icon ----
@@ -927,7 +952,7 @@ export function createStandGame(canvas, opts = {}) {
     stop() { cancelAnimationFrame(raf); raf = 0; if (S) S.phase = 'idle'; },
     destroy() { cancelAnimationFrame(raf); unbind(); disposeTree(scene); art?.dispose(); Object.values(markTex).forEach(t => t.dispose()); brandTex.dispose(); floorMat.map.dispose(); composer?.dispose(); renderer.dispose(); fx.remove(); },
     resize,
-    get diagnostics() { return { art: sculpted ? 'sangfor' : 'legacy', calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }; },
+    get diagnostics() { return { art: atmosphere ? 'combined' : sculpted ? 'sangfor' : 'legacy', calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }; },
     get phase() { return S ? S.phase : 'idle'; },
     get state() { return S; },
   };

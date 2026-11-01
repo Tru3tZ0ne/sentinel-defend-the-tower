@@ -3,8 +3,10 @@
 // level-up CHOICE CARDS (where you pick which Sangfor product upgrades your weapon,
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
-const { createStandGame, ACCENT } = await import(document.body.dataset.art === 'sangfor'
-  ? './engine.js?art=stand-sangfor-visuals-v2' : './engine.js');
+const { createStandGame, ACCENT } = await import(
+  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2'
+  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1'
+  : './engine.js');
 import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER } from './model.js';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
@@ -172,7 +174,9 @@ const ZH = {
 };
 
 const equipmentPreview = document.body.dataset.art === 'sangfor';
-if (equipmentPreview) {
+const combined = document.body.dataset.art === 'combined';   // sculpted models under the cinematic stage
+const useArt = equipmentPreview || combined;
+if (useArt) {
   Object.assign(EN, {
     'st.tag': 'Build your defense. Deploy endpoint turrets, radar and gateways. Stop the swarm before it reaches the Sangfor line.',
     'st.h1': 'Move with WASD / arrows, or drag in the lower part of the field. Your squad fires automatically straight up.',
@@ -305,11 +309,12 @@ const paintWeap = painter();
 const paintRail = painter();
 let phase = 'start', lastSummary = null, lastResult = null;
 
-const artModule = equipmentPreview
+const artModule = useArt
   ? await import('./sangfor-art.js?art=v2') : null;
 const game = createStandGame(el.canvas, {
   artFactory: artModule?.createSangforArt,
   deckTexture: artModule?.createDeckTexture,
+  atmosphere: combined,
   onHud: h => {
     paintScore(el.score, fmt(h.score));
     el.best.textContent = fmt(Math.max(h.best, getBest()));
@@ -365,7 +370,7 @@ function toast(msg, kind = '') {
 function cardHTML(ch) {
   const id = ch.id, isNew = ch.toLevel === 1, maxed = ch.toLevel >= ch.max;
   return `<button class="st-card cap-${id}" data-up="${id}">
-    ${artModule ? `<img class="st-equipment-preview" src="assets/stand-sangfor/${id.toLowerCase()}.webp?art=v2" alt="" />` : ''}
+    ${equipmentPreview ? `<img class="st-equipment-preview" src="assets/stand-sangfor/${id.toLowerCase()}.webp?art=v2" alt="" />` : ''}
     <span class="st-card-top">
       <span class="st-card-ico">${MARK(id)}</span>
       ${isNew ? `<span class="st-card-tag">${esc(t('st.new'))}</span>` : `<span class="st-card-tag lv">${esc(t('st.to', { a: ch.toLevel - 1, b: ch.toLevel }))}${maxed ? ' · ' + esc(t('st.max')) : ''}</span>`}
@@ -402,7 +407,7 @@ async function showStart() {
   el.overlay.innerHTML = `
     <div class="ar-overlay">
       <div class="ar-card st-start-card">
-        ${artModule ? `<img class="st-art-hero" src="assets/stand-sangfor/equipment-preview.webp?art=v2" alt="" />` : ''}
+        ${equipmentPreview ? `<img class="st-art-hero" src="assets/stand-sangfor/equipment-preview.webp?art=v2" alt="" />` : ''}
         ${brandHTML('Last Stand')}
         <h1 class="ar-title">Last <span class="em">Stand</span></h1>
         <p class="ar-tag">${esc(t('st.tag'))}</p>

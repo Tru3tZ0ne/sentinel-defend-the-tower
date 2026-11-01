@@ -129,3 +129,35 @@ New geometry, floor texture, labels and preview renders are original procedural 
 Run `npm ci`, then `npm run render:stand-art` to regenerate the images, and `npm run test:stand-art` to validate the preview. `npm run serve` exposes both entries. The optional `HEADED=1` environment setting makes the standalone browser check visible.
 
 The tag records a reviewable source version. GitHub Pages previews require publishing the files on the configured Pages branch; creating a tag alone does not deploy a website.
+
+## Combined mode — the main entry (2026-10-31)
+
+Follow-up, by owner decision: the sculpted equipment/creature models are now the
+look of the main game, rendered under a cinematic stage rather than the neutral
+product-showcase lighting. `stand.html` runs a new **combined** build
+(`<body data-art="combined">`); `stand-sangfor.html` is unchanged and remains the
+measured, bloom-less preview.
+
+The engine's single `sculpted` flag was split so the showcase branch stays
+byte-for-byte identical:
+
+- `art` (models present) — unchanged; the Sangfor factory still supplies every
+  operator/turret/radar/core/barrier/operative and creature silhouette.
+- `showcase = sculpted && !atmosphere` — the preview's render style (steep camera,
+  bright neutral lights, no bloom, no env map). Every preview-only value is now
+  gated on `showcase`, so its draw/triangle/geometry counts are untouched.
+- `atmosphere` (combined) — the cinematic stage: over-the-shoulder camera, warm
+  key + cool rim + fill, a procedural equirectangular **env map** (lights the
+  metal chassis and doubles as a graded sky backdrop, no external HDRI), tuned
+  UnrealBloom, a corner vignette, and a slightly reflective deck. Combined keeps
+  the default neon HUD and the product-mark upgrade cards (no preview hero/thumbs,
+  so it loads no extra webp resources).
+
+Validation: `npm run test:stand-art` green — showcase inspection stable at 137
+draws / 58,218 triangles / 103 geometries (no change); the combined main entry
+reports `diagnostics.art === "combined"` and loads with no page errors or failed
+resources. `node --test tools/engine.test.mjs tools/arcade-logic.test.mjs
+tools/rush-logic.test.mjs` green (65). Inspected desktop + 390x844 phone combat
+frames on the software renderer: operator and creature silhouettes read clearly
+against the graded backdrop; HUD and IR/PT/RT buttons unchanged. Boss frames and
+hardware FPS were not measured on this software-WebGL workstation.

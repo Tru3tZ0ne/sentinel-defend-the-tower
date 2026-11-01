@@ -93,11 +93,12 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await page.screenshot({ path: shots + '/stand-sangfor-mobile-right.png' });
     metrics.mobile = await page.evaluate(() => window.__stand.game.diagnostics);
-    // Legacy remains opt-out and playable, with no equipment-preview resources.
+    // The main entry is the COMBINED build: sculpted models under the cinematic
+    // stage. It uses the art models but keeps the default HUD (no preview hero/thumbs).
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(url + '/stand.html'); await page.locator('[data-act="play"]').click();
     await page.waitForFunction(() => window.__stand.game.state.elapsed > .1);
-    assert.equal(await page.evaluate(() => window.__stand.game.diagnostics.art), 'legacy');
+    assert.equal(await page.evaluate(() => window.__stand.game.diagnostics.art), 'combined');
     assert.equal(await page.locator('.st-art-hero').count(), 0);
     await page.evaluate(() => window.__stand.game.pause());
     // The optional showroom shares the actual game models and renders on input.
