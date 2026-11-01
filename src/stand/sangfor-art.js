@@ -214,6 +214,16 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
             k.box(.085, .04, .42, side * .43, 1.06, .18, 'green', .012);
           }
           if (id === 'EDR') {
+            // The unit carries a real Sangfor Endpoint Secure appliance on its mount:
+            // a white 1U chassis with a dark front bezel, metal rack ears, a row of
+            // green status LEDs and top vent slits. It visibly RUNS the EDR box.
+            k.box(.72, .22, .5, 0, 1.27, .18, 'white', .022);                       // appliance chassis
+            k.box(.6, .14, .05, 0, 1.27, .45, 'dark', .012);                        // front bezel (faces the lane)
+            k.box(.5, .02, .02, 0, 1.22, .465, 'green', .004);                      // bezel status line
+            for (const s of [-1, 1]) k.box(.05, .24, .52, s * .365, 1.27, .18, 'metal', .012);   // rack ears
+            for (let i = 0; i < 4; i++) k.box(.04, .025, .03, -.18 + i * .12, 1.385, .42, 'green', .004);   // front status LEDs
+            for (let j = 0; j < 8; j++) k.box(.012, .02, .12, -.22 + j * .063, 1.39, .34, 'black', .001);   // front vent slits
+            // side diagnostics console
             k.box(.62, .38, .075, -.58, .87, -.34, 'black', .035, [-.3, 0, 0]);
             k.rod([-.58, .58, -.26], [-.58, .8, -.29], .055, .04, 'metal');
           }
@@ -249,6 +259,11 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
     if (id === 'EDR') {
       const screen = decal(root, screenTexture(id), .53, .3, -.58, .875, -.385);
       screen.rotation.x = -.3;
+      // Brand the carried appliance so it clearly embodies Sangfor Endpoint Secure:
+      // the product mark on its top (read from the overhead camera) and a name plate
+      // across the back face (which faces the player's camera down the lane).
+      decal(root, markTex.EDR, .27, .27, 0, 1.405, .04, true);
+      decal(root, labelTexture('Endpoint Secure'), .56, .1, 0, 1.3, -.075);
     }
     if (id === 'XDR') decal(root, screenTexture(id), 1.41, .77, 0, 1.26, .16);
     if (id === 'HCI' || id === 'ASTOR') decal(root, brandTex, .82, .12, 0, .305, -.885);

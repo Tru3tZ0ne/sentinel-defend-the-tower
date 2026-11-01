@@ -161,3 +161,18 @@ tools/rush-logic.test.mjs` green (65). Inspected desktop + 390x844 phone combat
 frames on the software renderer: operator and creature silhouettes read clearly
 against the graded backdrop; HUD and IR/PT/RT buttons unchanged. Boss frames and
 hardware FPS were not measured on this software-WebGL workstation.
+
+## EDR unit carries a branded Endpoint Secure appliance (2026-10-31)
+
+Owner feedback on the combined look: each unit should more literally embody the
+real Sangfor product. First pass on EDR — the turret now carries a recognizable
+Endpoint Secure appliance on its mount: a white 1U chassis with a dark front
+bezel, metal rack ears, a green status-LED row and top vent slits, with the EDR
+product mark on its top face and an "Endpoint Secure" name plate across the back
+(the face the combined camera sees). Added in `sangfor-art.js` `equipment('EDR')`
+(shared by the showcase and combined entries); `edr.webp` and the lineup
+`equipment-preview.webp` were regenerated with `npm run render:stand-art`.
+
+Validation: `npm run test:stand-art` green; inspection fixture 174 draws / 63,726
+triangles (within the <300 / <150k budget); combined entry still clean. The same
+"carry the appliance" treatment can extend to the other units as a follow-up.
