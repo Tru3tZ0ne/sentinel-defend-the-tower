@@ -198,7 +198,20 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
       const k = kit();
       k.box(2.08, .14, 1.7, 0, .1, 0, 'black', .045);
       for (const side of [-1, 1]) k.box(.055, .025, 1.1, side * .96, .19, .04, 'green', .007);
-      if (id === 'HCI' || id === 'ASTOR') {
+      if (id === 'AI' || id === 'AGENT') {
+        // Compact compute blade and workflow console, using cached material batches.
+        k.box(1.85, .5, 1.38, 0, .44, 0, 'dark');
+        k.box(1.7, .33, .05, 0, .44, -.72, 'metal');
+        for (let n = 0; n < 6; n++) {
+          k.box(.18, .22, .025, -.65 + n * .26, .44, -.76, 'black', .004);
+          k.box(.025, .08, .025, -.71 + n * .26, .44, -.78, 'cyan', .002);
+        }
+        if (id === 'AGENT') {
+          k.box(1.3, .68, .1, 0, 1.05, .22, 'black');
+          for (const x of [-.43, 0, .43]) k.box(.23, .25, .025, x, 1.05, .15, 'cyan', .008);
+          k.box(.98, .025, .025, 0, 1.05, .13, 'metal', .002);
+        }
+      } else if (id === 'HCI' || id === 'ASTOR') {
         serverChassis(k, id === 'ASTOR');
       } else {
         networkChassis(k);
@@ -250,12 +263,13 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
       }
       return k.finish('sangfor:' + id);
     });
-    roof = id === 'ASTOR' ? 1.68 : id === 'HCI' ? 1.32 : .63;
+    roof = id === 'ASTOR' ? 1.68 : id === 'HCI' ? 1.32 : ['AI', 'AGENT'].includes(id) ? .71 : .63;
     const title = { EDR: 'Endpoint Secure', NDR: 'Cyber Command', IAG: 'Secure Web Gateway',
-      HCI: 'aServer HCI', ASTOR: 'aStor', XDR: 'Athena XDR', COMMAND: 'SANGFOR COMMAND' }[id] || id;
+      HCI: 'aServer HCI', ASTOR: 'aStor', XDR: 'Athena XDR', COMMAND: 'SANGFOR COMMAND', AI: 'AI Platform', AGENT: 'Agent Builder' }[id] || id;
     decal(root, brandTex, .84, .22, .28, roof + .006, -.4, true);
     decal(root, labelTexture(title), 1.13, .16, .12, roof + .009, -.6, true);
-    if (markTex[id]) decal(root, markTex[id], .3, .3, -.67, roof + .013, -.33, true);
+    if (markTex[id]) decal(root, markTex[id], id === 'XDR' ? .76 : .3, id === 'XDR' ? .76 : .3,
+      id === 'XDR' ? -.48 : -.67, roof + .013, id === 'XDR' ? .12 : -.33, true);
     if (id === 'EDR') {
       const screen = decal(root, screenTexture(id), .53, .3, -.58, .875, -.385);
       screen.rotation.x = -.3;
@@ -460,7 +474,7 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
   const aux = new THREE.Group(); aux.name = 'sangfor:installed-products'; scene.add(aux);
   const installed = new Map();
   function sync(S, { wX, wZ, fieldL, fieldR, baseY, bandY }) {
-    for (const [id, side, y] of [['ASTOR', -1, baseY - 17], ['XDR', 1, baseY - 78], ['IAG', -1, bandY]]) {
+    for (const [id, side, y] of [['ASTOR', -1, baseY - 17], ['XDR', 1, baseY - 78], ['IAG', -1, bandY], ['AI', -1, baseY - 184], ['AGENT', -1, baseY - 258]]) {
       if (!S.levels[id]) { const old = installed.get(id); if (old) old.visible = false; continue; }
       if (!installed.has(id)) { const root = equipment(id); aux.add(root); installed.set(id, root); }
       const root = installed.get(id); root.visible = true;

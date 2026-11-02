@@ -21,7 +21,7 @@ export async function inspectStandLoad(page, url, label = 'current') {
     const hub={id:'XDR',x:fieldR-23,y:barY-78};
     s.link={age:.3,charge:.65,duration:1.1,hub,devices:[hub,...s.shooters.filter(sh=>sh.kind!=='op').map(sh=>({id:sh.kind==='edr'?'EDR':'MDR',x:sh.fixed?fieldL+440*sh.frac:s.op.x+sh.off,y:barY-50})),
       {id:'NDR',x:fieldR-34,y:barY-30},{id:'AF',x:s.op.x-120,y:s.op.y-62},{id:'AF',x:s.op.x+120,y:s.op.y-62},
-      {id:'IAG',x:fieldL+23,y:h*.44},{id:'ASTOR',x:fieldL+23,y:barY-17},{id:'HCI',x:fieldL+65,y:barY-113}]};
+      {id:'IAG',x:fieldL+23,y:h*.44},{id:'ASTOR',x:fieldL+23,y:barY-17},{id:'HCI',x:fieldL+65,y:barY-113},{id:'AI',x:fieldL+23,y:barY-184},{id:'AGENT',x:fieldL+23,y:barY-258}]};
     s.beam={x:hub.x,y:hub.y,tx:w/2-100,ty:100,width:100,life:.7,dmg:100};
     s.elapsed = 120; s.shake = 0; s.flash = 0; s.parts = []; s.fxr = []; s.texts = [];
     const types = ['recon', 'malware', 'worm', 'apt', 'exfil'];
@@ -53,9 +53,11 @@ export async function inspectStandLoad(page, url, label = 'current') {
   assert.equal(full.calls - noShots.calls, 1, 'Every bullet must share one draw');
   assert.equal(restored.geometries, full.geometries);
   // Retain per-enemy cloak/hit states, including after the pool is warm.
-  const revealed = await page.locator('#stCanvas').screenshot();
+  // Explicit clipping avoids an element-stability wait on software-rendered canvas.
+  const canvasShot = async () => page.screenshot({clip: await page.locator('#stCanvas').boundingBox()});
+  const revealed = await canvasShot();
   await page.evaluate(() => { window.__stand.game.state.squad.ndrReveal = false; }); await settle();
-  const cloaked = await page.locator('#stCanvas').screenshot();
+  const cloaked = await canvasShot();
   assert.notDeepEqual(revealed, cloaked, 'Cloaking must still change the rendered creatures');
   const warmed = await page.evaluate(() => window.__stand.game.diagnostics);
   for (let i = 0; i < 3; i++) {

@@ -72,23 +72,26 @@ capability legible at a glance. The in-game Product Codex pairs every product's 
 on-board role and honest limitation. Pure logic is unit-tested in `tools/arcade-logic.test.mjs`.
 
 **Last Stand** (`stand.html`) is a real-time 3D, **120-second event campaign**.
-Start with **10,000 HP** and protect the Sangfor line against exactly three bosses
-at 25, 60 and 95 seconds. **Cyber Command** adds horizontal side lasers, squad
-tracking and an MDR damage boost. All deployed devices visibly feed energy into
-**XDR**, which charges and emits the final laser from its appliance. EDR turrets,
-NGAF barriers, MDR teammates, IAG checkpoints, HCI cores and aStor vaults remain
-physical units. Q/E/R call the three existing support services.
+Start with **10,000 HP** and EDR/MDR/HCI against exactly three bosses at
+25, 60 and 95 seconds. **Cyber Command + XDR together** guide ordinary bullets;
+MDR retains its existing CC tracking and damage boost. Devices visibly charge
+**XDR**, which fires the final laser from its conspicuously marked appliance.
+Dodge red boss lanes and time Q/E/R support. A clear requires three real boss
+deaths by 120 seconds and surviving HP/business availability.
 
-Choose upgrades without pausing; a marked recommendation deploys after three
-seconds. Visible allied support and emergency cover let beginners complete the
-campaign. **Remaining HP determines rank; ties share rank.** The HP board is
-separate from historical scores and local unless a shared endpoint is configured.
-English and Chinese interfaces, cinematic models, shadows, bloom and full-resolution
-rendering remain. These weapons are fictional arcade mechanics inspired by product
+Balance security with **HCI business capacity, AI and Agent Builder**. Compute
+shortages reduce availability and output; cloud-only investment is vulnerable.
+Rank completed defenses by **55% HP + 25% business + 12% AI + 8% Agent Builder**.
+The new enterprise board preserves previous scores and is local by default.
+Nonblocking upgrade choices, bilingual interfaces and full-quality 3D remain.
+The seeded casual mixed-build policy clears 63.3% desktop / 66.7% phone; this is
+simulation evidence, not a measured human win rate or guaranteed completion.
+
+These are fictional arcade mechanics and equipment concepts inspired by product
 roles. `stand-sangfor.html` offers the equipment preview; `stand-showroom.html`
-provides optional close inspection. See the [development record](docs/STAND_COMMAND_CAMPAIGN.md)
+provides optional close inspection. See the [development record](docs/STAND_ENTERPRISE_BALANCE.md)
 and [English continuation brief](docs/CLAUDE_STAND_VISUALS_HANDOFF.txt), review tag
-`stand-command-finale-v1`. Checks run through `npm run test:stand-art`.
+`stand-enterprise-balance-v1`. Checks run through `npm run test:stand-art`.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your

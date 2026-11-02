@@ -1,5 +1,8 @@
 # Last Stand: command network and three-boss event campaign
 
+> Historical release. The enterprise balance update supersedes the assistance,
+> tracking and scoring contracts below. See [current record](STAND_ENTERPRISE_BALANCE.md).
+
 Review tag: `stand-command-finale-v1`.
 Base: `963e3d7` (`stand-performance-v1`). Branch: `feat/stand-command-finale`.
 

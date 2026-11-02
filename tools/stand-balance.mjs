@@ -36,7 +36,7 @@ const create = compileFunction(`
   ${frame}
   S = fresh(); S.phase = 'play'; recompute();
   return { get state() { return S; }, get offers() { return offers; }, toasts,
-    get summary() { return summary; }, choose: chooseUpgrade, deploy: applyUpgrade, useAbility, keys, fieldL, fieldR, baseY,
+    get summary() { return summary; }, choose: chooseUpgrade, deploy: applyUpgrade, fire: fireUp, useAbility, keys, fieldL, fieldR, baseY,
     frameMs(ms) { frame(lastTS + ms); },
     step(dt) { if (S.phase === 'play') update(dt); } };
 `, ['rules', 'Math', 'width', 'height']);
@@ -49,13 +49,13 @@ export function createCombatProbe({ seed = 1, width = 1440, height = 942, overri
 }
 
 function priority(id, levels, policy) {
-  const level = levels[id] || 0;
-  if (policy === 'casual') return ({ EDR: 8, MDR: 7, AF: 6, HCI: 5, ASTOR: 4, NDR: 3, XDR: 2, IAG: 1 }[id]) - level * 1.8;
-  // Seek early chain coverage, then damage/marking, with recovery as a fallback.
-  if (id === 'EDR') return level < 2 ? 20 - level : 8 - level;
-  if (id === 'NDR') return level === 0 ? 18 : 12 - level * 1.1;
-  if (id === 'AF') return level === 0 ? 14 : 7 - level;
-  return ({ MDR: 10, HCI: 11, ASTOR: 9, XDR: 6, IAG: 5 }[id]) - level * 1.2;
+  const n=levels[id] || 0;
+  if (policy === 'cloud') return (rules.CLOUD_PRODUCTS.includes(id) ? 100 : -100) - n * 4;
+  if (id === 'NDR' && !n) return 22;
+  if (id === 'XDR' && !n) return 21;
+  if (id === 'HCI' && n < 2) return 18-n;
+  const target={EDR:3,MDR:3,AF:2,NDR:2,XDR:2,IAG:1,HCI:3,ASTOR:1,AI:2,AGENT:1};
+  return (target[id]-n)*3 + ({EDR:2,MDR:3,AF:1,NDR:2,XDR:0,IAG:0,HCI:1,ASTOR:0,AI:0,AGENT:0}[id]);
 }
 
 export function playProbe({ policy = 'informed', limit = 121, ...options } = {}) {
@@ -65,39 +65,41 @@ export function playProbe({ policy = 'informed', limit = 121, ...options } = {})
     const s = g.state;
     if (s.choices.length && policy !== 'stationary') {
       const best = [...g.offers].sort((a, b) => priority(b.id, s.levels, policy) - priority(a.id, s.levels, policy))[0];
-      g.choose(best.id); choices++;
+      if (policy !== 'cloud' || rules.CLOUD_PRODUCTS.includes(best.id)) { g.choose(best.id); choices++; }
     }
     if (policy !== 'stationary') {
       if (s.elapsed >= decisionAt) {
-        decisionAt = s.elapsed + (policy === 'casual' ? .8 : .2);
-        if (policy === 'casual') targetX = (g.fieldL + g.fieldR) / 2 + Math.sin(s.elapsed * .5) * 150;
+        decisionAt = s.elapsed + (policy === 'casual' || policy === 'cloud' ? 1.15 : .2);
+        if (policy === 'casual' || policy === 'cloud') targetX = (g.fieldL + g.fieldR) / 2 + Math.sin(s.elapsed * .5) * 150;
         else {
           const target = [...s.enemies].filter(e => e.spec.dmg && e.y > 0).sort((a, b) => b.y - a.y)[0];
           targetX = target?.x ?? (g.fieldL + g.fieldR) / 2;
         }
+        const strike=s.enemies.find(e=>e.attack);
+        if (strike) targetX = strike.attack.x < (g.fieldL+g.fieldR)/2 ? g.fieldR-50 : g.fieldL+50;
         g.keys.clear(); if (targetX < s.op.x - 8) g.keys.add('left'); if (targetX > s.op.x + 8) g.keys.add('right');
         if (policy === 'informed' || s.enemies.length > 12) {
           g.useAbility('pt'); g.useAbility('rt');
         }
-        if (s.enemies.length > (policy === 'casual' ? 24 : 14) || s.base < 650) g.useAbility('ir');
+        if (s.enemies.some(e=>e.spec.boss && e.hp < e.maxhp*.65) || s.enemies.length > (policy === 'informed' ? 14 : 24) || s.base < 1500) g.useAbility('ir');
       }
     }
     g.step(dt); peakEnemies = Math.max(peakEnemies, g.state.enemies.length);
   }
   const s = g.state;
   return { seconds: Math.round(s.elapsed * 10) / 10, ended: s.phase === 'over', level: s.level,
-    kills: s.kills, choices, peakEnemies, levels: s.levels, health: Math.floor(s.base), bossesKilled: s.bossesKilled, assistedBosses: s.assistedBosses, summary: g.summary };
+    kills: s.kills, choices, peakEnemies, levels: s.levels, health: Math.floor(s.base), bossesKilled: s.bossesKilled, availability: Math.floor(s.availability), victory: g.summary?.outcome === 'victory', scores: g.summary?.scores, dodged: s.dodged, summary: g.summary };
 }
 
-export function sampleBalance({ seeds = 12, ...options } = {}) {
-  const runs = Array.from({ length: seeds }, (_, i) => playProbe({ ...options, seed: 101 + i * 37 }));
+export function sampleBalance({ seeds = 12, seedStart = 101, ...options } = {}) {
+  const runs = Array.from({ length: seeds }, (_, i) => playProbe({ ...options, seed: seedStart + i * 37 }));
   const times = runs.map(r => r.seconds).sort((a, b) => a - b);
   return { mean: Math.round(times.reduce((a, b) => a + b, 0) / times.length * 10) / 10,
     min: times[0], max: times.at(-1), ended: runs.filter(r => r.ended).length, runs };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  for (const policy of ['stationary', 'casual', 'informed']) {
+  for (const policy of ['stationary', 'cloud', 'casual', 'informed']) {
     const { runs, ...summary } = sampleBalance({ policy });
     console.log(JSON.stringify({ policy, ...summary, times: runs.map(r => r.seconds), peakEnemies: Math.max(...runs.map(r => r.peakEnemies)) }));
   }

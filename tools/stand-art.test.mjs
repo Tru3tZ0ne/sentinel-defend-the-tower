@@ -18,7 +18,8 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.addInitScript(() => {
       localStorage.setItem('sentinel.stand.scores.v1', JSON.stringify([{ name: 'LegacyScore', score: 999999, id: 'legacy' }]));
       localStorage.setItem('sentinel.stand.best', '999999');
-      if (!localStorage.getItem('sentinel.stand.health.scores.v1')) localStorage.setItem('sentinel.stand.health.scores.v1', JSON.stringify([
+      localStorage.setItem('sentinel.stand.health.scores.v1',JSON.stringify([{name:'HealthLegacy',score:8765,id:'health-legacy'}]));
+      if (!localStorage.getItem('sentinel.stand.enterprise.scores.v1')) localStorage.setItem('sentinel.stand.enterprise.scores.v1', JSON.stringify([
         {name:'TieA',score:9000,id:'tie-a'}, {name:'TieB',score:9000,id:'tie-b'}]));
     });
     await page.goto(url + '/stand-sangfor.html');
@@ -30,8 +31,8 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.screenshot({ path: shots + '/stand-sangfor-menu-en.png' });
     await page.locator('[data-act="lang"]').click();
     await page.locator('[data-act="play"]').waitFor();
-    assert.match(await page.locator('.ar-tag').innerText(), /初始 10,000 血量/);
-    assert.match(await page.locator('.ar-how').innerText(), /同血量并列/);
+    assert.match(await page.locator('.ar-tag').innerText(), /120 秒/);
+    assert.match(await page.locator('.ar-how').innerText(), /算力/);
     await page.screenshot({ path: shots + '/stand-sangfor-menu-zh.png' });
     await page.locator('[data-act="lang"]').click();
     await page.locator('[data-act="play"]').click();
@@ -46,7 +47,8 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
         r: spec.r, hp: 1, maxhp: 1, slow: 0, hit: 0, wob: 0, marked: false }];
     });
     await page.locator('.st-card').first().waitFor({ timeout: 30000 });
-    assert.equal(await page.locator('.st-equipment-preview').count(), 3);
+    const offers=await page.locator('.st-card').evaluateAll(cards=>cards.map(c=>c.dataset.up));
+    assert.equal(await page.locator('.st-equipment-preview').count(),offers.filter(id=>!['AI','AGENT'].includes(id)).length);
     assert.ok(await page.locator('.st-equipment-preview').evaluateAll(images => images.every(i => i.complete && i.naturalWidth > 0)));
     await page.screenshot({ path: shots + '/stand-sangfor-upgrades.png' });
     const offerTime = await page.evaluate(() => window.__stand.game.state.elapsed);
@@ -62,7 +64,7 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.evaluate(async () => {
       const g = window.__stand.game;
       g.start();
-      for (const id of ['EDR', 'EDR', 'MDR', 'AF', 'IAG', 'HCI', 'ASTOR']) g.applyUpgrade(id);
+      for (const id of ['EDR', 'EDR', 'MDR', 'AF', 'NDR', 'XDR', 'IAG', 'HCI', 'ASTOR', 'AI', 'AGENT']) g.applyUpgrade(id);
       g.state.pendingLevels = 0; g.pause();
       const s = g.state, { ENEMIES } = await import(new URL('src/stand/model.js', location.href));
       s.parts = []; s.fxr = []; s.texts = []; s.shake = 0; s.flash = 0; s.afHp = s.afMax;
@@ -77,7 +79,8 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     });
     await settle();
     metrics.inspection = await page.evaluate(() => window.__stand.game.diagnostics);
-    assert.ok(metrics.inspection.calls < 300, JSON.stringify(metrics.inspection));
+    // Ten products (including the new AI and workflow consoles), nine threat types.
+    assert.ok(metrics.inspection.calls < 330, JSON.stringify(metrics.inspection));
     assert.ok(metrics.inspection.triangles < 150000);
     await page.screenshot({ path: shots + '/stand-sangfor-all-products-threats-FIXTURE.png' });
     const paused = await page.evaluate(() => window.__stand.game.state.elapsed);
@@ -102,7 +105,9 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     // Reset and phone movement, without retaining any purchased equipment.
     await page.evaluate(() => window.__stand.game.start());
     assert.equal(await page.locator('#stLevelUp').count(), 0);
-    assert.deepEqual(await page.evaluate(() => window.__stand.game.state.levels), {EDR:1,NDR:1,XDR:1});
+    assert.deepEqual(await page.evaluate(() => window.__stand.game.state.levels), {EDR:1,MDR:1,HCI:1});
+    await page.waitForFunction(() => document.querySelector('#stNetwork').textContent.includes('not deployed'));
+    assert.equal(await page.locator('#stCloudScores .st-metrics span').count(),4);
     await page.setViewportSize({ width: 390, height: 844 }); await settle();
     await page.keyboard.down('ArrowRight');
     await page.waitForFunction(() => window.__stand.game.state.elapsed > 1.3);
@@ -141,7 +146,7 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     // Production charging and side-laser transitions, with explicit durable targets.
     await page.evaluate(async () => {
       const g=window.__stand.game, s=g.state;
-      for(const id of ['MDR','AF','IAG','HCI','ASTOR']) g.applyUpgrade(id);
+      for(const id of ['MDR','AF','NDR','XDR','IAG','HCI','ASTOR','AI','AGENT']) g.applyUpgrade(id);
       const {ENEMIES}=await import(new URL('src/stand/model.js',location.href));
       const w=document.querySelector('#stCanvas').clientWidth;
       s.enemies=Array.from({length:8},(_,i)=>({id:98000+i,type:'malware',spec:{...ENEMIES.malware,speed:0},
@@ -158,7 +163,7 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
       g.state.parts=[]; g.state.fxr=[]; g.state.texts=[]; g.state.flash=0; g.state.shake=0;
     }); await settle();
     const linked=await page.evaluate(() => [...new Set(window.__stand.game.state.link.devices.map(d=>d.id))].sort());
-    assert.deepEqual(linked,['AF','ASTOR','EDR','HCI','IAG','MDR','NDR','XDR']);
+    assert.deepEqual(linked,['AF','AGENT','AI','ASTOR','EDR','HCI','IAG','MDR','NDR','XDR']);
     await page.screenshot({path:shots+'/stand-command-cc-xdr-charge-FIXTURE.png'});
     await page.evaluate(() => window.__stand.game.resume());
     await page.waitForFunction(() => {
@@ -169,12 +174,26 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await settle();
     assert.ok(await page.evaluate(() => window.__stand.game.state.beam && window.__stand.game.state.link.fired));
     await page.screenshot({path:shots+'/stand-command-xdr-fire-FIXTURE.png'});
+    await page.setViewportSize({width:390,height:844}); await settle();
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    assert.ok(await page.locator('#stCloudScores').evaluate(el=>el.getBoundingClientRect().bottom<innerHeight*.45),'Scores leave the lower movement area clear');
+    await page.screenshot({path:shots+'/stand-enterprise-mobile-xdr-FIXTURE.png'});
+    await page.setViewportSize({width:1440,height:1000}); await settle();
+    // A failed defense cannot submit or contaminate either previous board.
+    const boardBefore=await page.evaluate(()=>localStorage.getItem('sentinel.stand.enterprise.scores.v1'));
+    await page.evaluate(()=>{const g=window.__stand.game;g.start();g.state.elapsed=119.95;g.state.bossCount=3;g.state.bossesKilled=0;});
+    await page.locator('[data-act="again"]').waitFor();
+    assert.match(await page.locator('.ar-title').innerText(),/Defense failed/);
+    assert.equal(await page.locator('.lb-row.me').count(),0);
+    assert.equal(await page.evaluate(()=>localStorage.getItem('sentinel.stand.enterprise.scores.v1')),boardBefore);
+    await page.screenshot({path:shots+'/stand-enterprise-failure-FIXTURE.png'});
     // Actual final kill and real result callback at the campaign endpoint.
     await page.evaluate(async () => {
       const g=window.__stand.game; g.start(); const s=g.state;
-      const {ENEMIES}=await import(new URL('src/stand/model.js?campaign=command-finale-v1',location.href));
+      const {ENEMIES}=await import(new URL('src/stand/model.js?campaign=enterprise-balance-v1',location.href));
       const spec=ENEMIES.siege;
       s.elapsed=119.8; s.bossCount=3; s.bossesKilled=2; s.base=8605;
+      s.businessWork=7200;s.aiWork=2100;s.agentWork=1080;
       s.enemies=[{id:99000,type:'siege',spec,x:s.op.x,y:200,r:50,hp:1,maxhp:1000,slow:0,hit:0,wob:0,spawnAcc:0,bornAt:119.8,attackAcc:0}];
       g.useAbility('ir');
     });
@@ -182,10 +201,18 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.locator('.lb-row.me').waitFor();
     assert.equal(await page.evaluate(() => window.__stand.game.phase), 'over');
     assert.match(await page.locator('.ar-result').innerText(), /8,765|8765/);
+    const expected=await page.evaluate(async()=>{const {campaignScores}=await import(new URL('src/stand/model.js',location.href));return campaignScores(window.__stand.game.state).total;});
+    assert.match(await page.locator('.ar-result .big').innerText(),new RegExp(expected.toLocaleString('en-US')));
     assert.match(await page.locator('.ar-result').innerText(), /3\/3/);
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('sentinel.stand.scores.v1'))[0].score),999999);
-    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('sentinel.stand.health.scores.v1')).find(r=>r.note)?.score),8765);
-    await page.screenshot({path:shots+'/stand-command-health-result-FIXTURE.png'});
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('sentinel.stand.health.scores.v1'))[0].score),8765);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('sentinel.stand.enterprise.scores.v1')).find(r=>r.note)?.score),expected);
+    await page.screenshot({path:shots+'/stand-enterprise-result-FIXTURE.png'});
+    await page.locator('[data-act="lang"]').click();
+    assert.match(await page.locator('.ar-result').innerText(),/综合分/);
+    assert.match(await page.locator('.ar-result').innerText(),/业务/);
+    await page.screenshot({path:shots+'/stand-enterprise-result-zh-FIXTURE.png'});
+    await page.locator('[data-act="lang"]').click();
     await page.locator('[data-act="again"]').click();
     await page.waitForFunction(() => window.__stand.game.state.elapsed > .1 && window.__stand.game.state.elapsed < 5);
     assert.equal(await page.evaluate(() => window.__stand.game.state.base),10000);
@@ -230,7 +257,7 @@ if (process.argv[1]?.endsWith('stand-art.test.mjs')) {
   const { server, url } = await startServer(0);
   const browser = await chromium.launch({ headless: process.env.HEADED !== '1', args: ['--ignore-gpu-blocklist'] });
   try {
-    console.log(JSON.stringify(await verifyStandArt(await browser.newPage(), url), null, 2));
+    console.log(JSON.stringify(await verifyStandArt(await browser.newPage(), url, 'tools/shots/stand-enterprise'), null, 2));
     console.log('Last Stand equipment preview checks passed.');
   } finally { await browser.close(); server.close(); }
 }

@@ -16,11 +16,11 @@ import {
   xpToLevel, upgradeChoices, ENEMIES, threatPool, difficultyAt,
   comboMult, killScore, SURVIVE_PER_SEC, STEAL_PENALTY, ABILITIES, ABILITY_ORDER,
   bossFor, bossHpScale,
-  MISSION_SECONDS, BOSS_TIMES, UPGRADE_SECONDS, STARTER_LEVELS, integrityScore, segmentDistanceSq, recommendedUpgrade,
-} from './model.js?campaign=command-finale-v1';
+  MISSION_SECONDS, BOSS_TIMES, UPGRADE_SECONDS, STARTER_LEVELS, integrityScore, segmentDistanceSq, recommendedUpgrade, cloudRates, campaignScores,
+} from './model.js?campaign=enterprise-balance-v1';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { sfx } from '../rush/audio.js';
-import { createBulletInstances, createEnemyInstances, createEnergyInstances } from './instances.js?campaign=command-finale-v1';
+import { createBulletInstances, createEnemyInstances, createEnergyInstances } from './instances.js?campaign=enterprise-balance-v1';
 
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -29,7 +29,7 @@ const dist2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx 
 
 export const ACCENT = {
   EDR: '#ff8a5a', MDR: '#16ca78', AF: '#2ee6a0', NDR: '#58c8ff',
-  IAG: '#ffd166', HCI: '#39c0ff', XDR: '#9be85a', ASTOR: '#a98bff',
+  IAG: '#ffd166', HCI: '#39c0ff', XDR: '#9be85a', ASTOR: '#a98bff', AI: '#c09aff', AGENT: '#6ce5d7',
 };
 const ACC = Object.fromEntries(Object.entries(ACCENT).map(([k, v]) => [k, parseInt(v.slice(1), 16)]));
 const hexNum = h => parseInt(h.replace('#', ''), 16);
@@ -65,7 +65,7 @@ export function createStandGame(canvas, opts = {}) {
   // ---- textures: official Sangfor product marks + corporate logo ----
   const texLoader = new THREE.TextureLoader();
   const markTex = {};
-  for (const id of WEAPON_ORDER) { const m = PRODUCT_MARKS[id]; if (m) { const tx = texLoader.load('assets/brand/products/sangfor-' + m[0]); tx.colorSpace = THREE.SRGBColorSpace; markTex[id] = tx; } }
+  for (const id of WEAPON_ORDER) { const m = PRODUCT_MARKS[id === 'AI' ? 'AICP' : id]; if (m) { const tx = texLoader.load('assets/brand/products/sangfor-' + m[0]); tx.colorSpace = THREE.SRGBColorSpace; markTex[id] = tx; } }
   const brandTex = texLoader.load('assets/brand/sangfor-logo-white.png'); brandTex.colorSpace = THREE.SRGBColorSpace;
 
   // ---- renderer / scene / camera ----
@@ -209,7 +209,7 @@ export function createStandGame(canvas, opts = {}) {
       op: { x: W / 2, y: opHome, muzzle: 0 },
       enemies: [], shots: [], parts: [], texts: [], fxr: [], beam: null, temps: [],
       spawnAcc: 0, beamAcc: 0, shieldAcc: 0, lastBoss: 0, bossCount: 0, bossesKilled: 0,
-      ccAcc: 0, cc: null, link: null, choices: [], offerLeft: 0, emergencyCover: false, assistedBosses: 0,
+      ccAcc: 0, cc: null, link: null, choices: [], offerLeft: 0, businessWork: 0, aiWork: 0, agentWork: 0, availability: 100, xpAcc: 0, dodged: 0, defeatReason: null,
       shake: 0, flash: 0, flashCol: '255,90,106', hudAcc: 0,
       cd: { ir: 0, pt: 0, rt: 0 }, ptT: 0, rtT: 0,   // active-skill cooldowns + team-summon timers
       corrAnnounced: false,
@@ -282,14 +282,14 @@ export function createStandGame(canvas, opts = {}) {
     if (links > 0) fireCorrelation(e.x, e.y, links, 0);
   }
   // XDR needs >=2 sensor UNITS to correlate (its real rule); chain reach grows with them
-  const correlationLinks = () => (S.squad.beamOn && S.squad.sensors >= 2 ? Math.min(4, S.squad.sensors - 1) : 0);
+  const correlationLinks = () => (S.squad.beamOn && S.squad.sensors >= 2 ? Math.min(2, S.squad.sensors - 1) : 0);
   function fireCorrelation(x, y, links, depth) {
     if (links <= 0 || depth > 3) return;
     const R2 = (150 + S.squad.sensors * 12) ** 2;
     const near = S.enemies.filter(t => !t.dead && (t.x !== x || t.y !== y) && dist2(x, y, t.x, t.y) <= R2)
       .sort((a, b) => dist2(x, y, a.x, a.y) - dist2(x, y, b.x, b.y)).slice(0, links);
     if (!near.length) return;
-    const dmg = 24 + S.squad.sensors * 13;
+    const dmg = 18 + S.squad.sensors * 7;
     S.shake = Math.min(1, S.shake + 0.12);
     for (const t of near) {
       zap(x, y, t.x, t.y, '#7dffd0'); zap(x, y, t.x, t.y, '#eafffb');
@@ -326,18 +326,20 @@ export function createStandGame(canvas, opts = {}) {
   // ---- firing and Cyber Command target tracking ----
   function unitX(sh) { return sh.fixed ? fieldL + fieldW * sh.frac : clamp(S.op.x + (sh.off || 0), fieldL + 16, fieldR - 16); }
   function unitY(sh) { return sh.fixed ? baseY - 50 : S.op.y + (sh.yoff || 0); }
-  function chooseTarget(x, y, excluded) {
+  function chooseTarget(x, y, excluded, guided = false) {
     let target = null, best = Infinity;
     for (const e of S.enemies) {
       if (e.dead || excluded?.has(e.id) || e.y >= y + e.r) continue;
       const distance = dist2(x, y, e.x, e.y) * (e.spec.boss ? .7 : 1);
+      if (guided && (distance > 700 ** 2 || Math.abs(e.x - x) > Math.max(35, (y - e.y) * .65))) continue;
       if (distance < best) { best = distance; target = e; }
     }
     return target;
   }
-  function fireUp(x, y, dmg, speed, pierce, color) {
-    const target = S.squad.tracking ? chooseTarget(x, y) : null;
-    S.shots.push({ x, y, vx: 0, vy: -speed, speed, targetId: target?.id, life: 2.4, dmg, pierce, hit: new Set(), r: 4.5, color });
+  function fireUp(x, y, dmg, speed, pierce, color, owner = 'op') {
+    const homing = owner === 'mdr' ? S.squad.ndrReveal : S.squad.tracking;
+    const target = homing ? chooseTarget(x, y, null, owner !== 'mdr') : null;
+    S.shots.push({ x, y, vx: 0, vy: -speed, speed, owner, homing, targetId: target?.id, life: 2.4, dmg, pierce, hit: new Set(), r: 4.5, color });
   }
   function devicePositions() {
     const sq = S.squad, op = S.op, devices = [];
@@ -346,6 +348,8 @@ export function createStandGame(canvas, opts = {}) {
     if (sq.afTier) for (const side of [-1, 1]) devices.push({ id: 'AF', x: op.x + side * sq.afHalfWidth, y: op.y - BAR_OFFSET });
     if (S.levels.HCI) devices.push({ id: 'HCI', x: fieldL + 65, y: baseY - 113 });
     if (S.levels.IAG) devices.push({ id: 'IAG', x: fieldL + 23, y: bandY });
+    if (S.levels.AI) devices.push({ id: 'AI', x: fieldL + 23, y: baseY - 184 });
+    if (S.levels.AGENT) devices.push({ id: 'AGENT', x: fieldL + 23, y: baseY - 258 });
     if (S.levels.ASTOR) devices.push({ id: 'ASTOR', x: fieldL + 23, y: baseY - 17 });
     if (sq.beamOn) devices.push({ id: 'XDR', x: fieldR - 23, y: baseY - 78 });
     return devices;
@@ -433,7 +437,7 @@ export function createStandGame(canvas, opts = {}) {
     ring(S.op.x, baseY - 2, '#58c8ff', fieldW * 1.1, 9);
     for (const e of [...S.enemies]) {
       if (e.dead) continue;
-      const dmg = Math.max(e.maxhp * 0.6, 150);
+      const dmg = Math.max(e.maxhp * (e.spec.boss ? .2 : .6), 150);
       e.hp -= dmg; e.hit = 1; dmgText(e.x, e.y - e.r, dmg, '#9fe8ff', true);
       burst(e.x, e.y, '#58c8ff', 9, 170); zap(S.op.x, S.op.y - 16, e.x, e.y, '#bfefff');
       if (e.hp <= 0) killEnemy(e, true);
@@ -444,10 +448,12 @@ export function createStandGame(canvas, opts = {}) {
   }
 
   // ---- base damage ----
-  function hitBase(amount, color) {
+  function hitBase(amount, color, boss = false) {
+    amount *= boss ? 3 : 5;
     if (S.shield > 0) { S.shield--; S.flash = 0.6; S.flashCol = '169,139,255'; ring(S.op.x, baseY - 2, ACCENT.ASTOR, 120, 6); onToast('absorb', 'good'); sfx.ability(); return; }
-    S.base = Math.max(1, S.base - amount);
-    if (S.base === 1 && !S.emergencyCover) { S.emergencyCover = true; onToast('cover', 'good'); }
+    S.base = Math.max(0, S.base - amount);
+    S.availability = Math.max(0, S.availability - amount / 180);
+    if (S.base <= 0) S.defeatReason = 'integrity';
     S.combo = 0; S.shake = Math.min(1, 0.5 + amount / 350); S.flash = 0.7; S.flashCol = color || '255,90,106'; sfx.breach();
   }
 
@@ -456,6 +462,11 @@ export function createStandGame(canvas, opts = {}) {
     dt = Math.min(dt, Math.max(0, MISSION_SECONDS - S.elapsed));
     S.elapsed = Math.min(MISSION_SECONDS, S.elapsed + dt);
     const d = difficultyAt(S.elapsed), sq = S.squad, op = S.op;
+    const cloud = cloudRates(S.levels, S.elapsed, S.availability);
+    S.businessWork += cloud.business * dt; S.aiWork += cloud.ai * dt; S.agentWork += cloud.agent * dt;
+    S.availability = clamp(S.availability + (cloud.capacity >= cloud.demand ? 1.2 : -(1 - cloud.served) * 3.5) * dt, 0, 100);
+    if (S.availability <= 0) { S.defeatReason = 'service'; gameOver(); return; }
+    S.xpAcc += dt; if (S.xpAcc >= 2) { S.xpAcc -= 2; gainXp(1); }
     if (S.choices.length) {
       S.offerLeft -= dt;
       if (S.offerLeft <= 0) chooseUpgrade(recommendedUpgrade(S.choices, S.levels));
@@ -468,7 +479,7 @@ export function createStandGame(canvas, opts = {}) {
     op.muzzle = Math.max(0, op.muzzle - dt * 6);
 
     // active-skill cooldowns + summoned-team duration timers (drive the HUD glow)
-    for (const k in S.cd) if (S.cd[k] > 0) S.cd[k] = Math.max(0, S.cd[k] - dt);
+    for (const k in S.cd) if (S.cd[k] > 0) S.cd[k] = Math.max(0, S.cd[k] - dt * cloud.cooldown);
     if (S.ptT > 0) S.ptT = Math.max(0, S.ptT - dt);
     if (S.rtT > 0) S.rtT = Math.max(0, S.rtT - dt);
 
@@ -478,15 +489,15 @@ export function createStandGame(canvas, opts = {}) {
 
     for (const sh of S.shooters) {
       sh.acc += dt * 1000; const interval = 1000 / (sh.rate * sq.fireRateMul);
-      while (sh.acc >= interval) { sh.acc -= interval; const x = unitX(sh), uy = unitY(sh); fireUp(x, uy - 16, sh.dmg, sh.speed, sh.pierce, sh.kind === 'op' ? dominantColor() : ACCENT[sh.kind === 'edr' ? 'EDR' : 'MDR']); if (sh.kind === 'op') op.muzzle = 1; sh.muzzle = 1; }
+      while (sh.acc >= interval) { sh.acc -= interval; const x = unitX(sh), uy = unitY(sh); fireUp(x, uy - 16, sh.dmg, sh.speed, sh.pierce, sh.kind === 'op' ? dominantColor() : ACCENT[sh.kind === 'edr' ? 'EDR' : 'MDR'], sh.kind); if (sh.kind === 'op') op.muzzle = 1; sh.muzzle = 1; }
       if (sh.muzzle) sh.muzzle = Math.max(0, sh.muzzle - dt * 6);
     }
-    // Service teams hold their spot; Cyber Command enables their tracking too.
+    // Temporary teams use the same CC + XDR guidance as other ordinary weapons.
     for (const u of S.temps) {
       if (u.born > 0) u.born = Math.max(0, u.born - dt);
       u.life -= dt; if (u.life <= 0) { u.dead = true; continue; }
       u.acc += dt * 1000; const interval = 1000 / (u.rate * sq.fireRateMul);
-      while (u.acc >= interval) { u.acc -= interval; fireUp(u.fx, u.fy - 16, u.dmg, u.speed, u.pierce, u.color); u.muzzle = 1; }
+      while (u.acc >= interval) { u.acc -= interval; fireUp(u.fx, u.fy - 16, u.dmg, u.speed, u.pierce, u.color, 'service'); u.muzzle = 1; }
       if (u.muzzle) u.muzzle = Math.max(0, u.muzzle - dt * 6);
     }
     if (sq.beamOn) { S.beamAcc += dt * 1000; if (!S.link && S.beamAcc >= sq.beamEvery) { S.beamAcc = 0; beginCorrelation(); } }
@@ -530,17 +541,23 @@ export function createStandGame(canvas, opts = {}) {
       let slowK = e.slow > 0 ? 0.5 : 1; if (e.slow > 0) e.slow -= dt * 1000;
       if (sq.iagBand && e.y > bandY - 24 && e.y < bandY + 24) slowK *= sq.iagSlowMul;
       e.wob += dt * 3;
-      const sp = e.spec.speed * d.speedMul * slowK;
+      // A compact field gives less reaction distance; compensate by at most 6%.
+      const sp = e.spec.speed * d.speedMul * slowK * clamp(H / 942, .94, 1);
       const nextY = e.spec.boss ? Math.min(H * .24, e.y + sp * dt) : e.y + sp * dt;
       if (e.spec.boss) {
         e.attackAcc = (e.attackAcc || 0) + dt;
-        if (e.attackAcc >= 4) { e.attackAcc = 0; hitBase(e.spec.dmg * 1.2, '255,90,106'); zap(e.x, e.y, op.x, baseY, e.spec.color); }
-        // Visible allied cover deals real damage; a boss is counted only on death.
-        if (S.elapsed - (e.bornAt ?? S.elapsed) >= 12) {
-          if (!e.assisted) { e.assisted = true; S.assistedBosses++; onToast('allied', 'good'); }
-          e.hp -= e.maxhp / 8 * dt; e.hit = 1;
-          S.assistBeam = { x: fieldL + 12, y: baseY - 15, tx: e.x, ty: e.y, life: .1 };
-          if (e.hp <= 0) { killEnemy(e, true); continue; }
+        if (!e.attack && e.attackAcc >= 4) {
+          e.attackAcc = 0; e.attack = { x: op.x, left: .95 + (S.levels.AI || 0) * .06, width: e.spec.mega ? 110 : 84 };
+          onToast('bossAim', 'bad');
+        }
+        if (e.attack) {
+          e.attack.left -= dt;
+          if (e.attack.left <= 0) {
+            if (Math.abs(op.x - e.attack.x) < e.attack.width / 2) { hitBase(e.spec.dmg, '255,90,106', true); zap(e.x, e.y, e.attack.x, baseY, e.spec.color); }
+            else { S.dodged++; ring(e.attack.x, baseY - 10, '#58c8ff', 60, 3); }
+            e.attack = null;
+            if (S.defeatReason || S.availability <= 0) { S.defeatReason ||= 'service'; gameOver(); return; }
+          }
         }
       }
       const juke = e.spec.juke || 1;   // zero-day wraith strafes hard to dodge your fire
@@ -562,6 +579,7 @@ export function createStandGame(canvas, opts = {}) {
         e.dead = true;
         if (e.spec.steals) { hitBase(e.spec.steals, '255,209,102'); S.combo = 0; onToast('exfil', 'bad'); S.flash = 0.5; S.flashCol = '255,209,102'; burst(e.x, baseY, e.spec.color, 18); }
         else hitBase(e.spec.dmg, e.spec.boss ? '255,90,106' : null);
+        if (S.defeatReason || S.availability <= 0) { S.defeatReason ||= 'service'; gameOver(); return; }
       }
     }
 
@@ -577,12 +595,13 @@ export function createStandGame(canvas, opts = {}) {
       // Homing rounds must not orbit an already-hit target indefinitely.
       p.life = (p.life ?? 2.4) - dt;
       if (p.life <= 0) { p.dead = true; continue; }
-      if (sq.tracking) {
+      if (p.homing ?? (p.owner === 'mdr' ? sq.ndrReveal : sq.tracking)) {
+        const guided = p.owner !== 'mdr';
         const locked = targets.get(p.targetId);
-        const target = locked && !locked.dead && !p.hit.has(locked.id) ? locked : chooseTarget(p.x, p.y, p.hit);
+        const target = locked && !locked.dead && !p.hit.has(locked.id) && (!guided || (dist2(p.x, p.y, locked.x, locked.y) < 700 ** 2 && Math.abs(locked.x - p.x) <= Math.max(35, (p.y - locked.y) * .65))) ? locked : chooseTarget(p.x, p.y, p.hit, guided);
         if (target) {
           p.targetId = target.id; const dx = target.x - p.x, dy = target.y - p.y, len = Math.hypot(dx, dy) || 1;
-          const speed = p.speed || Math.hypot(p.vx, p.vy), turn = Math.min(1, dt * 8);
+          const speed = p.speed || Math.hypot(p.vx, p.vy), turn = Math.min(1, dt * (p.owner === 'mdr' ? 8 : 2.8));
           p.vx += (dx / len * speed - p.vx) * turn; p.vy += (dy / len * speed - p.vy) * turn;
           const currentSpeed = Math.hypot(p.vx, p.vy) || 1; p.vx *= speed / currentSpeed; p.vy *= speed / currentSpeed;
         }
@@ -609,8 +628,7 @@ export function createStandGame(canvas, opts = {}) {
     S.shake = Math.max(0, S.shake - dt * 2.4); S.flash = Math.max(0, S.flash - dt * 2.2);
     S.score += SURVIVE_PER_SEC * dt;
     S.hudAcc += dt; if (S.hudAcc >= 0.1) { S.hudAcc = 0; pushHud(); }
-    if (S.assistBeam) { S.assistBeam.life -= dt; if (S.assistBeam.life <= 0) S.assistBeam = null; }
-    if (S.elapsed >= MISSION_SECONDS && S.bossesKilled === BOSS_TIMES.length) gameOver();
+    if (S.defeatReason || S.elapsed >= MISSION_SECONDS) gameOver();
   }
 
   // ================= 3D RENDER =================
@@ -792,7 +810,6 @@ export function createStandGame(canvas, opts = {}) {
     if (S.link?.hub) for (const device of S.link.devices) if (device.id !== 'XDR') {
       segments.push({ x: device.x, y: device.y, tx: S.link.hub.x, ty: S.link.hub.y, width: .028, color: S.link.fired ? ACCENT.XDR : ACCENT[device.id], flow: true });
     }
-    if (S.assistBeam) segments.push({ ...S.assistBeam, width: .07, color: '#58c8ff', flow: true });
     energy.sync(segments, t, wX, wZ);
     // movers + muzzle + badge billboarding
     for (const sh of S.shooters) {
@@ -885,6 +902,12 @@ export function createStandGame(canvas, opts = {}) {
     if (!showcase && vignette) { fctx.fillStyle = vignette; fctx.fillRect(0, 0, W, H); }   // cinematic corner darkening, under all fx
     // enemy hp bars + mark ticks
     for (const e of S.enemies) {
+      if (e.attack) {
+        const a = e.attack, points = [proj(a.x-a.width/2, e.y, .1), proj(a.x+a.width/2, e.y, .1), proj(a.x+a.width/2, baseY, .1), proj(a.x-a.width/2, baseY, .1)];
+        fctx.fillStyle = 'rgba(255,55,77,.18)'; fctx.strokeStyle = '#ff697c'; fctx.lineWidth = 2;
+        fctx.beginPath(); points.forEach((p,i)=>i ? fctx.lineTo(p.x,p.y) : fctx.moveTo(p.x,p.y)); fctx.closePath(); fctx.fill(); fctx.stroke();
+        const end = proj(a.x, baseY-22, .2); fctx.font = 'bold 22px sans-serif'; fctx.textAlign = 'center'; fctx.fillStyle = '#ff9caa'; fctx.fillText('!', end.x, end.y);
+      }
       if (e.hp >= e.maxhp && !e.spec.boss) continue;
       const cloaked = e.spec.cloak && !S.squad.ndrReveal; if (cloaked) continue;
       const p = proj(e.x, e.y - e.r, wR(e.r) * 2 + 0.4); if (!p.vis) continue;
@@ -917,6 +940,17 @@ export function createStandGame(canvas, opts = {}) {
     // summoned-team auras: a red-team rally ring, a pen-test amber tint
     if (S.rtT > 0) { const p = proj(S.op.x, S.op.y, 0.35); const rr = (30 + 7 * Math.sin(S.elapsed * 13)) * p.s; fctx.globalCompositeOperation = 'lighter'; fctx.strokeStyle = rgba('#ff5a6a', 0.45 + 0.3 * Math.sin(S.elapsed * 13)); fctx.lineWidth = 3; fctx.beginPath(); fctx.ellipse(p.x, p.y, rr, rr * 0.5, 0, 0, TAU); fctx.stroke(); fctx.globalCompositeOperation = 'source-over'; }
     if (S.ptT > 0) { fctx.fillStyle = `rgba(255,209,102,${0.04 + 0.025 * Math.sin(S.elapsed * 8)})`; fctx.fillRect(0, 0, W, H); }
+    // A camera-facing official mark and name remain readable at the XDR source.
+    if (S.levels.XDR) {
+      const p = proj(fieldR - 23, baseY - 78, 3.05), x = clamp(p.x, 59, W - 59), y = p.y - 18;
+      fctx.fillStyle = '#07151fee'; fctx.strokeStyle = S.link ? '#bdff84' : '#7fa4ae'; fctx.lineWidth = 1.5;
+      roundRectPath(fctx, x-54, y-22, 108, 44, 8); fctx.fill(); fctx.stroke();
+      const logo = markTex.XDR?.image;
+      if (logo?.width) { fctx.fillStyle = '#fff'; fctx.fillRect(x-47,y-15,30,30); const r=Math.min(30/logo.width,30/logo.height); fctx.drawImage(logo,x-32-logo.width*r/2,y-logo.height*r/2,logo.width*r,logo.height*r); }
+      fctx.textAlign = 'left'; fctx.fillStyle = '#d9f8c4'; fctx.font = '700 8px sans-serif'; fctx.fillText('SANGFOR',x-8,y-6);
+      fctx.font = '900 23px sans-serif'; fctx.fillStyle = '#fff'; fctx.fillText('XDR',x-8,y+14);
+    }
+
   }
   function rgba(hex, a) { const c = hex.replace('#', ''); const r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16); return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a))})`; }
   // XDR correlation lance: a flickering electric column drawn in screen space
@@ -1037,7 +1071,7 @@ export function createStandGame(canvas, opts = {}) {
     for (const id of ABILITY_ORDER) { const spec = ABILITIES[id]; abilities[id] = { cd: S.cd[id], cdMax: spec.cd, ready: S.cd[id] <= 0, active: id === 'pt' ? S.ptT > 0 : id === 'rt' ? S.rtT > 0 : false }; }
     let boss = null; for (const e of S.enemies) if (e.spec.boss && !e.dead && (!boss || e.y > boss.y)) boss = e;
     const bossHud = boss ? { type: boss.type, hp: Math.max(0, Math.round(boss.hp)), maxhp: boss.maxhp, frac: clamp(boss.hp / boss.maxhp, 0, 1), color: boss.spec.color, mega: !!boss.spec.mega } : null;
-    onHud({ base: integrityScore(S.base), baseMax: S.baseMax, score: integrityScore(S.base), best: S.best, combo: S.combo, mult: comboMult(S.combo), elapsed: Math.floor(S.elapsed), level: S.level, xp: S.xp, xpNeed: S.xpNeed, tier: WEAPON_ORDER.reduce((a, id) => a + (S.levels[id] || 0), 0), levels: { ...S.levels }, dom: dominant(), sensors: S.squad.sensors, shield: S.shield, shieldMax: S.squad.shieldMax, corr: correlationLinks(), abilities, boss: bossHud, bossesKilled: S.bossesKilled, offerLeft: S.offerLeft, hasChoices: S.choices.length > 0, emergencyCover: S.emergencyCover, tracking: S.squad.tracking, linkPhase: S.beam ? 'firing' : S.link ? 'charging' : 'ready' });
+    onHud({ base: integrityScore(S.base), baseMax: S.baseMax, score: campaignScores(S).total, scores: campaignScores(S), availability: Math.floor(S.availability), demand: Math.round(cloudRates(S.levels, S.elapsed).demand), capacity: cloudRates(S.levels, S.elapsed).capacity, best: S.best, combo: S.combo, mult: comboMult(S.combo), elapsed: Math.floor(S.elapsed), level: S.level, xp: S.xp, xpNeed: S.xpNeed, tier: WEAPON_ORDER.reduce((a, id) => a + (S.levels[id] || 0), 0), levels: { ...S.levels }, dom: dominant(), sensors: S.squad.sensors, shield: S.shield, shieldMax: S.squad.shieldMax, corr: correlationLinks(), abilities, boss: bossHud, bossesKilled: S.bossesKilled, offerLeft: S.offerLeft, hasChoices: S.choices.length > 0, tracking: S.squad.tracking, linkPhase: !S.levels.XDR ? 'offline' : S.beam ? 'firing' : S.link ? 'charging' : 'ready' });
   }
 
   // ---- lifecycle ----
@@ -1052,7 +1086,7 @@ export function createStandGame(canvas, opts = {}) {
     if (S) { syncScene(dt); render(); }
     raf = requestAnimationFrame(frame);
   }
-  function gameOver() { if (S.phase === 'over') return; S.phase = 'over'; const health = integrityScore(S.base); S.best = Math.max(S.best, health); sfx.over(); onOver({ outcome: 'victory', health, score: health, best: S.best, bossesKilled: S.bossesKilled, assistedBosses: S.assistedBosses, emergencyCover: S.emergencyCover, kills: S.kills, elapsed: Math.round(S.elapsed), maxCombo: S.maxCombo, level: S.level, levels: { ...S.levels } }); }
+  function gameOver() { if (S.phase === 'over') return; S.phase = 'over'; const scores = campaignScores(S), health = scores.health, outcome = !S.defeatReason && S.bossesKilled === BOSS_TIMES.length ? 'victory' : 'defeat'; if (outcome === 'victory') S.best = Math.max(S.best, scores.total); pushHud(); sfx.over(); onOver({ outcome, reason: S.defeatReason || (outcome === 'defeat' ? 'bosses' : null), health, scores, score: scores.total, best: S.best, bossesKilled: S.bossesKilled, availability: Math.floor(S.availability), dodged: S.dodged, kills: S.kills, elapsed: Math.round(S.elapsed), maxCombo: S.maxCombo, level: S.level, levels: { ...S.levels } }); }
 
   // ---- input ----
   const toLocal = ev => { const r = canvas.getBoundingClientRect(); const p = ev.touches ? ev.touches[0] : ev; return { x: p.clientX - r.left, y: p.clientY - r.top }; };

@@ -1,0 +1,212 @@
+{
+  "release": "stand-enterprise-balance-v1",
+  "base": "44e8cf3",
+  "simulation": {
+    "seedRule": "101 + i*37",
+    "policy": "tools/stand-balance.mjs",
+    "results": [
+      {
+        "device": "desktop",
+        "policy": "stationary",
+        "seeds": 12,
+        "wins": 0,
+        "winRate": 0,
+        "meanHP": 0,
+        "meanSeconds": 73.5,
+        "minSeconds": 52.6,
+        "maxSeconds": 104
+      },
+      {
+        "device": "desktop",
+        "policy": "cloud",
+        "seeds": 12,
+        "wins": 0,
+        "winRate": 0,
+        "meanHP": 0,
+        "meanSeconds": 67.3,
+        "minSeconds": 61.5,
+        "maxSeconds": 72.4
+      },
+      {
+        "device": "desktop",
+        "policy": "casual",
+        "seeds": 60,
+        "wins": 38,
+        "winRate": 0.6333333333333333,
+        "meanHP": 9435,
+        "meanSeconds": 118.2,
+        "minSeconds": 61.5,
+        "maxSeconds": 120
+      },
+      {
+        "device": "desktop",
+        "policy": "informed",
+        "seeds": 12,
+        "wins": 11,
+        "winRate": 0.9166666666666666,
+        "meanHP": 9730,
+        "meanSeconds": 120,
+        "minSeconds": 120,
+        "maxSeconds": 120
+      },
+      {
+        "device": "phone",
+        "policy": "stationary",
+        "seeds": 12,
+        "wins": 0,
+        "winRate": 0,
+        "meanHP": 0,
+        "meanSeconds": 81.5,
+        "minSeconds": 54.2,
+        "maxSeconds": 100
+      },
+      {
+        "device": "phone",
+        "policy": "cloud",
+        "seeds": 12,
+        "wins": 0,
+        "winRate": 0,
+        "meanHP": 0,
+        "meanSeconds": 64.3,
+        "minSeconds": 60.4,
+        "maxSeconds": 69.4
+      },
+      {
+        "device": "phone",
+        "policy": "casual",
+        "seeds": 60,
+        "wins": 40,
+        "winRate": 0.6666666666666666,
+        "meanHP": 8865,
+        "meanSeconds": 119.3,
+        "minSeconds": 78.7,
+        "maxSeconds": 120
+      },
+      {
+        "device": "phone",
+        "policy": "informed",
+        "seeds": 12,
+        "wins": 11,
+        "winRate": 0.9166666666666666,
+        "meanHP": 10000,
+        "meanSeconds": 120,
+        "minSeconds": 120,
+        "maxSeconds": 120
+      }
+    ],
+    "heldOut": [
+      {
+        "device": "desktop",
+        "wins": 21,
+        "seeds": 30,
+        "seedStart": 5001,
+        "mean": 120
+      },
+      {
+        "device": "phone",
+        "wins": 21,
+        "seeds": 30,
+        "seedStart": 5001,
+        "mean": 118.1
+      }
+    ]
+  },
+  "rendering": {
+    "fixture": "Ten maxed products, support teams, 64 threats, 256 bullets, CC strips and XDR links/main beam",
+    "full": {
+      "art": "combined",
+      "calls": 440,
+      "triangles": 526724,
+      "geometries": 129,
+      "textures": 42,
+      "enemies": 64,
+      "shots": 256,
+      "bulletCapacity": 256,
+      "enemyBatches": 10,
+      "cachedEnemyBatches": 10,
+      "programs": 23,
+      "pixelRatio": 1
+    },
+    "restored": {
+      "art": "combined",
+      "calls": 440,
+      "triangles": 526724,
+      "geometries": 129,
+      "textures": 42,
+      "enemies": 64,
+      "shots": 256,
+      "bulletCapacity": 256,
+      "enemyBatches": 10,
+      "cachedEnemyBatches": 10,
+      "programs": 23,
+      "pixelRatio": 1
+    },
+    "noShots": {
+      "art": "combined",
+      "calls": 439,
+      "triangles": 490884,
+      "geometries": 129,
+      "textures": 42,
+      "enemies": 64,
+      "shots": 0,
+      "bulletCapacity": 256,
+      "enemyBatches": 10,
+      "cachedEnemyBatches": 10,
+      "programs": 23,
+      "pixelRatio": 1
+    },
+    "bulletDraws": 1,
+    "reused": {
+      "art": "combined",
+      "calls": 435,
+      "triangles": 490692,
+      "geometries": 129,
+      "textures": 42,
+      "enemies": 64,
+      "shots": 0,
+      "bulletCapacity": 256,
+      "enemyBatches": 10,
+      "cachedEnemyBatches": 12,
+      "programs": 23,
+      "pixelRatio": 1
+    },
+    "grown": {
+      "art": "combined",
+      "calls": 436,
+      "triangles": 562512,
+      "geometries": 129,
+      "textures": 42,
+      "enemies": 64,
+      "shots": 513,
+      "bulletCapacity": 1024,
+      "enemyBatches": 10,
+      "cachedEnemyBatches": 12,
+      "programs": 23,
+      "pixelRatio": 1
+    },
+    "restarted": {
+      "art": "combined",
+      "calls": 99,
+      "triangles": 37352,
+      "geometries": 129,
+      "textures": 42,
+      "enemies": 0,
+      "shots": 4,
+      "bulletCapacity": 1024,
+      "enemyBatches": 0,
+      "cachedEnemyBatches": 12,
+      "programs": 23,
+      "pixelRatio": 1
+    },
+    "retina": {
+      "pixelRatio": 2,
+      "ratio": 2
+    }
+  },
+  "limits": [
+    "Simulated policies do not establish a human win rate.",
+    "Software WebGL does not establish hardware FPS.",
+    "Default leaderboard is local to the browser.",
+    "Screenshots named FIXTURE use staged visual states."
+  ]
+}

@@ -13,6 +13,7 @@
 .cap-HCI { --cap: #39c0ff; } .cap-EDR { --cap: #ff8a5a; } .cap-NDR { --cap: #58c8ff; }
 .cap-AF { --cap: #2ee6a0; } .cap-IAG { --cap: #ffd166; } .cap-XDR { --cap: #9be85a; }
 .cap-ASTOR { --cap: #a98bff; } .cap-MDR { --cap: #16ca78; }
+.cap-AI { --cap: #c09aff; } .cap-AGENT { --cap: #6ce5d7; }
 
 /* ---------- top bar: XP/level + weapon chip ---------- */
 .st-topbar { position: absolute; top: 10px; left: 12px; right: 12px; z-index: 5;
@@ -123,6 +124,11 @@
 @supports (height: 100dvh) { html, body { height: 100dvh; } }
 .ar-field { padding-left: max(8px, env(safe-area-inset-left)); padding-right: max(8px, env(safe-area-inset-right)); }
 @media (max-width: 560px) {
+  .st-rail:not(.final) { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px; }
+  .st-rail:not(.final) .st-rail-item { padding: 3px; gap: 4px; }
+  .st-rail:not(.final) .st-rail-ico { width: 20px; height: 20px; }
+  .st-rail:not(.final) .st-rail-dots { display: grid; grid-template-columns: repeat(4,3px); gap: 2px; }
+  .st-rail:not(.final) .st-rail-dots i { width: 3px; height: 3px; }
   .ar-top { padding: 8px 12px; padding-top: max(8px, env(safe-area-inset-top)); }
   .ar-stat .v { font-size: 18px; }
   .ar-field { padding: 0; }
@@ -220,6 +226,15 @@
 .st-network { position: absolute; right: 16px; bottom: 48px; color: #b6efbc; font-size: 10px;
   text-shadow: 0 1px 4px #000; pointer-events: none; }
 #stCombo { opacity: 1; white-space: nowrap; }
+.st-cloud-score { position: absolute; left: 12px; top: 64px; width: 220px; pointer-events: none;
+  background: #07131bc9; border-radius: 8px; padding: 7px 9px; color: #def1ee; text-shadow: 0 1px 3px #000; }
+.st-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px 10px; font-size: 11px; }
+.st-metrics span { display: flex; justify-content: space-between; gap: 4px; align-items: center; }
+.st-metrics small { font-size: 9px; color: #adc6d2; }
+.st-metrics b { font-variant-numeric: tabular-nums; }
+.st-service-line { font-size: 9px; color: #91dfb0; margin-top: 6px; }
+.st-service-line.warn { color: #ff8879; }
+.ar-result .st-metrics { text-align: left; padding: 12px 8px; }
 @media (max-width: 560px) {
   .ar-top { display: grid; grid-template-columns: 1fr; gap: 6px; }
   .ar-top .brand { justify-self: center; }

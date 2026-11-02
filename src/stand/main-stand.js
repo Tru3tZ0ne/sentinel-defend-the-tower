@@ -4,10 +4,10 @@
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
 const { createStandGame, ACCENT } = await import(
-  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=command-finale-v1'
-  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=command-finale-v1'
-  : './engine.js?campaign=command-finale-v1');
-import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, MISSION_SECONDS, recommendedUpgrade } from './model.js?campaign=command-finale-v1';
+  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=enterprise-balance-v1'
+  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=enterprise-balance-v1'
+  : './engine.js?campaign=enterprise-balance-v1');
+import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, MISSION_SECONDS, recommendedUpgrade } from './model.js?campaign=enterprise-balance-v1';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
@@ -16,11 +16,11 @@ import { makeBoard, rankOf } from '../arcade/board.js';
 import { brandHTML, footerHTML, fmt, esc, painter } from '../arcade/ui-kit.js';
 import { setMuted, isMuted, resumeAudio } from '../rush/audio.js';
 
-const ICON_KEY = { HCI: 'network', EDR: 'edr', NDR: 'ndr', AF: 'af', IAG: 'iag', XDR: 'xdr', ASTOR: 'astor', MDR: 'mdr' };
-const CAP_NAME = { HCI: 'HCI Cloud', EDR: 'Endpoint Secure', NDR: 'Cyber Command', AF: 'NGAF', IAG: 'IAG Gateway', XDR: 'XDR', ASTOR: 'aStor', MDR: 'MDR' };
+const ICON_KEY = { HCI: 'network', EDR: 'edr', NDR: 'ndr', AF: 'af', IAG: 'iag', XDR: 'xdr', ASTOR: 'astor', MDR: 'mdr', AI: 'network', AGENT: 'network' };
+const CAP_NAME = { HCI: 'HCI Cloud', EDR: 'Endpoint Secure', NDR: 'Cyber Command', AF: 'NGAF', IAG: 'IAG Gateway', XDR: 'XDR', ASTOR: 'aStor', MDR: 'MDR', AI: 'AI Platform', AGENT: 'Agent Builder' };
 const ICO = id => ICONS[ICON_KEY[id]] || '';
 // official Sangfor product artwork for the HUD (same marks the battlefield uses)
-const MARK = id => { const m = PRODUCT_MARKS[id]; return m ? `<img class="st-mark" src="assets/brand/products/sangfor-${m[0]}" alt="${esc(CAP_NAME[id] || id)}" loading="lazy" />` : ICO(id); };
+const MARK = id => { const m = PRODUCT_MARKS[id === 'AI' ? 'AICP' : id]; return m ? `<img class="st-mark" src="assets/brand/products/sangfor-${m[0]}" alt="${esc(CAP_NAME[id] || id)}" loading="lazy" />` : ICO(id); };
 
 const EN = {
   'st.title': 'Last Stand',
@@ -160,53 +160,73 @@ if (useArt) {
     'st.inspect': '近距离查看 3D 装备',
   });
 }
-// Shared event campaign instructions for both visual entries.
+// Shared enterprise campaign instructions for both visual entries.
 Object.assign(EN, {
-  'ui.score': 'Remaining HP', 'ui.best': 'Best HP', 'ui.board': 'Integrity ranking',
-  'st.time': 'Remaining', 'st.pace': 'Allied support helps finish bosses; emergency cover preserves the final HP. Ranking uses remaining HP only; ties share a rank.',
-  'st.tag': '120 seconds. Three bosses. One Sangfor defense network. Start with 10,000 HP and protect as much as you can.',
-  'st.h1': 'Move with WASD / arrows, or drag along the lower field. Fire is automatic. Cyber Command enables tracking for your squad.',
+  'ui.score': 'Total score', 'ui.best': 'Best clear', 'ui.board': 'Enterprise ranking',
+  'st.time': 'Remaining', 'st.over': 'Defense complete', 'st.bosses': 'Bosses',
   'st.h2': 'Choose an upgrade with 1 / 2 / 3 or tap a card. Combat continues; after 3 seconds a recommended upgrade deploys automatically.',
-  'st.h3': 'Cyber Command fires cross-field laser strips and boosts MDR. Devices feed energy into XDR before its final laser. Use Q / E / R support against bosses arriving at 25 / 60 / 95 seconds.',
-  'st.chooseSub': 'Combat continues · automatic recommendation in',
-  'st.over': 'Defense complete', 'st.overSub': 'All {b}/3 bosses cleared in {s}s. {k} threats stopped. Rank is determined by remaining HP.',
-  'st.aid': 'Allied boss support used: {n}.', 'st.cover': 'Emergency cover protected your final HP.',
-  't.xdrLink': 'Devices linked — charging XDR',
-  'st.tracking': 'CC tracking', 'st.charging': 'XDR linking', 'st.firing': 'XDR firing', 'st.ready': 'XDR ready',
-  'st.auto': 'AUTO',
-  'st.bosses': 'Bosses', 't.allied': 'Allied support engaging the boss', 't.cover': 'Emergency cover active — protect your remaining HP',
-  'dim.NDR': 'Side lasers + squad tracking', 'dim.XDR': 'Link → charge → laser',
-  'b.EDR': 'Deploys endpoint turrets. Cyber Command turns their shots into tracking fire; later levels add turrets and damage.',
-  'b.MDR': 'Deploys an MDR teammate. Cyber Command boosts its damage and enables tracking; upgrades increase damage and rate.',
-  'b.NDR': 'Cyber Command fires horizontal lasers from both sides, reveals cloaked threats, enables squad tracking and boosts MDR damage by 10% per level.',
-  'b.XDR': 'Every deployed device links into XDR and sends energy to its hub. After charging, XDR fires the final targeted laser. More sensors and connected products increase damage.',
+  'st.chooseSub': 'Combat continues · automatic recommendation in', 'st.auto': 'AUTO',
+  'st.charging': 'XDR linking', 'st.firing': 'XDR firing', 'st.ready': 'XDR ready',
+  't.xdrLink': 'Devices linked — charging XDR', 'dim.XDR': 'Link → charge → laser',
+  'b.XDR': 'Every deployed device feeds energy into XDR before its targeted laser. Sensors and linked products strengthen it; pair with CC for ordinary projectile guidance.',
+  'st.pace': 'No guaranteed clear. Dodge red boss lanes; balance security, business capacity and AI. Only completed defenses enter the board.',
+  'st.h1': 'Move with WASD / arrows or drag. Deploy both Cyber Command and XDR to guide ordinary bullets within a forward cone. MDR keeps its existing CC tracking and damage boost.',
+  'st.h3': 'HCI supplies compute; AI and Agent Builder turn it into scored work. Balance demand and capacity. Bosses arrive at 25 / 60 / 95 seconds; use Q/E/R support. Zero HP, zero availability or an uncleared boss at 120s means defeat.',
+  'st.tag': '120 seconds. Three bosses. Build a defense that keeps the business and AI running.',
+  'st.overSub': '{b}/3 bosses cleared · {s}s · {k} threats stopped. Total = HP 55% + business 25% + AI 12% + agents 8%.',
+  'st.success': 'Security and business held. Your completed defense is eligible for ranking.',
+  'st.defeat': 'Defense failed', 'reason.integrity': 'Base HP reached zero. Invest in security and time your support.',
+  'reason.service': 'Business availability reached zero. Add HCI capacity and protect the service.',
+  'reason.bosses': 'A boss remained at the 120-second deadline. Build more firepower and use support.',
+  'st.service': 'Availability', 'st.compute': 'Compute / demand', 'st.tracking': 'CC + XDR guidance', 'st.offline': 'XDR not deployed',
+  'score.health': 'Remaining HP', 'score.business': 'HCI / business', 'score.ai': 'AI output', 'score.agent': 'Agent Builder',
+  'dim.NDR': 'Side lasers + guidance sensor', 'dim.AI': 'AI workload', 'dim.AGENT': 'Workflow automation',
+  'b.EDR': 'Deploys endpoint turrets. CC + XDR together enable limited forward-cone guidance. Keep aiming and moving.',
+  'b.NDR': 'Fires horizontal laser strips, reveals threats and boosts MDR. Pair with XDR to guide ordinary bullets; tracking is not an automatic win.',
+  'b.MDR': 'The same managed teammate: CC boosts its damage and tracking; upgrades raise its damage and rate.',
+  'b.HCI': 'Adds compute capacity, business output and squad fire rate. It cannot replace threat containment.',
+  'b.AI': 'Runs AI workloads on HCI, producing AI score and earlier boss warnings. Each level increases compute demand.',
+  'b.AGENT': 'Needs AI and HCI. Automated workflows produce agent score, improve business output and slightly shorten support cooldowns. They do not fire weapons.',
+  'g.AI': 'An AI application platform hosts model-backed applications.', 'l.AI': 'Needs compute and security; it does not stop attacks by itself.',
+  'g.AGENT': 'Agent Builder orchestrates application workflows.', 'l.AGENT': 'Depends on AI and compute. This is a game abstraction, not a separate appliance specification.',
+  't.bossAim': 'Boss targeting your lane — move!',
 });
 Object.assign(ZH, {
-  'ui.score': '剩余血量', 'ui.best': '最佳血量', 'ui.board': '血量排行榜',
-  'st.time': '倒计时', 'st.pace': '盟军会协助清除 Boss；应急援护保留最后 1 点血量。仅按剩余血量排名，同血量并列。',
-  'st.tag': '120 秒，三大 Boss，一张深信服协同防御网。初始 10,000 血量，守住越多，排名越高。',
-  'st.h1': '使用 WASD / 方向键移动，或在战场下方拖动。小队自动开火；Cyber Command 可让小队武器追踪敌人。',
+  'ui.score': '综合评分', 'ui.best': '最佳通关', 'ui.board': '综合排行榜',
+  'st.time': '倒计时', 'st.over': '防守成功', 'st.bosses': 'Boss',
   'st.h2': '按 1 / 2 / 3 或点击卡片选择强化，战斗持续进行。3 秒内未选择将自动部署推荐装备。',
-  'st.h3': 'Cyber Command 从两侧发射横向条状激光，强化 MDR；各设备向 XDR 汇聚能量后，由 XDR 发射主激光。Boss 在 25 / 60 / 95 秒登场，按 Q / E / R 呼叫支援。',
-  'st.chooseSub': '战斗继续 · 自动推荐倒计时',
-  'st.over': '防守成功', 'st.overSub': '{s} 秒内清除全部 {b}/3 个 Boss，拦截 {k} 个威胁。按剩余血量排名。',
-  'st.aid': '盟军协助过 {n} 个 Boss。', 'st.cover': '应急援护保护了最后的血量。',
-  't.xdrLink': '设备联动——XDR 蓄能中',
-  'st.tracking': 'CC 全队追踪', 'st.charging': 'XDR 联动蓄能', 'st.firing': 'XDR 主激光', 'st.ready': 'XDR 就绪',
-  'st.auto': '推荐',
-  'st.bosses': 'Boss', 't.allied': '盟军支援正在攻击 Boss', 't.cover': '应急援护已启动——守住剩余血量',
-  'dim.NDR': '侧向激光 + 全队追踪', 'dim.XDR': '联动 → 蓄能 → 激光',
-  'b.EDR': '部署终端炮塔；Cyber Command 使炮塔子弹追踪敌人，升级可增加炮塔数量和伤害。',
-  'b.MDR': '部署 MDR 队友；Cyber Command 提升其伤害并赋予追踪能力，升级增加火力和射速。',
-  'b.NDR': 'Cyber Command 从左右两侧发射横向条状激光，揭露隐身威胁，赋予全队追踪能力，每级额外提升 MDR 伤害 10%。',
-  'b.XDR': '所有已部署设备连接 XDR 并向中心汇聚能量；蓄能后由 XDR 发射锁定目标的主激光。传感器和联动产品越多，伤害越高。',
+  'st.chooseSub': '战斗继续 · 自动推荐倒计时', 'st.auto': '推荐',
+  'st.charging': 'XDR 联动蓄能', 'st.firing': 'XDR 主激光', 'st.ready': 'XDR 就绪',
+  't.xdrLink': '设备联动——XDR 蓄能中', 'dim.XDR': '联动 → 蓄能 → 激光',
+  'b.XDR': '各设备向 XDR 汇聚能量后，由 XDR 发射主激光；传感器与联动产品越多，伤害越高。搭配 CC 让普通子弹获得有限追踪。',
+  'st.pace': '不再保底通关。躲开红色 Boss 攻击带，平衡安全、云算力与 AI；仅成功防守的成绩进入排行榜。',
+  'st.h1': '使用 WASD / 方向键或拖动移动。Cyber Command 与 XDR 同时部署后，普通子弹获得前方扇区内的有限追踪。MDR 保留原有 CC 追踪和增伤。',
+  'st.h3': 'HCI 提供算力，AI 与 Agent Builder 将算力变成业务评分。Boss 在 25 / 60 / 95 秒登场，Q/E/R 呼叫支援。血量或可用性归零，或 120 秒时还有 Boss 存活，都会失败。',
+  'st.tag': '120 秒，三大 Boss。在守住防线的同时，让云业务与 AI 持续运转。',
+  'st.overSub': '清除 {b}/3 个 Boss · {s} 秒 · 拦截 {k} 个威胁。综合分＝血量 55%＋业务 25%＋AI 12%＋Agent 8%。',
+  'st.success': '安全与业务守住了，通关成绩计入排行榜。',
+  'st.defeat': '防守失败', 'reason.integrity': '基地血量归零。需要补足安全投入，并把握支援时机。',
+  'reason.service': '业务可用性归零。需要补充 HCI 算力，并保护业务。',
+  'reason.bosses': '120 秒结束时仍有 Boss 存活。需要补足火力，并主动使用支援技能。',
+  'st.service': '业务可用性', 'st.compute': '算力／需求', 'st.tracking': 'CC＋XDR 协同追踪', 'st.offline': 'XDR 未部署',
+  'score.health': '剩余血量', 'score.business': 'HCI／业务分', 'score.ai': 'AI 产出分', 'score.agent': 'Agent Builder',
+  'dim.NDR': '侧向激光＋追踪感知', 'dim.AI': 'AI 工作负载', 'dim.AGENT': '智能工作流',
+  'b.EDR': '部署终端炮塔；同时拥有 CC 与 XDR 才能获得前方扇区内的有限追踪，仍需走位与瞄准。',
+  'b.NDR': '发射横向条状激光，揭露威胁并强化 MDR。搭配 XDR 让普通子弹获得有限追踪，不等于自动获胜。',
+  'b.MDR': '保留原有托管队友：CC 强化其伤害和追踪，升级提高火力与射速。',
+  'b.HCI': '增加算力、业务产出和全队射速，无法代替安全产品阻止攻击。',
+  'b.AI': '在 HCI 上运行 AI 任务，积累 AI 评分，并提前预警 Boss 落点。每级都会增加算力需求。',
+  'b.AGENT': '依赖 AI 与 HCI，自动工作流积累 Agent 分、提升业务产出，并小幅缩短支援冷却；不会自动发射武器。',
+  'g.AI': 'AI 应用平台承载基于模型的应用。', 'l.AI': '需要算力与安全保护，本身无法阻止攻击。',
+  'g.AGENT': 'Agent Builder 编排应用工作流。', 'l.AGENT': '依赖 AI 与算力；这里是游戏机制抽象，不代表独立硬件规格。',
+  't.bossAim': 'Boss 已锁定你的落点——立即移动！',
 });
 const i18n = makeI18n(EN, ZH);
 const { t } = i18n;
 const lang = () => i18n.getLang();
-const board = makeBoard({ lsKey: 'sentinel.stand.health.scores.v1', apiVar: '__STAND_HEALTH_API' });
+const board = makeBoard({ lsKey: 'sentinel.stand.enterprise.scores.v1', apiVar: '__STAND_ENTERPRISE_API' });
 const NAME_KEY = 'sentinel.arcade.name';
-const BEST_KEY = 'sentinel.stand.health.best.v1';
+const BEST_KEY = 'sentinel.stand.enterprise.best.v1';
 const getName = () => { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } };
 const saveName = n => { try { localStorage.setItem(NAME_KEY, n); } catch { /* ignore */ } };
 const getBest = () => { try { return +localStorage.getItem(BEST_KEY) || 0; } catch { return 0; } };
@@ -242,7 +262,7 @@ app.innerHTML = `
       <div class="st-boss-bar"><i id="stBossFill"></i></div>
     </div>
     <div class="st-rail" id="stRail"></div>
-    <div class="st-network" id="stNetwork"></div>
+    <div class="st-network" id="stNetwork"></div><div class="st-cloud-score" id="stCloudScores"></div>
     <div class="st-abil" id="stAbil"></div>
     <div class="st-base"><i id="stBaseFill"></i><span class="st-base-txt" id="stBaseTxt"></span></div>
   </div>
@@ -318,7 +338,7 @@ const paintRail = painter();
 let phase = 'start', lastSummary = null, lastResult = null;
 
 const artModule = useArt
-  ? await import('./sangfor-art.js?art=v3') : null;
+  ? await import('./sangfor-art.js?art=enterprise-v1') : null;
 const game = createStandGame(el.canvas, {
   artFactory: artModule?.createSangforArt,
   deckTexture: artModule?.createDeckTexture,
@@ -336,12 +356,13 @@ const game = createStandGame(el.canvas, {
     const bf = Math.max(0, Math.min(100, h.base / h.baseMax * 100));
     el.baseFill.style.width = bf + '%';
     el.baseFill.className = bf > 50 ? 'ok' : bf > 25 ? 'warn' : 'bad';
-    el.baseTxt.textContent = `${fmt(h.base)} / ${fmt(START_BASE)}${h.emergencyCover ? ' · 🛡' : ''}`;
-    el.baseTxt.title = h.emergencyCover ? t('st.cover') : t('st.base');
+    el.baseTxt.textContent = `${fmt(h.base)} / ${fmt(START_BASE)}`;
+    el.baseTxt.title = t('st.base');
     paintWeap(el.weap, weapHTML(h));
     paintRail(el.rail, railHTML(h.levels));
     updateAbilBar(h.abilities);
     updateBossBar(h.boss);
+    updateCloudScores(h);
     document.getElementById('stNetwork').textContent = `${h.tracking ? t('st.tracking') + ' · ' : ''}${t('st.' + h.linkPhase)}`;
   },
   onToast: (key, kind) => toast(t('t.' + key), kind),
@@ -383,7 +404,7 @@ function cardHTML(ch, index, recommended) {
   const id = ch.id, isNew = ch.toLevel === 1, maxed = ch.toLevel >= ch.max;
   return `<button class="st-card cap-${id}${recommended ? ' recommended' : ''}" data-up="${id}" title="${esc(t('b.' + id))}">
     <span class="st-card-key">${index + 1}${recommended ? ' · ' + esc(t('st.auto')) : ''}</span>
-    ${equipmentPreview ? `<img class="st-equipment-preview" src="assets/stand-sangfor/${id.toLowerCase()}.webp?art=v2" alt="" />` : ''}
+    ${equipmentPreview && !['AI', 'AGENT'].includes(id) ? `<img class="st-equipment-preview" src="assets/stand-sangfor/${id.toLowerCase()}.webp?art=v2" alt="" />` : ''}
     <span class="st-card-top">
       <span class="st-card-ico">${MARK(id)}</span>
       ${isNew ? `<span class="st-card-tag">${esc(t('st.new'))}</span>` : `<span class="st-card-tag lv">${esc(t('st.to', { a: ch.toLevel - 1, b: ch.toLevel }))}${maxed ? ' · ' + esc(t('st.max')) : ''}</span>`}
@@ -437,9 +458,25 @@ async function showStart() {
     </div>`;
 }
 
+function scoreMetrics(scores, availability, capacity, demand) {
+  if (!scores) return '';
+  return `<div class="st-metrics">${['health','business','ai','agent'].map(key=>`<span><small>${esc(t('score.'+key))}</small><b>${fmt(scores[key])}</b></span>`).join('')}</div><div class="st-service-line ${availability < 30 ? 'warn' : ''}">${esc(t('st.service'))} ${availability}%${capacity ? ` · ${esc(t('st.compute'))} ${capacity}/${demand}` : ''}</div>`;
+}
+function updateCloudScores(h) {
+  const root = document.getElementById('stCloudScores');
+  if (!root.firstElementChild) root.innerHTML = scoreMetrics(h.scores, h.availability, h.capacity, h.demand);
+  root.querySelectorAll('.st-metrics b').forEach((node, i) => {
+    const value = fmt(h.scores[['health','business','ai','agent'][i]]);
+    if (node.textContent !== value) node.textContent = value;
+  });
+  const line = root.querySelector('.st-service-line');
+  const text = `${t('st.service')} ${h.availability}% · ${t('st.compute')} ${h.capacity}/${h.demand}`;
+  if (line.textContent !== text) line.textContent = text;
+  line.classList.toggle('warn', h.availability < 30);
+}
 function healthRowsHTML(rows, meId) {
   if (!rows?.length) return `<li class="lb-empty">${esc(t('ui.empty'))}</li>`;
-  return rows.map(r => `<li class="lb-row${r.id === meId ? ' me' : ''}"><span class="lb-rank">${rankOf(rows, r.score)}</span><span class="lb-name">${esc(r.name)}</span><span class="lb-score">${fmt(r.score)} HP</span></li>`).join('');
+  return rows.map(r => `<li class="lb-row${r.id === meId ? ' me' : ''}"><span class="lb-rank">${rankOf(rows, r.score)}</span><span class="lb-name">${esc(r.name)}</span><span class="lb-score">${fmt(r.score)}</span></li>`).join('');
 }
 function boardBlock(b, meId) {
   return `<div class="ar-lb">
@@ -479,14 +516,15 @@ function showCodex() {
 
 async function onGameOver(summary) {
   phase = 'over'; lastSummary = summary; lastResult = null;
-  el.time.textContent = '0s'; el.combo.textContent = `${t('st.bosses')} ${summary.bossesKilled}/3`;
-  paintScore(el.score, fmt(summary.health)); el.best.textContent = fmt(summary.best);
+  el.time.textContent = Math.max(0, 120-summary.elapsed) + 's'; el.combo.textContent = `${t('st.bosses')} ${summary.bossesKilled}/3`;
+  paintScore(el.score, fmt(summary.score)); el.best.textContent = fmt(summary.best);
   el.abil.innerHTML = '';
   if (el.boss) el.boss.hidden = true;
   if (summary.best > getBest()) saveBest(summary.best);
   renderOver(summary, null);
+  if (summary.outcome !== 'victory') return;
   const n = Object.keys(summary.levels).length;
-  const result = await board.submitScore({ name: getName() || 'Anonymous', score: summary.health, note: `HP / 10000 · ${summary.bossesKilled}/3 bosses · ${summary.elapsed}s · ${n} products` });
+  const result = await board.submitScore({ name: getName() || 'Anonymous', score: summary.score, note: `Enterprise / 10000 · ${summary.bossesKilled}/3 bosses · ${summary.elapsed}s · ${n} products` });
   if (phase !== 'over' || lastSummary !== summary) return;
   lastResult = result;
   renderOver(summary, result);
@@ -498,12 +536,13 @@ function renderOver(summary, result) {
     <div class="ar-overlay">
       <div class="ar-card">
         ${brandHTML('Last Stand')}
-        <h1 class="ar-title" style="font-size:22px">${esc(t('st.over'))}</h1>
+        <h1 class="ar-title" style="font-size:22px">${esc(t(summary.outcome === 'victory' ? 'st.over' : 'st.defeat'))}</h1>
         <div class="ar-result">
           <div class="lbl">${esc(t('ui.score'))}</div>
-          <div class="big">${fmt(summary.health)}<small> / 10,000 HP</small></div>
+          <div class="big">${fmt(summary.score)}<small> / 10,000</small></div>
           <div class="sub">${esc(t('st.overSub', { s: summary.elapsed, k: summary.kills, b: summary.bossesKilled }))}</div>
-          <div class="sub">${esc(t('st.aid', { n: summary.assistedBosses }))} ${summary.emergencyCover ? esc(t('st.cover')) : ''}</div>
+          <div class="sub">${esc(t(summary.reason ? 'reason.' + summary.reason : 'st.success'))}</div>
+          ${scoreMetrics(summary.scores, summary.availability)}
           ${result ? `<div class="sub">${esc(t('ui.youRank'))}<span class="hot">${result.rank}</span> · ${esc(result.mode === 'world' ? t('ui.world') : t('ui.local'))}</div>` : ''}
         </div>
         <div class="st-build-h">${esc(t('st.loadout'))}</div>
@@ -528,7 +567,7 @@ function resetHud() {
   el.baseFill.style.width = '100%'; el.baseFill.className = 'ok'; el.baseTxt.textContent = START_BASE;
   el.xpFill.style.width = '0%'; el.lvTxt.textContent = `${t('st.lv')} 1`;
   paintWeap(el.weap, ''); paintRail(el.rail, ''); el.abil.innerHTML = '';
-  paintScore(el.score, fmt(START_BASE)); document.getElementById('stNetwork').textContent = '';
+  paintScore(el.score, '0'); document.getElementById('stCloudScores').innerHTML = ''; document.getElementById('stNetwork').textContent = '';
   if (el.boss) el.boss.hidden = true;
   el.time.textContent = '120s'; el.combo.textContent = `${t('st.bosses')} 0/3`; el.combo.classList.remove('on');
 }
@@ -570,7 +609,7 @@ window.addEventListener('keydown', e => {
 
 async function shareResult(elm) {
   if (!lastSummary) return;
-  const text = `Sentinel · Last Stand — ${fmt(lastSummary.health)}/10,000 HP, ${lastSummary.bossesKilled}/3 bosses, ${lastSummary.elapsed}s`;
+  const text = `Sentinel · Last Stand — ${fmt(lastSummary.score)}/10,000 enterprise score, ${lastSummary.bossesKilled}/3 bosses, ${lastSummary.elapsed}s`;
   try { await navigator.clipboard.writeText(text); } catch { /* ignore */ }
   const old = elm.textContent; elm.textContent = t('ui.copied');
   setTimeout(() => { elm.textContent = old; }, 1400);

@@ -1,4 +1,4 @@
-// Last Stand: fixed two-minute event campaign, network synergies and HP ranking.
+// Last Stand: fixed two-minute event campaign, network synergies and enterprise scoring.
 // Pure rules: no DOM, canvas or global random state.
 
 export const START_BASE = 10000;
@@ -6,8 +6,28 @@ export const MAX_ACTIVE_THREATS = 64;
 export const MISSION_SECONDS = 120;
 export const BOSS_TIMES = [25, 60, 95];
 export const UPGRADE_SECONDS = 3;
-export const STARTER_LEVELS = { EDR: 1, NDR: 1, XDR: 1 };
-export const integrityScore = base => Math.floor(Math.max(1, Math.min(START_BASE, base)));
+export const STARTER_LEVELS = { EDR: 1, MDR: 1, HCI: 1 };
+export const integrityScore = base => Math.floor(Math.max(0, Math.min(START_BASE, base)));
+export const CLOUD_PRODUCTS = ['HCI', 'ASTOR', 'AI', 'AGENT'];
+export function cloudRates(levels, elapsed, availability = 100) {
+  const hci = levels.HCI || 0, ai = levels.AI || 0, agent = levels.AGENT || 0;
+  const capacity = 60 + hci * 32 + (levels.ASTOR || 0) * 8;
+  const demand = 55 + elapsed * .7 + ai * 14 + agent * 10;
+  const served = Math.min(1, capacity / demand), uptime = Math.max(0, availability) / 100;
+  const automation = Math.min(ai, agent, hci);
+  return { capacity, demand, served, business: Math.min(capacity, demand) * uptime * (1 + automation * .06),
+    ai: hci ? ai * 10 * served * uptime * (1 + automation * .1) : 0,
+    agent: hci ? Math.min(ai, agent) * 6 * served * uptime : 0,
+    cooldown: 1 + automation * .04 };
+}
+export function campaignScores(state) {
+  const score = n => Math.floor(Math.max(0, Math.min(10000, n)));
+  const health = integrityScore(state.base);
+  const business = score((state.businessWork || 0) / (MISSION_SECONDS * 120) * 10000);
+  const ai = score((state.aiWork || 0) / (MISSION_SECONDS * 35) * 10000);
+  const agent = score((state.agentWork || 0) / (MISSION_SECONDS * 18) * 10000);
+  return { health, business, ai, agent, total: score(health * .55 + business * .25 + ai * .12 + agent * .08) };
+}
 export function segmentDistanceSq(x, y, ax, ay, bx, by) {
   const dx = bx - ax, dy = by - ay, length = dx * dx + dy * dy;
   const t = length ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / length)) : 0;
@@ -17,7 +37,7 @@ export function recommendedUpgrade(choices, levels) {
   return [...choices].sort((a, b) => ((levels[a.id] || 0) - (levels[b.id] || 0)) || WEAPON_ORDER.indexOf(a.id) - WEAPON_ORDER.indexOf(b.id))[0]?.id;
 }
 
-// Base projectile constants. Cyber Command enables tracking.
+// Base projectile constants. CC + XDR guide ordinary fire; MDR retains CC tracking.
 export const OPERATOR = { dmg: 16, rate: 3.4, bulletSpeed: 980, pierce: 1 };
 export const TURRET = { rate: 2.8, bulletSpeed: 940, pierce: 1 };   // EDR endpoint turret
 export const ALLY = { rate: 2.3, bulletSpeed: 980, pierce: 1 };   // MDR teammate
@@ -46,8 +66,10 @@ export const WEAPONS = {
   HCI:   { id: 'HCI',   max: 6, sensor: false },  // compute core: fire rate for ALL units
   XDR:   { id: 'XDR',   max: 6, sensor: false },  // correlation beam, scales with sensors
   ASTOR: { id: 'ASTOR', max: 5, sensor: false },  // snapshot vault: base shield + restore
+  AI:    { id: 'AI', max: 5, sensor: false },     // AI workloads consume HCI capacity
+  AGENT: { id: 'AGENT', max: 5, sensor: false },  // agents need AI and compute; no autonomous gun
 };
-export const WEAPON_ORDER = ['EDR', 'MDR', 'AF', 'NDR', 'IAG', 'HCI', 'XDR', 'ASTOR'];
+export const WEAPON_ORDER = ['EDR', 'MDR', 'AF', 'NDR', 'IAG', 'HCI', 'XDR', 'ASTOR', 'AI', 'AGENT'];
 export const SENSORS = ['EDR', 'NDR', 'AF'];
 
 const lvl = (levels, id) => (levels && levels[id]) || 0;
@@ -78,7 +100,7 @@ export function deriveSquad(levels) {
   const ndrReveal = ndr > 0;                                // cloaked APTs become visible + full dmg
   const ndrMark = ndr * 0.25;                               // +25% damage to marked threats / level
   const ndrRadars = Math.min(ndr, 2);
-  const tracking = ndr > 0;
+  const tracking = ndr > 0 && lvl(levels, 'XDR') > 0;
   const ccEvery = ndr ? Math.max(1.5, 3.2 - ndr * .2) : 0;
   const ccDamage = ndr ? 48 + ndr * 18 : 0;
   const ccWidth = ndr ? 18 + ndr * 4 : 0;
@@ -129,7 +151,9 @@ export const xpToLevel = level => Math.round(5 + Math.pow(level, 1.42) * 2.4);
 // Up to 3 upgrade offers, deterministic given rng(). Never offers a maxed product;
 // guarantees a sensor when the XDR beam is idle; favours breadth early.
 export function upgradeChoices(levels, rng = Math.random) {
-  const avail = WEAPON_ORDER.filter(id => lvl(levels, id) < WEAPONS[id].max);
+  const avail = WEAPON_ORDER.filter(id => lvl(levels, id) < WEAPONS[id].max &&
+    (id !== 'AI' || lvl(levels, 'HCI') > 0) &&
+    (id !== 'AGENT' || (lvl(levels, 'AI') > 0 && lvl(levels, 'HCI') > 0)));
   if (!avail.length) return [];
   const pick = [];
   const take = id => { if (id && !pick.includes(id)) pick.push(id); };
@@ -138,6 +162,10 @@ export function upgradeChoices(levels, rng = Math.random) {
     const s = SENSORS.filter(id => avail.includes(id));
     if (s.length) take(s[Math.floor(rng() * s.length)]);
   }
+  // Preserve an explicit security-versus-business investment choice.
+  if (!pick.length) { const security = avail.filter(id => !CLOUD_PRODUCTS.includes(id)); if (security.length) take(security[Math.floor(rng() * security.length)]); }
+  const cloud = avail.filter(id => CLOUD_PRODUCTS.includes(id));
+  if (cloud.length) take(cloud[Math.floor(rng() * cloud.length)]);
   const pool = avail.filter(id => !pick.includes(id)).map(id => {
     let w = 1;
     if (lvl(levels, id) === 0) w += 1.1;
@@ -171,7 +199,7 @@ export const BOSS_ORDER = ['ransom', 'botnet', 'siege'];
 export function bossFor(index) { return BOSS_ORDER[index]; }
 // Bounded campaign pressure; larger crowds never replace combat mechanics.
 export function bossHpScale(t, mega) {
-  return 4 + Math.min(t, MISSION_SECONDS) * (mega ? .018 : .012);
+  return .76 * (8 + Math.min(t, MISSION_SECONDS) * (mega ? .036 : .024));
 }
 
 export function threatPool(t) {
@@ -187,7 +215,7 @@ export function difficultyAt(t) {
   return {
     spawnGap: Math.max(480, 900 - t * 4),
     batch: Math.min(3, 1 + Math.floor(t / 40)),
-    hpMul: 1 + Math.min(t, MISSION_SECONDS) * .06,
+    hpMul: 1 + Math.min(t, MISSION_SECONDS) * .12,
     speedMul: Math.min(1.55, 1 + t * .005),
   };
 }
