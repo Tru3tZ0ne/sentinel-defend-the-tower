@@ -16,6 +16,7 @@ const constants = section('const TAU =', 'export function createStandGame').repl
 const combat = section('  function fresh()', '  function billboard(');
 const inputs = section('  const opMinX =', '  const cx =');
 const over = source.match(/  function gameOver\(\) \{[^\n]+/)[0];
+const frame = section('  function frame(ts)', '  function gameOver()');
 const create = compileFunction(`
   const { ${Object.keys(rules).join(', ')} } = rules;
   ${constants}
@@ -23,15 +24,20 @@ const create = compileFunction(`
   const opHome = baseY - 62, bandY = H * .44, fieldW = clamp(W * .92, 340, 440);
   const fieldL = Math.round((W - fieldW) / 2), fieldR = fieldL + fieldW;
   ${inputs}
-  let S, nextId = 1, unitsDirty = false, lastTS = 0, offers = [];
+  const cx = () => fieldL + fieldW / 2;
+  let S, nextId = 1, unitsDirty = false, lastTS = 0, offers = [], summary = null;
   const keys = new Set(), drag = { on: false }, sfx = new Proxy({}, { get: () => () => {} });
-  const toasts = [], onToast = id => toasts.push(id), pushHud = () => {}, onOver = () => {};
+  const toasts = [], onToast = id => toasts.push(id), pushHud = () => {}, onOver = value => { summary = value; };
   const onLevelUp = choices => { offers = choices; };
+  let raf = 0;
+  const requestAnimationFrame = () => 0, syncScene = () => {}, render = () => {};
   ${combat}
   ${over}
+  ${frame}
   S = fresh(); S.phase = 'play'; recompute();
   return { get state() { return S; }, get offers() { return offers; }, toasts,
-    choose: applyUpgrade, useAbility, keys, fieldL, fieldR, baseY,
+    get summary() { return summary; }, choose: chooseUpgrade, deploy: applyUpgrade, useAbility, keys, fieldL, fieldR, baseY,
+    frameMs(ms) { frame(lastTS + ms); },
     step(dt) { if (S.phase === 'play') update(dt); } };
 `, ['rules', 'Math', 'width', 'height']);
 
@@ -52,14 +58,14 @@ function priority(id, levels, policy) {
   return ({ MDR: 10, HCI: 11, ASTOR: 9, XDR: 6, IAG: 5 }[id]) - level * 1.2;
 }
 
-export function playProbe({ policy = 'informed', limit = 360, ...options } = {}) {
+export function playProbe({ policy = 'informed', limit = 121, ...options } = {}) {
   const g = createCombatProbe(options), dt = 1 / 60;
   let decisionAt = 0, targetX = (g.fieldL + g.fieldR) / 2, peakEnemies = 0, choices = 0;
-  while (g.state.phase !== 'over' && g.state.elapsed < limit) {
+  while (g.state.phase !== 'over' && g.state.elapsed < limit && g.state.elapsed < 120) {
     const s = g.state;
-    if (s.phase === 'levelup') {
+    if (s.choices.length && policy !== 'stationary') {
       const best = [...g.offers].sort((a, b) => priority(b.id, s.levels, policy) - priority(a.id, s.levels, policy))[0];
-      g.choose(best.id); choices++; continue;
+      g.choose(best.id); choices++;
     }
     if (policy !== 'stationary') {
       if (s.elapsed >= decisionAt) {
@@ -80,7 +86,7 @@ export function playProbe({ policy = 'informed', limit = 360, ...options } = {})
   }
   const s = g.state;
   return { seconds: Math.round(s.elapsed * 10) / 10, ended: s.phase === 'over', level: s.level,
-    kills: s.kills, choices, peakEnemies, levels: s.levels };
+    kills: s.kills, choices, peakEnemies, levels: s.levels, health: Math.floor(s.base), bossesKilled: s.bossesKilled, assistedBosses: s.assistedBosses, summary: g.summary };
 }
 
 export function sampleBalance({ seeds = 12, ...options } = {}) {

@@ -1,16 +1,23 @@
-// Last Stand — pure rules. A vertical "survivor" base-defense shooter: your
-// operator holds the bottom line, threats pour straight DOWN, and everyone fires
-// straight UP (no angled shots). Each Sangfor product is a DEPLOYABLE that appears
-// on the field and fights the way the product really works - an EDR endpoint
-// turret beside you, an NGAF barrier that blocks + weakens, an MDR teammate, an NDR
-// radar that reveals + marks, an IAG checkpoint that slows, an HCI compute core
-// that speeds every unit, the XDR correlation beam (scales with your sensors), and
-// an aStor snapshot vault. Honors the design bar; no DOM/canvas/global randomness.
+// Last Stand: fixed two-minute event campaign, network synergies and HP ranking.
+// Pure rules: no DOM, canvas or global random state.
 
-export const START_BASE = 1200;
+export const START_BASE = 10000;
 export const MAX_ACTIVE_THREATS = 64;
+export const MISSION_SECONDS = 120;
+export const BOSS_TIMES = [25, 60, 95];
+export const UPGRADE_SECONDS = 3;
+export const STARTER_LEVELS = { EDR: 1, NDR: 1, XDR: 1 };
+export const integrityScore = base => Math.floor(Math.max(1, Math.min(START_BASE, base)));
+export function segmentDistanceSq(x, y, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, length = dx * dx + dy * dy;
+  const t = length ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / length)) : 0;
+  return (x - ax - t * dx) ** 2 + (y - ay - t * dy) ** 2;
+}
+export function recommendedUpgrade(choices, levels) {
+  return [...choices].sort((a, b) => ((levels[a.id] || 0) - (levels[b.id] || 0)) || WEAPON_ORDER.indexOf(a.id) - WEAPON_ORDER.indexOf(b.id))[0]?.id;
+}
 
-// Fixed weapon constants (straight-up fire only).
+// Base projectile constants. Cyber Command enables tracking.
 export const OPERATOR = { dmg: 16, rate: 3.4, bulletSpeed: 980, pierce: 1 };
 export const TURRET = { rate: 2.8, bulletSpeed: 940, pierce: 1 };   // EDR endpoint turret
 export const ALLY = { rate: 2.3, bulletSpeed: 980, pierce: 1 };   // MDR teammate
@@ -50,7 +57,7 @@ export const weaponTier = levels => WEAPON_ORDER.reduce((a, id) => a + lvl(level
 // Everything the engine needs to build the squad + field from the owned levels.
 export function deriveSquad(levels) {
   const hci = lvl(levels, 'HCI');
-  const fireRateMul = 1 + hci * 0.24;                       // compute core speeds ALL units
+  const fireRateMul = 1 + hci * 0.24;
 
   const edr = lvl(levels, 'EDR');
   const edrTurrets = Math.min(edr, 4);                      // up to 4 turrets, then +damage
@@ -58,7 +65,7 @@ export function deriveSquad(levels) {
 
   const mdr = lvl(levels, 'MDR');
   const mdrAllies = mdr > 0 ? 1 : 0;                        // a single teammate; levels boost its power
-  const mdrDmg = 18 + Math.max(0, mdr - 1) * 12;            // attack power per level
+  const mdrDmg = (18 + Math.max(0, mdr - 1) * 12) * (1 + lvl(levels, 'NDR') * .1);
   const mdrRate = ALLY.rate + Math.max(0, mdr - 1) * 0.45;  // and fire speed per level
 
   const af = lvl(levels, 'AF');
@@ -71,6 +78,10 @@ export function deriveSquad(levels) {
   const ndrReveal = ndr > 0;                                // cloaked APTs become visible + full dmg
   const ndrMark = ndr * 0.25;                               // +25% damage to marked threats / level
   const ndrRadars = Math.min(ndr, 2);
+  const tracking = ndr > 0;
+  const ccEvery = ndr ? Math.max(1.5, 3.2 - ndr * .2) : 0;
+  const ccDamage = ndr ? 48 + ndr * 18 : 0;
+  const ccWidth = ndr ? 18 + ndr * 4 : 0;
 
   const iag = lvl(levels, 'IAG');
   const iagBand = iag > 0;
@@ -80,20 +91,21 @@ export function deriveSquad(levels) {
   const sensors = edrTurrets + ndrRadars + (afTier > 0 ? 1 : 0);
   const xdr = lvl(levels, 'XDR');
   const beamOn = xdr > 0;
-  const beamDmg = beamOn ? Math.round((8 + xdr * 8) * Math.max(0.15, sensors * 0.45)) : 0;
+  const linkedDevices = WEAPON_ORDER.filter(id => id !== 'XDR' && lvl(levels, id) > 0).length;
+  const beamDmg = beamOn ? Math.round((85 + xdr * 38) * Math.max(.15, sensors * .45) * (1 + linkedDevices * .08)) : 0;
   const beamEvery = beamOn ? Math.max(1300, 3800 - xdr * 420) : 0;
   const beamWidth = beamOn ? 30 + xdr * 10 + sensors * 7 : 0;
 
   const astor = lvl(levels, 'ASTOR');
   const shieldMax = astor;
   const shieldEvery = astor ? Math.max(4500, 10000 - astor * 1100) : 0;
-  const regen = astor * 3.2;
+  const regen = astor * .9;
 
   return {
     fireRateMul,
     edrTurrets, edrDmg, mdrAllies, mdrDmg, mdrRate,
     afTier, afHp, afWeaken, afHalfWidth,
-    ndrReveal, ndrMark, ndrRadars,
+    ndrReveal, ndrMark, ndrRadars, tracking, ccEvery, ccDamage, ccWidth, linkedDevices,
     iagBand, iagSlowMul,
     sensors, beamOn, beamDmg, beamEvery, beamWidth, xdrIdle: beamOn && sensors === 0,
     shieldMax, shieldEvery, regen,
@@ -154,14 +166,12 @@ export const ENEMIES = {
   siege:  { id: 'siege',  hp: 2300, speed: 18, dmg: 300, xp: 40, score: 600, r: 50, color: '#ff5ad0', boss: true, mega: true, spawn: 'malware', spawnCount: 1, spawnEvery: 2.5 }, // APT siege engine (apex)
 };
 
-// Bosses arrive on a rotation so each run cycles through all four archetypes.
-export const BOSS_ORDER = ['ransom', 'botnet', 'wraith', 'siege'];
-export function bossFor(index) { return BOSS_ORDER[((index % BOSS_ORDER.length) + BOSS_ORDER.length) % BOSS_ORDER.length]; }
-// Preserve the opening minute, then outpace mature defense/recovery builds.
-// Pressure comes from tougher threats rather than ever larger rendered crowds.
-const latePressure = t => Math.max(0, t - 60) / 45;
+// Exactly three scheduled campaign bosses; no wraparound.
+export const BOSS_ORDER = ['ransom', 'botnet', 'siege'];
+export function bossFor(index) { return BOSS_ORDER[index]; }
+// Bounded campaign pressure; larger crowds never replace combat mechanics.
 export function bossHpScale(t, mega) {
-  return (1 + t * (mega ? 0.007 : 0.004)) * (1 + latePressure(t) ** 2);
+  return 4 + Math.min(t, MISSION_SECONDS) * (mega ? .018 : .012);
 }
 
 export function threatPool(t) {
@@ -175,11 +185,10 @@ export function threatPool(t) {
 
 export function difficultyAt(t) {
   return {
-    spawnGap: Math.max(300, 940 - t * 7.5),              // bounded density: fewer late-game actors
-    batch: Math.min(4, 1 + Math.floor(t / 19)),
-    hpMul: (1 + t * 0.052) * (1 + 2 * latePressure(t) ** 2),
-    speedMul: Math.min(1.7, 1 + t * 0.011),
-    bossEvery: 38,                                       // bosses arrive more often
+    spawnGap: Math.max(480, 900 - t * 4),
+    batch: Math.min(3, 1 + Math.floor(t / 40)),
+    hpMul: 1 + Math.min(t, MISSION_SECONDS) * .06,
+    speedMul: Math.min(1.55, 1 + t * .005),
   };
 }
 

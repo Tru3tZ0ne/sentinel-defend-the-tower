@@ -4,16 +4,16 @@
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
 const { createStandGame, ACCENT } = await import(
-  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&balance=short-rounds-v1&perf=instances-v1'
-  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&balance=short-rounds-v1&perf=instances-v1'
-  : './engine.js?balance=short-rounds-v1&perf=instances-v1');
-import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER } from './model.js?balance=short-rounds-v1';
+  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=command-finale-v1'
+  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=command-finale-v1'
+  : './engine.js?campaign=command-finale-v1');
+import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, MISSION_SECONDS, recommendedUpgrade } from './model.js?campaign=command-finale-v1';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { makeI18n } from '../arcade/i18n.js';
-import { makeBoard } from '../arcade/board.js';
-import { brandHTML, boardListHTML, footerHTML, fmt, esc, painter } from '../arcade/ui-kit.js';
+import { makeBoard, rankOf } from '../arcade/board.js';
+import { brandHTML, footerHTML, fmt, esc, painter } from '../arcade/ui-kit.js';
 import { setMuted, isMuted, resumeAudio } from '../rush/audio.js';
 
 const ICON_KEY = { HCI: 'network', EDR: 'edr', NDR: 'ndr', AF: 'af', IAG: 'iag', XDR: 'xdr', ASTOR: 'astor', MDR: 'mdr' };
@@ -24,22 +24,13 @@ const MARK = id => { const m = PRODUCT_MARKS[id]; return m ? `<img class="st-mar
 
 const EN = {
   'st.title': 'Last Stand',
-  'st.pace': 'Threats grow tougher after the first minute. Save support services for pressure spikes.',
-  'st.tag': 'Hold the line. Threats pour straight down at you and your base; you and every unit fire straight up. Each level you DEPLOY a Sangfor product that shows up on the field and fights the way it really works - EDR endpoint turrets beside you, an NGAF barrier that blocks + weakens, MDR teammates, an NDR radar, the XDR correlation beam. Build your squad, survive, climb the board.',
-  'st.h1': 'Move along the bottom with A/D (or arrows), or just drag. You and all your units auto-fire straight up - line threats up in your columns.',
-  'st.h2': 'Clear threats to level up fast. Each level, choose 1 of 3 Sangfor products - it DEPLOYS as a real unit on the field. Stack them into a squad. With 2+ sensors (EDR / NDR / NGAF) your kills CHAIN XDR correlation across nearby threats - set up cascades.',
-  'st.h3': 'Every unit is the real product: EDR = a turret, NGAF = a barrier, MDR = a teammate, NDR = radar + marking, IAG = a slow band, HCI = fire rate for all, XDR = the giant beam (x your sensors), aStor = a base shield. Zero base integrity ends it.',
   'st.base': 'Base integrity',
-  'st.time': 'Time',
   'st.lv': 'LV',
   'st.weapon': 'Weapon',
   'st.levelup': 'Level {n}',
   'st.choose': 'Choose a product upgrade',
-  'st.chooseSub': 'Each one deploys a Sangfor unit that fights its own way.',
   'st.codex': 'Product codex',
   'st.loadout': 'Weapon build',
-  'st.over': 'Base overrun',
-  'st.overSub': 'You held for {s}s, cleared {k} threats, and reached operator level {lv}.',
   'st.kills': 'Threats cleared',
   'st.streak': 'Best streak',
   'st.held': 'Survived',
@@ -56,19 +47,13 @@ const EN = {
   'dim.EDR': 'Endpoint turret',
   'dim.MDR': '24/7 teammate',
   'dim.AF': 'Perimeter barrier',
-  'dim.NDR': 'Radar + marking',
   'dim.IAG': 'Egress slow band',
   'dim.HCI': 'Compute core (fire rate)',
-  'dim.XDR': 'Correlation beam',
   'dim.ASTOR': 'Snapshot vault',
   // what the deployable does, in game terms (card body + codex "weapon upgrade")
-  'b.EDR': 'Sets up a fixed EDR endpoint turret on your wall that auto-fires straight up. More levels = more turrets.',
-  'b.MDR': 'A managed MDR teammate fights at your side 24/7 - more levels raise its firepower and fire rate.',
   'b.AF': 'Raises an NGAF barrier in front that blocks a cluster of threats and weakens any that break through.',
-  'b.NDR': 'Deploys an NDR radar: reveals cloaked APTs and marks threats so every unit does bonus damage.',
   'b.IAG': 'Projects an IAG checkpoint band across the field - threats crossing it crawl.',
   'b.HCI': 'An HCI compute core speeds up the fire rate of every unit you have.',
-  'b.XDR': 'Calls the giant XDR correlation beam. Weak alone - its damage multiplies with the sensor units (EDR/NDR/NGAF) on the field.',
   'b.ASTOR': 'An aStor snapshot vault shields your base from a hit and restores integrity.',
   't.boss_ransom': 'BOSS - Ransomware brute inbound',
   't.pressure': 'Threat escalation - tougher waves incoming',
@@ -102,22 +87,13 @@ const EN = {
 };
 const ZH = {
   'st.title': '最后防线',
-  'st.pace': '第一分钟后威胁会逐渐变强，请留好支援技能应对高压波次。',
-  'st.tag': '守住防线。威胁笔直向你和基地压下，你和每一个单位都笔直向上开火。每次升级都会在战场上部署一件深信服产品，它按照真实功能作战——EDR 终端炮塔、拦截并削弱敌人的 NGAF 屏障、MDR 队友、NDR 雷达、XDR 关联光束。组建你的小队，活下去，冲上排行榜。',
-  'st.h1': '用 A/D（或方向键）在底部移动，或直接拖动。你和所有单位都会笔直向上自动开火——把敌人排进你的射击纵列。',
-  'st.h2': '清除威胁快速升级。每次升级从 3 件深信服产品中选 1 件——它会作为真实单位部署到战场。把它们叠成一支小队。当你拥有 2 个以上传感器（EDR / NDR / NGAF）时，击杀会在附近威胁间触发 XDR 关联链——制造连锁清场。',
-  'st.h3': '每个单位都是真实产品：EDR=炮塔，NGAF=屏障，MDR=队友，NDR=雷达+标记，IAG=减速带，HCI=全体射速，XDR=巨型光束（×你的传感器），aStor=基地护盾。基地完整度归零即结束。',
   'st.base': '基地完整度',
-  'st.time': '时间',
   'st.lv': '等级',
   'st.weapon': '武器',
   'st.levelup': '第 {n} 级',
   'st.choose': '选择一项产品强化',
-  'st.chooseSub': '每一项都会部署一件按自身方式作战的深信服单位。',
   'st.codex': '产品图鉴',
   'st.loadout': '武器配装',
-  'st.over': '基地被攻陷',
-  'st.overSub': '你坚持了 {s} 秒，清除 {k} 个威胁，操作员达到 {lv} 级。',
   'st.kills': '清除威胁',
   'st.streak': '最高连击',
   'st.held': '存活',
@@ -133,18 +109,12 @@ const ZH = {
   'dim.EDR': '终端炮塔',
   'dim.MDR': '7×24 队友',
   'dim.AF': '边界屏障',
-  'dim.NDR': '雷达 + 标记',
   'dim.IAG': '出口减速带',
   'dim.HCI': '算力核心（射速）',
-  'dim.XDR': '关联光束',
   'dim.ASTOR': '快照保险库',
-  'b.EDR': '在你的防线上架设一座固定的 EDR 终端炮塔，自动笔直向上开火。等级越高，炮塔越多。',
-  'b.MDR': '一名托管的 MDR 队友 7×24 在你身边并肩作战——等级越高，火力与射速越强。',
   'b.AF': '在前方升起一道 NGAF 屏障，拦截一群威胁，并削弱任何突破它的敌人。',
-  'b.NDR': '部署一台 NDR 雷达：让隐身 APT 现形，并标记威胁，使每个单位造成额外伤害。',
   'b.IAG': '在战场上投射一道 IAG 检查带——穿越它的威胁会变得极慢。',
   'b.HCI': '一座 HCI 算力核心，提升你所有单位的射速。',
-  'b.XDR': '召唤巨型 XDR 关联光束。单独很弱——伤害随战场上的传感器单位（EDR/NDR/NGAF）数量倍增。',
   'b.ASTOR': '一座 aStor 快照保险库替基地挡下一击，并恢复完整度。',
   't.boss_ransom': 'BOSS——勒索软件巨兽来袭',
   't.pressure': '威胁升级——更强的敌人正在逼近',
@@ -182,28 +152,61 @@ const combined = document.body.dataset.art === 'combined';   // sculpted models 
 const useArt = equipmentPreview || combined;
 if (useArt) {
   Object.assign(EN, {
-    'st.tag': 'Build your defense. Deploy endpoint turrets, radar and gateways. Stop the swarm before it reaches the Sangfor line.',
-    'st.h1': 'Move with WASD / arrows, or drag in the lower part of the field. Your squad fires automatically straight up.',
-    'st.h2': 'Clear threats, level up, then choose one of three upgrades. The equipment shown on the card appears on your battlefield. Combine EDR, NDR and NGAF to power XDR correlation.',
-    'st.h3': 'Q / E / R activate your support services. Protect base integrity to survive. Equipment and creatures are original arcade designs inspired by product roles.',
     'st.codexSub': 'Product roles inspire these arcade mechanics. Equipment models are game concepts; they are not commercial appliance designs.',
     'st.inspect': 'Inspect equipment in 3D',
   });
   Object.assign(ZH, {
-    'st.tag': '构筑你的防线：部署终端炮台、雷达与网关，阻止病毒群突破深信服防线。',
-    'st.h1': '使用 WASD / 方向键，或在战场下方拖动。小队会自动向正前方开火。',
-    'st.h2': '清除威胁以升级，从三项装备中选择一项；卡片中的设备会出现在战场上。组合 EDR、NDR 与 NGAF，强化 XDR 关联。',
-    'st.h3': '按 Q / E / R 或点击技能按钮呼叫支援。守住基地完整度，尽可能生存。装备与病毒均为根据产品职责创作的游戏造型。',
     'st.codexSub': '产品职责启发游戏机制。装备是原创游戏概念造型，不代表商用设备外观。',
     'st.inspect': '近距离查看 3D 装备',
   });
 }
+// Shared event campaign instructions for both visual entries.
+Object.assign(EN, {
+  'ui.score': 'Remaining HP', 'ui.best': 'Best HP', 'ui.board': 'Integrity ranking',
+  'st.time': 'Remaining', 'st.pace': 'Allied support helps finish bosses; emergency cover preserves the final HP. Ranking uses remaining HP only; ties share a rank.',
+  'st.tag': '120 seconds. Three bosses. One Sangfor defense network. Start with 10,000 HP and protect as much as you can.',
+  'st.h1': 'Move with WASD / arrows, or drag along the lower field. Fire is automatic. Cyber Command enables tracking for your squad.',
+  'st.h2': 'Choose an upgrade with 1 / 2 / 3 or tap a card. Combat continues; after 3 seconds a recommended upgrade deploys automatically.',
+  'st.h3': 'Cyber Command fires cross-field laser strips and boosts MDR. Devices feed energy into XDR before its final laser. Use Q / E / R support against bosses arriving at 25 / 60 / 95 seconds.',
+  'st.chooseSub': 'Combat continues · automatic recommendation in',
+  'st.over': 'Defense complete', 'st.overSub': 'All {b}/3 bosses cleared in {s}s. {k} threats stopped. Rank is determined by remaining HP.',
+  'st.aid': 'Allied boss support used: {n}.', 'st.cover': 'Emergency cover protected your final HP.',
+  't.xdrLink': 'Devices linked — charging XDR',
+  'st.tracking': 'CC tracking', 'st.charging': 'XDR linking', 'st.firing': 'XDR firing', 'st.ready': 'XDR ready',
+  'st.auto': 'AUTO',
+  'st.bosses': 'Bosses', 't.allied': 'Allied support engaging the boss', 't.cover': 'Emergency cover active — protect your remaining HP',
+  'dim.NDR': 'Side lasers + squad tracking', 'dim.XDR': 'Link → charge → laser',
+  'b.EDR': 'Deploys endpoint turrets. Cyber Command turns their shots into tracking fire; later levels add turrets and damage.',
+  'b.MDR': 'Deploys an MDR teammate. Cyber Command boosts its damage and enables tracking; upgrades increase damage and rate.',
+  'b.NDR': 'Cyber Command fires horizontal lasers from both sides, reveals cloaked threats, enables squad tracking and boosts MDR damage by 10% per level.',
+  'b.XDR': 'Every deployed device links into XDR and sends energy to its hub. After charging, XDR fires the final targeted laser. More sensors and connected products increase damage.',
+});
+Object.assign(ZH, {
+  'ui.score': '剩余血量', 'ui.best': '最佳血量', 'ui.board': '血量排行榜',
+  'st.time': '倒计时', 'st.pace': '盟军会协助清除 Boss；应急援护保留最后 1 点血量。仅按剩余血量排名，同血量并列。',
+  'st.tag': '120 秒，三大 Boss，一张深信服协同防御网。初始 10,000 血量，守住越多，排名越高。',
+  'st.h1': '使用 WASD / 方向键移动，或在战场下方拖动。小队自动开火；Cyber Command 可让小队武器追踪敌人。',
+  'st.h2': '按 1 / 2 / 3 或点击卡片选择强化，战斗持续进行。3 秒内未选择将自动部署推荐装备。',
+  'st.h3': 'Cyber Command 从两侧发射横向条状激光，强化 MDR；各设备向 XDR 汇聚能量后，由 XDR 发射主激光。Boss 在 25 / 60 / 95 秒登场，按 Q / E / R 呼叫支援。',
+  'st.chooseSub': '战斗继续 · 自动推荐倒计时',
+  'st.over': '防守成功', 'st.overSub': '{s} 秒内清除全部 {b}/3 个 Boss，拦截 {k} 个威胁。按剩余血量排名。',
+  'st.aid': '盟军协助过 {n} 个 Boss。', 'st.cover': '应急援护保护了最后的血量。',
+  't.xdrLink': '设备联动——XDR 蓄能中',
+  'st.tracking': 'CC 全队追踪', 'st.charging': 'XDR 联动蓄能', 'st.firing': 'XDR 主激光', 'st.ready': 'XDR 就绪',
+  'st.auto': '推荐',
+  'st.bosses': 'Boss', 't.allied': '盟军支援正在攻击 Boss', 't.cover': '应急援护已启动——守住剩余血量',
+  'dim.NDR': '侧向激光 + 全队追踪', 'dim.XDR': '联动 → 蓄能 → 激光',
+  'b.EDR': '部署终端炮塔；Cyber Command 使炮塔子弹追踪敌人，升级可增加炮塔数量和伤害。',
+  'b.MDR': '部署 MDR 队友；Cyber Command 提升其伤害并赋予追踪能力，升级增加火力和射速。',
+  'b.NDR': 'Cyber Command 从左右两侧发射横向条状激光，揭露隐身威胁，赋予全队追踪能力，每级额外提升 MDR 伤害 10%。',
+  'b.XDR': '所有已部署设备连接 XDR 并向中心汇聚能量；蓄能后由 XDR 发射锁定目标的主激光。传感器和联动产品越多，伤害越高。',
+});
 const i18n = makeI18n(EN, ZH);
 const { t } = i18n;
 const lang = () => i18n.getLang();
-const board = makeBoard({ lsKey: 'sentinel.stand.scores.v1', apiVar: '__STAND_API' });
+const board = makeBoard({ lsKey: 'sentinel.stand.health.scores.v1', apiVar: '__STAND_HEALTH_API' });
 const NAME_KEY = 'sentinel.arcade.name';
-const BEST_KEY = 'sentinel.stand.best';
+const BEST_KEY = 'sentinel.stand.health.best.v1';
 const getName = () => { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } };
 const saveName = n => { try { localStorage.setItem(NAME_KEY, n); } catch { /* ignore */ } };
 const getBest = () => { try { return +localStorage.getItem(BEST_KEY) || 0; } catch { return 0; } };
@@ -239,6 +242,7 @@ app.innerHTML = `
       <div class="st-boss-bar"><i id="stBossFill"></i></div>
     </div>
     <div class="st-rail" id="stRail"></div>
+    <div class="st-network" id="stNetwork"></div>
     <div class="st-abil" id="stAbil"></div>
     <div class="st-base"><i id="stBaseFill"></i><span class="st-base-txt" id="stBaseTxt"></span></div>
   </div>
@@ -322,19 +326,23 @@ const game = createStandGame(el.canvas, {
   onHud: h => {
     paintScore(el.score, fmt(h.score));
     el.best.textContent = fmt(Math.max(h.best, getBest()));
-    el.time.textContent = h.elapsed + 's';
-    el.combo.textContent = 'x' + h.mult;
+    el.time.textContent = Math.max(0, MISSION_SECONDS - h.elapsed) + 's';
+    const offerTimer = document.getElementById('stOfferTimer');
+    if (offerTimer) offerTimer.textContent = Math.max(0, Math.ceil(h.offerLeft)) + 's';
+    el.combo.textContent = `${t('st.bosses')} ${h.bossesKilled}/3`;
     el.combo.classList.toggle('on', h.combo >= 10);
     el.xpFill.style.width = Math.max(0, Math.min(100, h.xp / h.xpNeed * 100)) + '%';
     el.lvTxt.textContent = `${t('st.lv')} ${h.level}`;
     const bf = Math.max(0, Math.min(100, h.base / h.baseMax * 100));
     el.baseFill.style.width = bf + '%';
     el.baseFill.className = bf > 50 ? 'ok' : bf > 25 ? 'warn' : 'bad';
-    el.baseTxt.textContent = `${h.base}`;
+    el.baseTxt.textContent = `${fmt(h.base)} / ${fmt(START_BASE)}${h.emergencyCover ? ' · 🛡' : ''}`;
+    el.baseTxt.title = h.emergencyCover ? t('st.cover') : t('st.base');
     paintWeap(el.weap, weapHTML(h));
     paintRail(el.rail, railHTML(h.levels));
     updateAbilBar(h.abilities);
     updateBossBar(h.boss);
+    document.getElementById('stNetwork').textContent = `${h.tracking ? t('st.tracking') + ' · ' : ''}${t('st.' + h.linkPhase)}`;
   },
   onToast: (key, kind) => toast(t('t.' + key), kind),
   onLevelUp: (choices, level) => showLevelUp(choices, level),
@@ -371,9 +379,10 @@ function toast(msg, kind = '') {
 }
 
 // ---------- level-up cards (the product-integrated moment) ----------
-function cardHTML(ch) {
+function cardHTML(ch, index, recommended) {
   const id = ch.id, isNew = ch.toLevel === 1, maxed = ch.toLevel >= ch.max;
-  return `<button class="st-card cap-${id}" data-up="${id}">
+  return `<button class="st-card cap-${id}${recommended ? ' recommended' : ''}" data-up="${id}" title="${esc(t('b.' + id))}">
+    <span class="st-card-key">${index + 1}${recommended ? ' · ' + esc(t('st.auto')) : ''}</span>
     ${equipmentPreview ? `<img class="st-equipment-preview" src="assets/stand-sangfor/${id.toLowerCase()}.webp?art=v2" alt="" />` : ''}
     <span class="st-card-top">
       <span class="st-card-ico">${MARK(id)}</span>
@@ -385,27 +394,22 @@ function cardHTML(ch) {
   </button>`;
 }
 function showLevelUp(choices, level) {
-  phase = 'levelup';
-  el.overlay.innerHTML = `
-    <div class="ar-overlay st-lvup" id="stLevelUp">
-      <div class="ar-card st-lvcard">
-        <div class="st-lv-badge">${esc(t('st.levelup', { n: level }))}</div>
-        <h2 class="st-lv-title">${esc(t('st.choose'))}</h2>
-        <p class="st-lv-sub">${esc(t('st.chooseSub'))}</p>
-        <div class="st-cards">${choices.map(cardHTML).join('')}</div>
-      </div>
-    </div>`;
+  document.getElementById('stLevelUp')?.remove();
+  if (!choices.length) return;
+  el.overlay.insertAdjacentHTML('beforeend', `
+    <section class="st-upgrade-dock" id="stLevelUp" aria-label="${esc(t('st.choose'))}">
+      <div class="st-offer-header"><b>${esc(t('st.levelup', { n: level }))}</b>
+        <span>${esc(t('st.chooseSub'))} <strong id="stOfferTimer">3s</strong></span></div>
+      <div class="st-cards">${choices.map((ch, index) => cardHTML(ch, index, ch.id === recommendedUpgrade(choices, game.state.levels))).join('')}</div>
+    </section>`);
 }
-function chooseUpgrade(id) {
-  const c = document.getElementById('stLevelUp'); if (c) c.remove();
-  phase = 'play';
-  game.applyUpgrade(id);
-}
+function chooseUpgrade(id) { game.chooseUpgrade(id); }
 
 // ---------- screens ----------
 async function showStart() {
   phase = 'start'; game.stop();
   const b = await board.fetchBoard();
+  if (phase !== 'start') return;
   el.best.textContent = fmt(getBest());
   resetHud();
   el.overlay.innerHTML = `
@@ -433,11 +437,15 @@ async function showStart() {
     </div>`;
 }
 
+function healthRowsHTML(rows, meId) {
+  if (!rows?.length) return `<li class="lb-empty">${esc(t('ui.empty'))}</li>`;
+  return rows.map(r => `<li class="lb-row${r.id === meId ? ' me' : ''}"><span class="lb-rank">${rankOf(rows, r.score)}</span><span class="lb-name">${esc(r.name)}</span><span class="lb-score">${fmt(r.score)} HP</span></li>`).join('');
+}
 function boardBlock(b, meId) {
   return `<div class="ar-lb">
     <div class="ar-lb-h"><span class="t">${esc(t('ui.board'))}</span>
       <span class="mode ${b.mode === 'world' ? 'world' : ''}">${esc(b.mode === 'world' ? t('ui.world') : t('ui.local'))}</span></div>
-    <ol class="lb-rows">${boardListHTML(b.rows, { empty: t('ui.empty'), meId })}</ol>
+    <ol class="lb-rows">${healthRowsHTML(b.rows, meId)}</ol>
   </div>`;
 }
 
@@ -471,12 +479,15 @@ function showCodex() {
 
 async function onGameOver(summary) {
   phase = 'over'; lastSummary = summary; lastResult = null;
+  el.time.textContent = '0s'; el.combo.textContent = `${t('st.bosses')} ${summary.bossesKilled}/3`;
+  paintScore(el.score, fmt(summary.health)); el.best.textContent = fmt(summary.best);
   el.abil.innerHTML = '';
   if (el.boss) el.boss.hidden = true;
   if (summary.best > getBest()) saveBest(summary.best);
   renderOver(summary, null);
   const n = Object.keys(summary.levels).length;
-  const result = await board.submitScore({ name: getName() || 'Anonymous', score: summary.score, note: `${summary.elapsed}s · L${summary.level} · ${n} products` });
+  const result = await board.submitScore({ name: getName() || 'Anonymous', score: summary.health, note: `HP / 10000 · ${summary.bossesKilled}/3 bosses · ${summary.elapsed}s · ${n} products` });
+  if (phase !== 'over' || lastSummary !== summary) return;
   lastResult = result;
   renderOver(summary, result);
 }
@@ -490,8 +501,9 @@ function renderOver(summary, result) {
         <h1 class="ar-title" style="font-size:22px">${esc(t('st.over'))}</h1>
         <div class="ar-result">
           <div class="lbl">${esc(t('ui.score'))}</div>
-          <div class="big">${fmt(summary.score)}</div>
-          <div class="sub">${esc(t('st.overSub', { s: summary.elapsed, k: summary.kills, lv: summary.level }))}</div>
+          <div class="big">${fmt(summary.health)}<small> / 10,000 HP</small></div>
+          <div class="sub">${esc(t('st.overSub', { s: summary.elapsed, k: summary.kills, b: summary.bossesKilled }))}</div>
+          <div class="sub">${esc(t('st.aid', { n: summary.assistedBosses }))} ${summary.emergencyCover ? esc(t('st.cover')) : ''}</div>
           ${result ? `<div class="sub">${esc(t('ui.youRank'))}<span class="hot">${result.rank}</span> · ${esc(result.mode === 'world' ? t('ui.world') : t('ui.local'))}</div>` : ''}
         </div>
         <div class="st-build-h">${esc(t('st.loadout'))}</div>
@@ -515,9 +527,10 @@ function renderOver(summary, result) {
 function resetHud() {
   el.baseFill.style.width = '100%'; el.baseFill.className = 'ok'; el.baseTxt.textContent = START_BASE;
   el.xpFill.style.width = '0%'; el.lvTxt.textContent = `${t('st.lv')} 1`;
-  el.weap.innerHTML = ''; el.rail.innerHTML = ''; el.abil.innerHTML = '';
+  paintWeap(el.weap, ''); paintRail(el.rail, ''); el.abil.innerHTML = '';
+  paintScore(el.score, fmt(START_BASE)); document.getElementById('stNetwork').textContent = '';
   if (el.boss) el.boss.hidden = true;
-  el.time.textContent = '0s'; el.combo.textContent = 'x1'; el.combo.classList.remove('on');
+  el.time.textContent = '120s'; el.combo.textContent = `${t('st.bosses')} 0/3`; el.combo.classList.remove('on');
 }
 
 function play() {
@@ -547,7 +560,7 @@ el.overlay.addEventListener('click', e => {
 
 const ABIL_HOTKEY = { q: 'ir', e: 'pt', r: 'rt' };
 window.addEventListener('keydown', e => {
-  if (phase === 'levelup' && '123'.includes(e.key)) {
+  if (phase === 'play' && document.getElementById('stLevelUp') && '123'.includes(e.key)) {
     const cards = document.querySelectorAll('#stLevelUp .st-card');
     const card = cards[+e.key - 1]; if (card) { e.preventDefault(); chooseUpgrade(card.dataset.up); }
   } else if (phase === 'play' && ABIL_HOTKEY[e.key?.toLowerCase()]) {
@@ -557,7 +570,7 @@ window.addEventListener('keydown', e => {
 
 async function shareResult(elm) {
   if (!lastSummary) return;
-  const text = `Sentinel · Last Stand — ${fmt(lastSummary.score)} pts, survived ${lastSummary.elapsed}s (L${lastSummary.level})`;
+  const text = `Sentinel · Last Stand — ${fmt(lastSummary.health)}/10,000 HP, ${lastSummary.bossesKilled}/3 bosses, ${lastSummary.elapsed}s`;
   try { await navigator.clipboard.writeText(text); } catch { /* ignore */ }
   const old = elm.textContent; elm.textContent = t('ui.copied');
   setTimeout(() => { elm.textContent = old; }, 1400);

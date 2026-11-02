@@ -71,33 +71,24 @@ frost slows, tri-lane beams, endpoint shockwaves, an XDR lightning web, an MDR s
 capability legible at a glance. The in-game Product Codex pairs every product's real job with its
 on-board role and honest limitation. Pure logic is unit-tested in `tools/arcade-logic.test.mjs`.
 
-**Last Stand** (`stand.html`) is a vertical, 3D-style "survivor" defense shooter. Your operator
-holds the bottom line while threats pour straight *down* at you and your base, and you and every unit
-fire straight *up*. Clearing threats levels you up fast, and **every level you choose one of three
-Sangfor products** — which then **deploys as a real unit on the battlefield** and fights the way the
-product actually works: **EDR** sets up fixed endpoint **turret emplacements** along your wall, **NGAF** raises a **barrier**
-that blocks a cluster of threats and weakens any that break through, **MDR** brings a **teammate** who
-fights at your side 24/7, **NDR** deploys a **radar** that reveals cloaked APTs and marks threats so
-every unit does bonus damage, **IAG** projects a **checkpoint band** that slows whatever crosses it,
-**HCI** is a **compute core** that speeds up every unit's fire rate, **aStor** is a **snapshot vault**
-that shields the base, and **XDR** calls the colossal vertical **correlation beam** — weak alone, but
-multiplying with how many sensor units (EDR/NDR/NGAF) you have on the field. Mix and match into a
-squad. On top of the passive squad there are three **active operator skills** on cooldown — mapped to
-real Sangfor **service engagements**, not products: **Red Team Assessment** `[R]` calls in a **large
-surge of temporary attack teams** (six red-team operatives) that storm the field and fire alongside you
-for a few seconds, **Penetration Testing** `[E]` brings in a **smaller, sharper team** (three operatives
-with piercing fire), and **Incident Response** `[Q]` is the emergency button — it **contains the active
-breach** right now (heavy damage to every threat on screen, restores base integrity, braces for the
-next hit). The summoned operatives fan out as real 3D figures with floating RED TEAM / PEN TEST tags,
-then withdraw when the engagement ends. It renders in **real-time 3D with Three.js**: a perspective
-lane, lit meshes with shadows and bloom, the XDR beam as a layered electric lance, and threats that read
-as specific cyber attacks (ransomware wears a padlock, recon an eye, worms a chain, exfil a data-out
-glyph, APT a stealth hood). The product branding is woven through the whole thing — every on-field unit
-carries its official Sangfor product mark **and a floating product name tag**, and the base you defend
-wears the Sangfor logo, as do the upgrade cards, weapon chip, loadout rail, and a Product Codex pairing
-each product's real job with its battlefield role and honest limitation. The layout is tuned for
-**phones** too: the camera keeps the lane's width constant and reveals more of it on tall screens, and
-the HUD respects the notch / safe-area insets. Pure logic is unit-tested in `tools/arcade-logic.test.mjs`.
+**Last Stand** (`stand.html`) is a real-time 3D, **120-second event campaign**.
+Start with **10,000 HP** and protect the Sangfor line against exactly three bosses
+at 25, 60 and 95 seconds. **Cyber Command** adds horizontal side lasers, squad
+tracking and an MDR damage boost. All deployed devices visibly feed energy into
+**XDR**, which charges and emits the final laser from its appliance. EDR turrets,
+NGAF barriers, MDR teammates, IAG checkpoints, HCI cores and aStor vaults remain
+physical units. Q/E/R call the three existing support services.
+
+Choose upgrades without pausing; a marked recommendation deploys after three
+seconds. Visible allied support and emergency cover let beginners complete the
+campaign. **Remaining HP determines rank; ties share rank.** The HP board is
+separate from historical scores and local unless a shared endpoint is configured.
+English and Chinese interfaces, cinematic models, shadows, bloom and full-resolution
+rendering remain. These weapons are fictional arcade mechanics inspired by product
+roles. `stand-sangfor.html` offers the equipment preview; `stand-showroom.html`
+provides optional close inspection. See the [development record](docs/STAND_COMMAND_CAMPAIGN.md)
+and [English continuation brief](docs/CLAUDE_STAND_VISUALS_HANDOFF.txt), review tag
+`stand-command-finale-v1`. Checks run through `npm run test:stand-art`.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your

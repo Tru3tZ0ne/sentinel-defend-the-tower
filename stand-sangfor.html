@@ -8,11 +8,11 @@
   <meta name="theme-color" content="#05070e" />
   <link rel="stylesheet" href="./src/style/main.css" />
   <link rel="stylesheet" href="./src/arcade/arcade.css" />
-  <link rel="stylesheet" href="./src/stand/stand.css" />
+  <link rel="stylesheet" href="./src/stand/stand.css?campaign=command-finale-v1" />
   <link rel="stylesheet" href="./src/stand/stand-sangfor.css?art=v2" />
   <link rel="icon" href="./assets/brand/products/sangfor-epp.png" />
-  <!-- World ranking: local by default; set window.__STAND_API to a deployed leaderboard worker for a global board. -->
-  <script>/* window.__STAND_API = ''; */</script>
+  <!-- World ranking: local by default; set window.__STAND_HEALTH_API to a deployed leaderboard worker for a global board. -->
+  <script>/* window.__STAND_HEALTH_API = ''; */</script>
   <!-- Three.js (vendored locally, offline-friendly) for the real-time 3D battlefield. -->
   <script type="importmap">
     { "imports": { "three": "./vendor/three/three.module.min.js" } }
@@ -21,6 +21,6 @@
 <body data-art="sangfor">
   <div class="wrap" id="app"></div>
   <noscript>This game needs JavaScript enabled.</noscript>
-  <script type="module" src="./src/stand/main-stand.js?art=stand-sangfor-visuals-v2&balance=short-rounds-v1&perf=instances-v1"></script>
+  <script type="module" src="./src/stand/main-stand.js?art=stand-sangfor-visuals-v2&campaign=command-finale-v1"></script>
 </body>
 </html>

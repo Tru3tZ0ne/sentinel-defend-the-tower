@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Sentinel · Last Stand — a Sangfor survivor defense shooter</title>
-  <meta name="description" content="Last Stand: a real-time 3D survivor defense shooter rendered with WebGL. Hold the line while threats pour down the lane; you and every unit fire straight up. Each level you DEPLOY a Sangfor product that appears on the battlefield and fights the way it really works - EDR turret emplacements, an NGAF energy barrier, an MDR teammate, an NDR radar, an IAG checkpoint, an HCI core, the XDR correlation beam (x your sensors) and an aStor vault. Build your squad, survive, and climb the world ranking." />
+  <meta name="description" content="A two-minute Sangfor defense campaign: Cyber Command tracking and side lasers, linked XDR fire, three bosses and remaining-HP ranking. Start with 10,000 HP." />
   <meta name="theme-color" content="#05070e" />
   <link rel="stylesheet" href="./src/style/main.css" />
   <link rel="stylesheet" href="./src/arcade/arcade.css" />
-  <link rel="stylesheet" href="./src/stand/stand.css" />
-  <!-- World ranking: local by default; set window.__STAND_API to a deployed leaderboard worker for a global board. -->
-  <script>/* window.__STAND_API = ''; */</script>
+  <link rel="stylesheet" href="./src/stand/stand.css?campaign=command-finale-v1" />
+  <!-- World ranking: local by default; set window.__STAND_HEALTH_API to a deployed leaderboard worker for a global board. -->
+  <script>/* window.__STAND_HEALTH_API = ''; */</script>
   <!-- Three.js (vendored locally, offline-friendly) for the real-time 3D battlefield. -->
   <script type="importmap">
     { "imports": { "three": "./vendor/three/three.module.min.js" } }
@@ -19,6 +19,6 @@
 <body data-art="combined">
   <div class="wrap" id="app"></div>
   <noscript>This game needs JavaScript enabled.</noscript>
-  <script type="module" src="./src/stand/main-stand.js?balance=short-rounds-v1&perf=instances-v1"></script>
+  <script type="module" src="./src/stand/main-stand.js?campaign=command-finale-v1"></script>
 </body>
 </html>

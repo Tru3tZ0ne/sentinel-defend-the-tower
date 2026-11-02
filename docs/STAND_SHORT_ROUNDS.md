@@ -1,5 +1,9 @@
 # Last Stand: shorter sessions
 
+Historical record: this pacing is superseded by the fixed 120-second, three-boss
+event campaign in [STAND_COMMAND_CAMPAIGN.md](STAND_COMMAND_CAMPAIGN.md). The
+measurements below describe the earlier tag, not current gameplay.
+
 Review tag: `stand-short-rounds-v1`.
 Baseline: `29775de` on `main`, including the combined cinematic stage and updated EDR appliance.
 

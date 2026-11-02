@@ -15,14 +15,23 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
   const metrics = {};
   try {
     await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.addInitScript(() => {
+      localStorage.setItem('sentinel.stand.scores.v1', JSON.stringify([{ name: 'LegacyScore', score: 999999, id: 'legacy' }]));
+      localStorage.setItem('sentinel.stand.best', '999999');
+      if (!localStorage.getItem('sentinel.stand.health.scores.v1')) localStorage.setItem('sentinel.stand.health.scores.v1', JSON.stringify([
+        {name:'TieA',score:9000,id:'tie-a'}, {name:'TieB',score:9000,id:'tie-b'}]));
+    });
     await page.goto(url + '/stand-sangfor.html');
     await page.locator('[data-act="play"]').waitFor();
-    assert.match(await page.locator('.ar-how').innerText(), /first minute/);
+    assert.match(await page.locator('.ar-how').innerText(), /25 \/ 60 \/ 95/);
+    assert.doesNotMatch(await page.locator('.ar-lb').innerText(), /LegacyScore/);
+    assert.deepEqual(await page.locator('.lb-rank').allTextContents(), ['1','1']);
+    assert.equal(await page.locator('#stBest').innerText(), '0');
     await page.screenshot({ path: shots + '/stand-sangfor-menu-en.png' });
     await page.locator('[data-act="lang"]').click();
     await page.locator('[data-act="play"]').waitFor();
-    assert.match(await page.locator('.ar-tag').innerText(), /EDR|部署|防线/);
-    assert.match(await page.locator('.ar-how').innerText(), /第一分钟/);
+    assert.match(await page.locator('.ar-tag').innerText(), /初始 10,000 血量/);
+    assert.match(await page.locator('.ar-how').innerText(), /同血量并列/);
     await page.screenshot({ path: shots + '/stand-sangfor-menu-zh.png' });
     await page.locator('[data-act="lang"]').click();
     await page.locator('[data-act="play"]').click();
@@ -40,13 +49,20 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     assert.equal(await page.locator('.st-equipment-preview').count(), 3);
     assert.ok(await page.locator('.st-equipment-preview').evaluateAll(images => images.every(i => i.complete && i.naturalWidth > 0)));
     await page.screenshot({ path: shots + '/stand-sangfor-upgrades.png' });
+    const offerTime = await page.evaluate(() => window.__stand.game.state.elapsed);
+    assert.equal(await page.evaluate(() => window.__stand.game.phase), 'play');
+    await page.keyboard.press('e');
+    assert.equal(await page.evaluate(() => window.__stand.game.state.temps.length), 3);
     const upgrade = await page.locator('.st-card').first().getAttribute('data-up');
+    const beforeLevel = await page.evaluate(id => window.__stand.game.state.levels[id] || 0, upgrade);
     await page.locator('.st-card').first().click();
-    assert.equal(await page.evaluate(id => window.__stand.game.state.levels[id], upgrade), 1);
+    assert.equal(await page.evaluate(id => window.__stand.game.state.levels[id], upgrade), beforeLevel + 1);
+    assert.ok(await page.evaluate(() => window.__stand.game.state.elapsed) > offerTime);
     // All product renderers and every normal/boss silhouette, in a paused inspection fixture.
     await page.evaluate(async () => {
       const g = window.__stand.game;
-      for (const id of ['EDR', 'EDR', 'EDR', 'MDR', 'AF', 'NDR', 'IAG', 'HCI', 'XDR', 'ASTOR']) g.applyUpgrade(id);
+      g.start();
+      for (const id of ['EDR', 'EDR', 'MDR', 'AF', 'IAG', 'HCI', 'ASTOR']) g.applyUpgrade(id);
       g.state.pendingLevels = 0; g.pause();
       const s = g.state, { ENEMIES } = await import(new URL('src/stand/model.js', location.href));
       s.parts = []; s.fxr = []; s.texts = []; s.shake = 0; s.flash = 0; s.afHp = s.afMax;
@@ -86,15 +102,35 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     // Reset and phone movement, without retaining any purchased equipment.
     await page.evaluate(() => window.__stand.game.start());
     assert.equal(await page.locator('#stLevelUp').count(), 0);
-    assert.deepEqual(await page.evaluate(() => window.__stand.game.state.levels), {});
+    assert.deepEqual(await page.evaluate(() => window.__stand.game.state.levels), {EDR:1,NDR:1,XDR:1});
     await page.setViewportSize({ width: 390, height: 844 }); await settle();
     await page.keyboard.down('ArrowRight');
     await page.waitForFunction(() => window.__stand.game.state.elapsed > 1.3);
     await page.keyboard.up('ArrowRight'); await page.evaluate(() => window.__stand.game.pause()); await settle();
     assert.ok(await page.evaluate(() => window.__stand.game.state.op.x < document.querySelector('#stCanvas').clientWidth));
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    assert.ok(await page.locator('.ar-top .ar-stat, #stCombo').evaluateAll(nodes => nodes.every(n => {
+      const r=n.getBoundingClientRect(); return r.left>=0 && r.right<=innerWidth && n.scrollWidth<=n.clientWidth;
+    })), 'All phone HP/time/boss counters must remain visible');
     await page.screenshot({ path: shots + '/stand-sangfor-mobile-right.png' });
     metrics.mobile = await page.evaluate(() => window.__stand.game.diagnostics);
+    // A phone-sized offer remains compact and auto-deploys without pausing.
+    await page.evaluate(async () => {
+      const g=window.__stand.game; g.start(); const s=g.state;
+      const {ENEMIES}=await import(new URL('src/stand/model.js',location.href));
+      s.xp=s.xpNeed-1;
+      s.enemies=[{id:97500,type:'recon',spec:ENEMIES.recon,x:s.op.x,y:200,r:13,hp:1,maxhp:1,slow:0,hit:0,wob:0}];
+      g.useAbility('ir');
+    });
+    await page.locator('#stLevelUp').waitFor();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    assert.ok(await page.locator('#stLevelUp').evaluate(el=>el.getBoundingClientRect().bottom < innerHeight*.5));
+    assert.equal(await page.locator('.st-card.recommended').count(),1);
+    await page.screenshot({path:shots+'/stand-command-mobile-offer-FIXTURE.png'});
+    await page.waitForFunction(() => !window.__stand.game.state.choices.length);
+    assert.equal(await page.evaluate(() => Object.values(window.__stand.game.state.levels).reduce((a,b)=>a+b,0)),4);
+    assert.ok(await page.evaluate(() => window.__stand.game.state.elapsed >= 3));
+    assert.equal(await page.locator('#stLevelUp').count(),0);
     // The main entry is the COMBINED build: sculpted models under the cinematic
     // stage. It uses the art models but keeps the default HUD (no preview hero/thumbs).
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -102,27 +138,57 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.waitForFunction(() => window.__stand.game.state.elapsed > .1);
     assert.equal(await page.evaluate(() => window.__stand.game.diagnostics.art), 'combined');
     assert.equal(await page.locator('.st-art-hero').count(), 0);
-    // Transition fixture: the real frame loop announces pressure and handles defeat/replay.
-    await page.evaluate(() => {
-      const s = window.__stand.game.state;
-      s.elapsed = 59.98; s.lastBoss = 60; s.enemies = []; s.spawnAcc = 0;
-    });
-    await page.locator('.ar-toast').filter({ hasText: 'Threat escalation' }).waitFor();
+    // Production charging and side-laser transitions, with explicit durable targets.
     await page.evaluate(async () => {
-      const g = window.__stand.game, s = g.state;
-      const { ENEMIES, MAX_ACTIVE_THREATS, difficultyAt } = await import(new URL('src/stand/model.js?balance=short-rounds-v1', location.href));
-      if (MAX_ACTIVE_THREATS !== 64 || difficultyAt(120).hpMul < 30) throw new Error('Stale balance rules');
-      const canvas = document.querySelector('#stCanvas'), h = canvas.clientHeight;
-      const baseY = h - Math.max(52, h * .09), spec = ENEMIES.recon;
-      s.base = 1; s.shield = 0;
-      s.enemies = [{ id: 99000, type: 'recon', spec, x: s.op.x, y: baseY - 5,
-        r: spec.r, hp: 1000, maxhp: 1000, slow: 0, hit: 0, wob: 0, spawnAcc: 0 }];
+      const g=window.__stand.game, s=g.state;
+      for(const id of ['MDR','AF','IAG','HCI','ASTOR']) g.applyUpgrade(id);
+      const {ENEMIES}=await import(new URL('src/stand/model.js',location.href));
+      const w=document.querySelector('#stCanvas').clientWidth;
+      s.enemies=Array.from({length:8},(_,i)=>({id:98000+i,type:'malware',spec:{...ENEMIES.malware,speed:0},
+        x:w/2+((i%4)-1.5)*75,y:240+Math.floor(i/4)*140,r:17,hp:100000,maxhp:100000,slow:0,hit:0,wob:0,spawnAcc:0}));
+      s.beamAcc=1e5; s.ccAcc=1e5; s.xpNeed=1e9;
+    });
+    await page.waitForFunction(() => {
+      const g=window.__stand.game;
+      if (g.state.link && g.state.cc) { g.pause(); return true; }
+      return false;
+    });
+    await page.evaluate(() => {
+      const g=window.__stand.game; g.pause();
+      g.state.parts=[]; g.state.fxr=[]; g.state.texts=[]; g.state.flash=0; g.state.shake=0;
+    }); await settle();
+    const linked=await page.evaluate(() => [...new Set(window.__stand.game.state.link.devices.map(d=>d.id))].sort());
+    assert.deepEqual(linked,['AF','ASTOR','EDR','HCI','IAG','MDR','NDR','XDR']);
+    await page.screenshot({path:shots+'/stand-command-cc-xdr-charge-FIXTURE.png'});
+    await page.evaluate(() => window.__stand.game.resume());
+    await page.waitForFunction(() => {
+      const g=window.__stand.game;
+      if (g.state.beam) { g.pause(); return true; }
+      return false;
+    });
+    await settle();
+    assert.ok(await page.evaluate(() => window.__stand.game.state.beam && window.__stand.game.state.link.fired));
+    await page.screenshot({path:shots+'/stand-command-xdr-fire-FIXTURE.png'});
+    // Actual final kill and real result callback at the campaign endpoint.
+    await page.evaluate(async () => {
+      const g=window.__stand.game; g.start(); const s=g.state;
+      const {ENEMIES}=await import(new URL('src/stand/model.js?campaign=command-finale-v1',location.href));
+      const spec=ENEMIES.siege;
+      s.elapsed=119.8; s.bossCount=3; s.bossesKilled=2; s.base=8605;
+      s.enemies=[{id:99000,type:'siege',spec,x:s.op.x,y:200,r:50,hp:1,maxhp:1000,slow:0,hit:0,wob:0,spawnAcc:0,bornAt:119.8,attackAcc:0}];
+      g.useAbility('ir');
     });
     await page.locator('[data-act="again"]').waitFor();
+    await page.locator('.lb-row.me').waitFor();
     assert.equal(await page.evaluate(() => window.__stand.game.phase), 'over');
+    assert.match(await page.locator('.ar-result').innerText(), /8,765|8765/);
+    assert.match(await page.locator('.ar-result').innerText(), /3\/3/);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('sentinel.stand.scores.v1'))[0].score),999999);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('sentinel.stand.health.scores.v1')).find(r=>r.note)?.score),8765);
+    await page.screenshot({path:shots+'/stand-command-health-result-FIXTURE.png'});
     await page.locator('[data-act="again"]').click();
     await page.waitForFunction(() => window.__stand.game.state.elapsed > .1 && window.__stand.game.state.elapsed < 5);
-    assert.equal(await page.evaluate(() => window.__stand.game.state.base), 1200);
+    assert.equal(await page.evaluate(() => window.__stand.game.state.base),10000);
     await page.evaluate(() => window.__stand.game.pause());
     // The optional showroom shares the actual game models and renders on input.
     await page.goto(url + '/stand-showroom.html');

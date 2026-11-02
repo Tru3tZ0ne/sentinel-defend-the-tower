@@ -1,5 +1,10 @@
 # Last Stand: preserve visual quality, reduce late-game rendering cost
 
+The instancing work below remains in use. Current campaign/effect behavior and
+its expanded 415-draw pressure fixture are documented in
+[STAND_COMMAND_CAMPAIGN.md](STAND_COMMAND_CAMPAIGN.md); the unchanged-combat and
+403-draw statements below refer to this historical performance tag.
+
 Review tag: `stand-performance-v1`. Baseline: `180c52c` (short-session balance).
 
 Late-game projectile counts previously created one geometry, material and draw

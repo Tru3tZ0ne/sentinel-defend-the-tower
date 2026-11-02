@@ -13,9 +13,16 @@ export async function inspectStandLoad(page, url, label = 'current') {
   await page.waitForFunction(() => window.__stand?.game.state.elapsed > .1);
   await page.evaluate(async () => {
     const g = window.__stand.game, { ENEMIES, WEAPONS } = await import(new URL('src/stand/model.js', location.href));
-    for (const [id, spec] of Object.entries(WEAPONS)) for (let i = 0; i < spec.max; i++) g.applyUpgrade(id);
+    for (const [id, spec] of Object.entries(WEAPONS)) while ((g.state.levels[id] || 0) < spec.max) g.applyUpgrade(id);
     g.state.pendingLevels = 0; g.useAbility('pt'); g.useAbility('rt'); g.pause();
     const s = g.state, canvas = document.querySelector('#stCanvas'), w = canvas.clientWidth;
+    const h=canvas.clientHeight, barY=h-Math.max(52,h*.09), fieldL=(w-440)/2, fieldR=fieldL+440;
+    s.cc={life:.5,bands:[h*.34,h*.55],width:42,dmg:100};
+    const hub={id:'XDR',x:fieldR-23,y:barY-78};
+    s.link={age:.3,charge:.65,duration:1.1,hub,devices:[hub,...s.shooters.filter(sh=>sh.kind!=='op').map(sh=>({id:sh.kind==='edr'?'EDR':'MDR',x:sh.fixed?fieldL+440*sh.frac:s.op.x+sh.off,y:barY-50})),
+      {id:'NDR',x:fieldR-34,y:barY-30},{id:'AF',x:s.op.x-120,y:s.op.y-62},{id:'AF',x:s.op.x+120,y:s.op.y-62},
+      {id:'IAG',x:fieldL+23,y:h*.44},{id:'ASTOR',x:fieldL+23,y:barY-17},{id:'HCI',x:fieldL+65,y:barY-113}]};
+    s.beam={x:hub.x,y:hub.y,tx:w/2-100,ty:100,width:100,life:.7,dmg:100};
     s.elapsed = 120; s.shake = 0; s.flash = 0; s.parts = []; s.fxr = []; s.texts = [];
     const types = ['recon', 'malware', 'worm', 'apt', 'exfil'];
     s.enemies = Array.from({ length: 64 }, (_, i) => {
