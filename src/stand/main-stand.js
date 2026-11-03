@@ -4,10 +4,10 @@
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
 const { createStandGame, ACCENT } = await import(
-  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=active-combat-v1'
-  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=active-combat-v1'
-  : './engine.js?campaign=active-combat-v1');
-import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, MISSION_SECONDS, recommendedUpgrade } from './model.js?campaign=active-combat-v1';
+  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=chain-mech-v1'
+  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=chain-mech-v1'
+  : './engine.js?campaign=chain-mech-v1');
+import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, MISSION_SECONDS, recommendedUpgrade } from './model.js?campaign=chain-mech-v1';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
@@ -67,7 +67,7 @@ const EN = {
   't.exfil': 'Data exfiltrated! An exfil runner slipped through',
   't.absorb': 'aStor snapshot absorbed the hit',
   't.afDown': 'NGAF barrier breached - rebuilding',
-  't.xdrIdle': 'XDR beam has no sensors to correlate - add EDR / NDR / NGAF',
+  't.xdrIdle': 'XDR has no sensors to correlate - add EDR / CC / NGAF',
   't.irOn': 'Incident Response - breach contained',
   't.ptOn': 'Penetration Testing - pen-test team deployed',
   't.rtOn': 'Red Team Assessment - attack teams storming in',
@@ -128,7 +128,7 @@ const ZH = {
   't.exfil': '数据被窃取！一个外泄跑者溜了过去',
   't.absorb': 'aStor 快照挡下了这一击',
   't.afDown': 'NGAF 屏障被攻破——重建中',
-  't.xdrIdle': 'XDR 光束没有可关联的传感器——去加 EDR / NDR / NGAF',
+  't.xdrIdle': 'XDR 没有可关联的传感器——去加 EDR / CC / NGAF',
   't.irOn': '应急响应——已遏制入侵',
   't.ptOn': '渗透测试——渗透小队已入场',
   't.rtOn': '红队评估——进攻小队大举压上',
@@ -167,11 +167,11 @@ Object.assign(EN, {
   'st.mech': 'Sentinel mech',
   'st.h2': 'Start with a basic robot. Choose your first module: EDR shoulder cannons, an MDR gun arm or an HCI compute pod. Press 1/2/3 or tap; after 3 seconds the marked recommendation mounts. Combat upgrades add modules and armor to your mech.',
   'st.chooseSub': 'Combat continues · automatic recommendation in', 'st.auto': 'AUTO',
-  'st.charging': 'XDR linking', 'st.firing': 'XDR firing', 'st.ready': 'XDR ready',
-  't.xdrLink': 'Devices linked — charging XDR', 'dim.XDR': 'Link → charge → laser',
-  'b.XDR': 'Every deployed device feeds energy into XDR before its targeted laser. Sensors and linked products strengthen it; pair with CC for ordinary projectile guidance.',
+  'st.charging': 'XDR linking', 'st.firing': 'XDR chain lightning', 'st.ready': 'XDR ready',
+  't.xdrLink': 'Modules linked — charging XDR', 'dim.XDR': 'Link → chain lightning',
+  'b.XDR': 'Modules charge the XDR backpack, which releases lightning into an aimed target and nearby enemies. Each jump loses damage; up to five distinct targets. Pair with CC to guide ordinary bullets.',
   'st.pace': 'No guaranteed clear. Dodge red boss lanes; balance security, business capacity and AI. Only completed defenses enter the board.',
-  'st.h1': 'Move with WASD / arrows or drag. Deploy both Cyber Command and XDR to guide ordinary bullets within a forward cone. MDR keeps its existing CC tracking and damage boost.',
+  'st.h1': 'Move with WASD / arrows or drag. MDR tracks enemies on its own. Cyber Command boosts MDR damage; CC + XDR together guide ordinary bullets within a forward cone.',
   'st.h3': 'HCI supplies compute; AI and Agent Builder turn it into scored work. Balance demand and capacity. Bosses arrive at 25 / 60 / 95 seconds; use Q/E/R support. Zero HP, zero availability or an uncleared boss at 120s means defeat.',
   'st.tag': '120 seconds. Three bosses. Build a defense that keeps the business and AI running.',
   'st.overSub': '{b}/3 bosses cleared · {s}s · {k} threats stopped. Total = HP 55% + business 25% + AI 12% + agents 8%.',
@@ -184,7 +184,7 @@ Object.assign(EN, {
   'dim.NDR': 'Side lasers + guidance sensor', 'dim.AI': 'AI workload', 'dim.AGENT': 'Workflow automation',
   'b.EDR': 'Mounts endpoint shoulder cannons on your mech. CC + XDR together enable limited forward-cone guidance. Keep aiming and moving.',
   'b.NDR': 'Fires horizontal laser strips, reveals threats and boosts MDR. Pair with XDR to guide ordinary bullets; tracking is not an automatic win.',
-  'b.MDR': 'Mounts a managed gun arm. CC boosts its damage and tracking; upgrades raise its damage and rate.',
+  'b.MDR': 'Mounts a gun arm with autonomous tracking from level one. No CC or XDR required. CC adds damage; upgrades raise firepower and rate.',
   'b.HCI': 'Mounts a server pod for compute capacity, business output and squad fire rate. It cannot replace threat containment.',
   'b.AF': 'An arm-mounted NGAF shield projects a barrier ahead of the mech, blocking threats and weakening those that break through.',
   'b.ASTOR': 'A hip-mounted aStor snapshot pod absorbs hits and restores base integrity.',
@@ -200,11 +200,11 @@ Object.assign(ZH, {
   'st.mech': '哨兵机甲',
   'st.h2': '开局只有普通机器人。先选择首个模块：EDR 肩炮、MDR 炮臂或 HCI 算力舱。按 1/2/3 或点击，3 秒后自动装配推荐项；战斗升级会逐步增加产品模块与机甲装甲。',
   'st.chooseSub': '战斗继续 · 自动推荐倒计时', 'st.auto': '推荐',
-  'st.charging': 'XDR 联动蓄能', 'st.firing': 'XDR 主激光', 'st.ready': 'XDR 就绪',
-  't.xdrLink': '设备联动——XDR 蓄能中', 'dim.XDR': '联动 → 蓄能 → 激光',
-  'b.XDR': '各设备向 XDR 汇聚能量后，由 XDR 发射主激光；传感器与联动产品越多，伤害越高。搭配 CC 让普通子弹获得有限追踪。',
+  'st.charging': 'XDR 联动蓄能', 'st.firing': 'XDR 链式闪电', 'st.ready': 'XDR 就绪',
+  't.xdrLink': '模块联动——XDR 蓄能中', 'dim.XDR': '联动 → 链式闪电',
+  'b.XDR': '各模块为 XDR 背包蓄能后，向瞄准目标释放闪电，再跳向附近敌人。每次跳跃伤害递减，最多命中五个不同目标；搭配 CC 可引导普通子弹。',
   'st.pace': '不再保底通关。躲开红色 Boss 攻击带，平衡安全、云算力与 AI；仅成功防守的成绩进入排行榜。',
-  'st.h1': '使用 WASD / 方向键或拖动移动。Cyber Command 与 XDR 同时部署后，普通子弹获得前方扇区内的有限追踪。MDR 保留原有 CC 追踪和增伤。',
+  'st.h1': '使用 WASD / 方向键或拖动移动。MDR 自带追踪，不依赖其他产品。CC 为 MDR 增伤；同时拥有 CC 与 XDR 后，普通子弹获得前方扇区内的有限追踪。',
   'st.h3': 'HCI 提供算力，AI 与 Agent Builder 将算力变成业务评分。Boss 在 25 / 60 / 95 秒登场，Q/E/R 呼叫支援。血量或可用性归零，或 120 秒时还有 Boss 存活，都会失败。',
   'st.tag': '120 秒，三大 Boss。在守住防线的同时，让云业务与 AI 持续运转。',
   'st.overSub': '清除 {b}/3 个 Boss · {s} 秒 · 拦截 {k} 个威胁。综合分＝血量 55%＋业务 25%＋AI 12%＋Agent 8%。',
@@ -217,7 +217,7 @@ Object.assign(ZH, {
   'dim.NDR': '侧向激光＋追踪感知', 'dim.AI': 'AI 工作负载', 'dim.AGENT': '智能工作流',
   'b.EDR': '为机甲装配终端肩炮；同时拥有 CC 与 XDR 才能获得前方扇区内的有限追踪，仍需走位与瞄准。',
   'b.NDR': '发射横向条状激光，揭露威胁并强化 MDR。搭配 XDR 让普通子弹获得有限追踪，不等于自动获胜。',
-  'b.MDR': '装配托管炮臂：CC 强化其伤害和追踪，升级提高火力与射速。',
+  'b.MDR': '装配一级即自带追踪的托管炮臂，无需 CC 或 XDR。CC 提供额外增伤，升级提高火力与射速。',
   'b.HCI': '装配服务器算力舱，增加算力、业务产出和全队射速，无法代替安全产品阻止攻击。',
   'b.AF': '臂载 NGAF 盾牌向机甲前方投射屏障，拦截威胁，并削弱突破屏障的敌人。',
   'b.ASTOR': '腰部 aStor 快照舱替基地抵挡攻击，并恢复完整度。',
@@ -344,7 +344,7 @@ const paintRail = painter();
 let phase = 'start', lastSummary = null, lastResult = null;
 
 const artModule = useArt
-  ? await import('./sangfor-art.js?art=mech-v1') : null;
+  ? await import('./sangfor-art.js?art=mech-v2') : null;
 const game = createStandGame(el.canvas, {
   artFactory: artModule?.createSangforArt,
   deckTexture: artModule?.createDeckTexture,

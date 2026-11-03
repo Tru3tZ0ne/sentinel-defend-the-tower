@@ -1,7 +1,7 @@
 // Original arcade equipment and threat sculptures. Brand decals remain official
 // artwork; these silhouettes do not describe commercial appliance specifications.
 import * as THREE from 'three';
-import { createMechFactory } from './mech-art.js?mech=v1';
+import { createMechFactory } from './mech-art.js?mech=v2';
 import { createStudioEnvironment } from './studio-light.js';
 
 const TAU = Math.PI * 2;
@@ -15,12 +15,12 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
   const textures = new Set(), pendingFits = new Set(), labels = new Map(), planes = new Map();
   const palette = Object.fromEntries(Object.entries(COLORS).map(([id, color]) => [id,
     new THREE.MeshStandardMaterial({ color, roughness: id === 'white' ? .32 : id === 'metal' ? .28 : .43,
-      metalness: id === 'metal' ? .82 : id === 'dark' ? .55 : .22,
+      metalness: id === 'metal' ? .82 : id === 'armor' ? .68 : id === 'dark' ? .55 : .22,
       emissive: ['green', 'cyan', 'red', 'amber'].includes(id) ? color : 0,
       emissiveIntensity: ['green', 'cyan'].includes(id) ? .4 : .12 })]));
   Object.values(palette).forEach(m => originals.add(m));
 
-  function kit(materials = palette) {
+  function kit(materials = palette, smooth = false) {
     const parts = new Map();
     function add(geometry, material, position = [0, 0, 0], rotation = [0, 0, 0], scale) {
       const matrix = new THREE.Matrix4().compose(new THREE.Vector3(...position),
@@ -45,16 +45,16 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
       shape.quadraticCurveTo(-w / 2, h / 2, -w / 2, y1); shape.lineTo(-w / 2, y0);
       shape.quadraticCurveTo(-w / 2, -h / 2, x0, -h / 2);
       const geometry = new THREE.ExtrudeGeometry(shape, { depth: Math.max(.01, d - r * 2),
-        bevelEnabled: true, bevelThickness: r, bevelSize: r * .45, bevelSegments: 1, steps: 1, curveSegments: 2 });
+        bevelEnabled: true, bevelThickness: r, bevelSize: r * .45, bevelSegments: smooth ? 2 : 1, steps: 1, curveSegments: smooth ? 4 : 2 });
       geometry.translate(0, 0, -(d - r * 2) / 2);
       add(geometry, material, [x, y, z], rotation);
     }
     function sphere(r, x, y, z, material, scale = [1, 1, 1], detail = 1) {
-      add(new THREE.IcosahedronGeometry(r, detail), material, [x, y, z], [0, 0, 0], scale);
+      add(smooth ? new THREE.SphereGeometry(r, 20, 12) : new THREE.IcosahedronGeometry(r, detail), material, [x, y, z], [0, 0, 0], scale);
     }
     function rod(a, b, r0, r1, material, segments = 8) {
       const from = new THREE.Vector3(...a), to = new THREE.Vector3(...b), delta = to.clone().sub(from);
-      const geometry = new THREE.CylinderGeometry(r1, r0, delta.length(), segments);
+      const geometry = new THREE.CylinderGeometry(r1, r0, delta.length(), smooth ? Math.max(16, segments) : segments);
       geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize()));
       add(geometry, material, from.add(to).multiplyScalar(.5).toArray());
     }
@@ -289,7 +289,7 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
     return root;
   }
 
-  const mech = integrated ? createMechFactory({kit,instantiate,decal,labelTexture,markTex,brandTex,flash,networkChassis,serverChassis}) : null;
+  const mech = integrated ? createMechFactory({kit:()=>kit(palette,true),instantiate,decal,labelTexture,markTex,brandTex,flash,networkChassis,serverChassis}) : null;
   function operator() {
     if(mech) return mech.build();
     const root = equipment('COMMAND'); root.name = 'sangfor:operator';

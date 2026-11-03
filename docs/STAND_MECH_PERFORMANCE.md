@@ -1,5 +1,9 @@
 # Last Stand: modular mech and active-combat performance
 
+Historical release record. Current MDR guidance, XDR chain lightning, mech detail
+and validation are documented in [STAND_CHAIN_MECH.md](STAND_CHAIN_MECH.md).
+The measurements and beam behavior below describe the earlier tag only.
+
 Review tag: `stand-mech-performance-v1`.
 Development branch: `perf/stand-active-combat`.
 Previous release: `0b886d6` / `stand-enterprise-balance-v1`.

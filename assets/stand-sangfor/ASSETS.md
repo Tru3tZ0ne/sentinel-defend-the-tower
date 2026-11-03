@@ -8,7 +8,9 @@ The modular Sentinel mech in `src/stand/mech-art.js` is original procedural
 geometry using the same native mesh-building helpers and existing official
 decals. Its armor, weapons and product mounts are fictional gameplay concepts.
 It adds no external model files or new raster assets. See
-`docs/STAND_MECH_PERFORMANCE.md` for the release and validation record.
+`docs/STAND_CHAIN_MECH.md` for the current release and validation record.
+The chain-mech refinement adds rounded armor, metal joints and piston details
+with the same procedural helpers. It introduces no new external art assets.
 
 ## Official photograph excerpts used only by the optional showroom
 

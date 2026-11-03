@@ -159,7 +159,7 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
       const w=document.querySelector('#stCanvas').clientWidth;
       s.enemies=Array.from({length:8},(_,i)=>({id:98000+i,type:'malware',spec:{...ENEMIES.malware,speed:0},
         x:w/2+((i%4)-1.5)*75,y:240+Math.floor(i/4)*140,r:17,hp:100000,maxhp:100000,slow:0,hit:0,wob:0,spawnAcc:0}));
-      s.beamAcc=1e5; s.ccAcc=1e5; s.xpNeed=1e9;
+      s.xdrAcc=1e5; s.ccAcc=1e5; s.xpNeed=1e9;
     });
     await page.waitForFunction(() => {
       const g=window.__stand.game;
@@ -176,13 +176,29 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.evaluate(() => window.__stand.game.resume());
     await page.waitForFunction(() => {
       const g=window.__stand.game;
-      if (g.state.beam) { g.pause(); return true; }
+      if (g.state.arc?.nodes.filter(n=>n.hit&&!n.skipped).length>=3) { g.pause(); return true; }
       return false;
     });
     await settle();
-    assert.ok(await page.evaluate(() => window.__stand.game.state.beam && window.__stand.game.state.link.fired));
+    assert.ok(await page.evaluate(() => window.__stand.game.state.arc && window.__stand.game.state.link.fired));
+    assert.equal(await page.evaluate(()=>new Set(window.__stand.game.state.arc.nodes.map(n=>n.id)).size),3);
     await page.screenshot({path:shots+'/stand-command-xdr-fire-FIXTURE.png'});
     await page.setViewportSize({width:390,height:844}); await settle();
+    // Start a phone-sized fixture: desktop pixel coordinates are not a phone scene.
+    await page.evaluate(async()=>{
+      const g=window.__stand.game;g.start();g.chooseUpgrade('EDR');const s=g.state;
+      for(const id of ['MDR','AF','NDR','XDR','IAG','HCI','ASTOR','AI','AGENT'])g.applyUpgrade(id);
+      const {ENEMIES}=await import(new URL('src/stand/model.js',location.href));
+      const w=document.querySelector('#stCanvas').clientWidth;
+      s.enemies=Array.from({length:8},(_,i)=>({id:98500+i,type:'malware',spec:{...ENEMIES.malware,speed:0},
+        x:w/2+((i%4)-1.5)*65,y:240+Math.floor(i/4)*110,r:17,hp:100000,maxhp:100000,slow:0,hit:0,wob:0,spawnAcc:0}));
+      s.xdrAcc=1e5;s.ccAcc=1e5;s.xpNeed=1e9;
+    });
+    await page.waitForFunction(()=>{
+      const g=window.__stand.game;
+      if(g.state.arc?.nodes.filter(n=>n.hit&&!n.skipped).length>=3){g.pause();return true;}return false;
+    });
+    await settle();
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     assert.ok(await page.locator('#stCloudScores').evaluate(el=>el.getBoundingClientRect().bottom<innerHeight*.45),'Scores leave the lower movement area clear');
     await page.screenshot({path:shots+'/stand-enterprise-mobile-xdr-FIXTURE.png'});

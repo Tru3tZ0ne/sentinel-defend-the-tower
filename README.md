@@ -74,10 +74,12 @@ on-board role and honest limitation. Pure logic is unit-tested in `tools/arcade-
 **Last Stand** (`stand.html`) is a real-time 3D, **120-second event campaign**.
 Start with **10,000 HP**, a basic robot and a first-module choice against three bosses at
 25, 60 and 95 seconds. **Cyber Command + XDR together** guide ordinary bullets;
-MDR retains its existing CC tracking and damage boost. Products become shoulder
+MDR tracks independently from level one; CC still boosts its damage. Products become shoulder
 cannons, a managed gun arm, a shield and server pods on the robot. Armor grows
 through four stages. Modules visibly charge **XDR**, whose compact branded
-backpack fires the final laser. No permanent product appliances accumulate on the floor.
+backpack discharges a thin chain of lightning through nearby targets.
+Rounded armor, metal joints and pistons refine the mech silhouette.
+No permanent product appliances accumulate on the floor.
 Dodge red boss lanes and time Q/E/R support. A clear requires three real boss
 deaths by 120 seconds and surviving HP/business availability.
 
@@ -86,15 +88,15 @@ shortages reduce availability and output; cloud-only investment is vulnerable.
 Rank completed defenses by **55% HP + 25% business + 12% AI + 8% Agent Builder**.
 The new enterprise board preserves previous scores and is local by default.
 Nonblocking upgrade choices, bilingual interfaces and full-quality 3D remain.
-The seeded casual mixed-build policy clears 65% desktop / 66.7% phone; this is
+The combined seeded casual mixed-build samples clear 62.2% desktop / 60% phone; this is
 simulation evidence, not a measured human win rate or guaranteed completion.
 
 These are fictional arcade mechanics and equipment concepts inspired by product
 roles. `stand-sangfor.html` offers the equipment preview; `stand-showroom.html`
 provides optional close inspection of the original eight equipment concepts.
-See the [mech and performance record](docs/STAND_MECH_PERFORMANCE.md)
+See the [chain-lightning and mech record](docs/STAND_CHAIN_MECH.md)
 and [English continuation brief](docs/CLAUDE_STAND_VISUALS_HANDOFF.txt), review tag
-`stand-mech-performance-v1`. Checks run through `npm run test:stand-art`.
+`stand-chain-mech-v1`. Checks run through `npm run test:stand-art`.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your

@@ -1,107 +1,106 @@
-Continue Last Stand from tag stand-mech-performance-v1 and branch
-perf/stand-active-combat. Fetch origin and preserve later changes. Read
-docs/STAND_MECH_PERFORMANCE.md and stand-mech-validation.json first.
-Earlier enterprise/command records are historical. Their preinstalled products,
-floor appliances, large XDR callout and older measurements are superseded.
+Continue Last Stand from tag stand-chain-mech-v1 and branch
+feat/stand-chain-mech. Fetch origin and preserve later changes. Read
+docs/STAND_CHAIN_MECH.md and docs/stand-chain-validation.json first.
+STAND_MECH_PERFORMANCE.md and earlier records describe historical releases.
 
-Continue implementing and playtesting this game, not just proposing a plan.
-Inspect current source and play before choosing the next improvement. Preserve
-English and Chinese interfaces and use English for development records.
-Keep the established interface compact; do not add more panels.
+Continue implementing and playtesting the game, not just proposing a plan.
+Inspect source and play before selecting improvements. Preserve both interface
+languages; use English for development records. Keep the interface compact.
 
 Playable entries:
 - stand.html: cinematic modular mech campaign.
 - stand-sangfor.html: same mech/combat, sharp equipment-preview stage.
-- stand-showroom.html: existing eight individual equipment concepts. It does
+- stand-showroom.html: eight earlier individual equipment concepts; it does
   not yet inspect all ten modules or the assembled mech.
 
 Visual contract:
-1. One basic robot, 10,000 HP and no preinstalled products. The opening offer
-   is EDR/MDR/HCI, with 1/2/3, tap and the three-second recommendation.
+1. Start with one basic robot, 10,000 HP and no preinstalled products. The
+   opening EDR/MDR/HCI offer supports 1/2/3, tap and a three-second recommendation.
 2. Mount products on ONE mech: EDR shoulder cannons, MDR gun arm, NGAF shield,
-   CC head sensor, HCI compute pod, XDR backpack, aStor hip storage, IAG leg
-   module, AI compute and Agent Builder wrist console. Do not restore a
-   growing field of permanent product appliances.
-3. Total purchased levels 0/3/7/14 select armor stages I/II/III/IV. Replay
-   returns to a plain robot while retaining cached geometry. Keep upgrades
-   physically visible without letting the mech obscure combat.
-4. Reuse official Sangfor marks. XDR has a compact backpack mark and readable
-   XDR plate, not an oversized floating board. Models are original arcade
-   concepts, not certified commercial appliances. AI uses AICP; Agent Builder
-   has a functional label, not a fabricated official logo.
-5. Phone choices sit bottom-right, clear of support buttons/HP and below the
-   forward enemy view. Check toasts/card overlap and full-mech framing at both
-   movement extremes, short portraits and in both languages.
+   CC head sensor, HCI compute pod, compact XDR backpack, aStor hip pod, IAG leg
+   module, AI compute and Agent Builder wrist console. Never accumulate floor
+   appliances. Product changes must be physically legible.
+3. Keep the rounded helmet/armor, metal joints, pistons and segmented limbs.
+   Armor stages use total purchased levels 0/3/7/14. Replay restores the bare
+   robot while retaining cached geometry. Preserve full silhouette on phones.
+4. Reuse official Sangfor marks. XDR has a compact mark/nameplate, never a giant
+   floating board. These are original arcade concepts, not official hardware.
+   AI uses AICP; Agent Builder has a functional label, not a fabricated logo.
+5. Phone choices sit bottom-right, clear of support/HP and forward enemy view.
+   Check both movement extremes, short portrait screens, toasts and both languages.
 
 Combat contract:
-1. Start at 10,000 HP. End at 120 active seconds, or earlier at zero HP/service
-   availability. Exactly three bosses enter at 25/60/95. All must actually die
-   by the deadline. No guaranteed clear, HP floor, fabricated death or forced
-   allied damage. Only victories rank.
-2. CC uses NDR internally. Retain side laser strips and its MDR boost. MDR
-   retains CC-only tracking, existing damage/rate and fast turning. Ordinary
-   operator/EDR/service shots need BOTH CC and XDR, with limited range/cone,
-   slower turning, constant speed and finite lifetime. Retarget safely after
-   kills/piercing; aiming and movement must matter.
-3. All owned modules charge XDR, including AI and Agent Builder. Links are
-   visual only. XDR alone fires the damaging beam from the moving backpack;
-   its target stays committed. Collision follows the actual angled segment.
-   Keep restrained chain damage so idle play can fail.
-4. Boss attacks warn a fixed column before damage; moving out avoids it.
-   AI extends warnings slightly. Preserve Q/E/R timing and support tradeoffs.
-5. HCI supplies compute/business throughput and fire-rate support. aStor adds
-   snapshots; AI produces work; Agent Builder adds workflows and modest
-   automation. AI requires HCI; Agent offers require HCI + AI. Overload reduces
-   availability/output. Cloud-only investment must lose to uncontained attacks.
-6. Score actual delivered work and HP, not purchases. Four components range
-   0-10,000 and use HP/business/AI/agents weights 55/25/12/8. Preserve tie ranks,
-   old boards and enterprise storage/API keys. Pages is browser-local ranking
-   unless a separate backend is configured. Do not claim a global board.
-7. Choices never pause combat. Explicit pause freezes combat/work/support/
-   offers. Terminal states award no later work/upgrades. Guard stale async
-   result submissions so they cannot overwrite replay screens.
+1. End at 120 active seconds, or earlier on zero HP/service. Three bosses enter
+   at 25/60/95; all must actually die by the deadline. No guaranteed clears,
+   HP floors, fabricated kills or forced damage. Only victories rank.
+2. MDR tracks independently FROM LEVEL ONE, with no CC/XDR prerequisite.
+   CC (NDR internally) retains horizontal strips, reveal and MDR damage bonus.
+   Ordinary operator/EDR/service shots need BOTH CC and XDR for limited cone/
+   range guidance. Preserve slower ordinary turning, constant speed, lifetime,
+   safe retargeting and MDR's faster broad acquisition. Aim/movement must matter.
+3. XDR is now CHAIN LIGHTNING, not a laser cannon/column. Every owned module,
+   including AI/Agent Builder, visibly charges it for 0.65s; links deal no damage.
+   The moving backpack emits a jagged white-green arc to an aimed target, then
+   nearest unique neighbors within sensor-scaled range. Current pulse: 2-5
+   targets, 65ms hop delays, 65% damage per next hop, one hit per target, 0.62s
+   lifetime. Skip targets killed before impact without free replacement. No
+   incidental line damage or recursive extra correlation from pulse kills.
+   Older bounded on-kill correlation from other weapons remains. Keep idle failure.
+4. State is S.arc/S.xdrAcc; derived properties are xdrOn/xdrDmg/xdrEvery/
+   xdrTargets/xdrJumpRange. Do not restore obsolete beam properties. Reuse the
+   instanced energy layer and separate source/target heights for the 3D arc.
+5. Dodge warned boss columns; AI slightly extends warnings. Preserve Q/E/R
+   timing/tradeoffs. HCI supports throughput/fire rate, aStor snapshots, AI work
+   and Agent workflows. AI needs HCI; Agent offers need HCI+AI. Overload hurts
+   availability/output. Pure-cloud investment must remain vulnerable and lose.
+6. Score actual delivered work/HP: HP/business/AI/agents each 0-10,000, weighted
+   55/25/12/8. Preserve ties, old boards, storage/API keys and local-by-default
+   ranking. Do not claim a global leaderboard without a configured backend.
+7. Choices do not pause combat. Explicit pause freezes all simulation/work/
+   support/offers. Terminal states award no later work/upgrades. Keep stale
+   async result guards so submissions cannot overwrite a replay screen.
 
 Balance:
-- Aim roughly 60-70% clears for a reasonable casual mixed-build policy, not a
-  security spending quota or guaranteed first-time-player rate.
-- Read current seeded and held-out results in the validation record. The probe
-  compiles production combat closures, not a simplified replacement engine.
-- After real combat changes, run both viewports and held-out seeds; record
-  loadouts, deaths, time, support, HP and service work. Do not select favorable
-  runs. Human playtesting on actual event hardware remains a follow-up.
+- Aim roughly 60-70% clears for reasonable casual mixed builds, not a spending
+  quota or guaranteed human clear rate. Use the production-combat probe.
+- Current combined main+held-out: desktop 56/90 (62.2%), phone 54/90 (60%).
+  Main phone alone was 32/60 (53.3%); held-out 22/30 (73.3%). Report the spread.
+  Informed 12/12 on each device; cloud/no-input 0/12 on each. Do not cherry-pick.
+- Main seeds 101+i*37, held-out 5001+i*37, desktop 1440x942/phone 390x786.
+  After combat edits record both viewports, loadouts, deaths, time, HP, work,
+  support and bosses. Human first-time/event-hardware playtesting remains useful.
 
 Performance:
-- Preserve geometry, antialiasing, shadows, bloom, lights, animation, particles,
-  lightning, text and native DPR up to 2. Do not cut effects/entities/resolution
-  to disguise cost. Do not add external runtime dependencies.
-- Retain instanced threats/bullets and the order-preserving collision grid.
-  Worm children born during the same piercing shot must remain hittable.
-- Retain object pools, stable compaction, shared projection/lightning buffers,
-  cached modules and pooled support teams. Pool limits apply only to recycled
-  objects; never discard still-live effects. Replays must reuse models.
-- Fixed fixture: ten maxed products, support teams, 64 threats, 256 shots, CC
-  strips and XDR link/beam = 333 draws / 491,226 triangles / 112 geometries.
-  Older separate appliances were 440 draws / 526,724 triangles. This compares
-  scene cost, not identical geometry or a universal FPS improvement percentage.
-- Bullets use one draw; growth to capacity 1,024 retains shared geometry.
-  Keep the existing <450 draw budget and verify native DPR 2.
-- Fixed counts clear transient FX for reproducibility. A separate FX fixture
-  retains 3,000 particles/80 texts/24 lightning effects. Neither establishes
-  natural-play smoothness. Use the active recorder with effects untouched and
-  identify the renderer before timing claims.
-- Preserve <=1/60s substeps and <=0.25s catch-up per rendered frame.
+- Preserve detail, AA, shadows, bloom, lights, animation, particles, text,
+  lightning and native DPR up to 2. No effect/entity/resolution cuts to hide cost.
+  No extra runtime dependencies. Avoid extra panels and per-frame model builds.
+- Retain instanced threats/bullets, order-preserving collision grid (including
+  worm children born during piercing hits), object pools, stable compaction,
+  shared projection/lightning buffers, cached modules and pooled support.
+  Retention bounds apply only to recycled objects, never active effects.
+- Fixed stress: ten maxed products/support, 64 threats, 256 shots, CC+XDR;
+  333 draws / 536,246 triangles / 110 geometries. Prior mech 333/491,226/112.
+  Smoother mech costs 9.2% more triangles; no FPS improvement is claimed.
+  Inspection 233 draws / 141,680 triangles / 119 geometries. Preserve budgets.
+- Bullets one draw, capacity 1024 shared geometry. FX fixture retains all 3000
+  particles / 80 texts / 24 lightning effects; native DPR 2 verified. Lightning
+  fits the existing 64-segment capacity (maximum 50 including module links/CC).
+- Fixed fixtures clear transient FX for reproducibility. They are not natural
+  performance evidence. Record actual full combat with effects untouched;
+  identify renderer before timing claims. SwiftShader cannot certify hardware FPS.
+- Preserve <=1/60s simulation substeps and <=0.25s catch-up per rendered frame.
 
-Validation and publication:
-- npm run test:stand-art runs balance/runtime, EN/ZH browser interactions,
-  kill-to-upgrade, charge/fire, mobile movement/choices, real fail/win results,
-  board isolation/replay/showroom, fixed stress, FX retention and DPR checks.
-- node tools/stand-active-performance.mjs mech records real combat, renderer,
-  frame/CPU timing, long tasks, heap, counts and collision candidates. Do not
-  mutate HP/time or clear FX to obtain flattering results.
-- Run existing engine/rush/arcade groups after shared-code changes.
-- Review desktop/phone captures in both languages; label staged fixtures.
-  Software rendering cannot establish hardware FPS or human clear rates.
-- Update English records with behavior/files, reproducible evidence, limits
-  and a new immutable tag; preserve old tags. When authorized to publish,
-  update main and verify the actual Pages version/cache. A feature branch
-  alone does not update the public site.
+Validation and delivery:
+- npm run test:stand-art covers 24 combat/runtime groups, EN/ZH browser flow,
+  kill-to-upgrade, lightning, mobile, real fail/win, score isolation, replay,
+  showroom, stress/reuse, retained FX and DPR. Run engine/rush/arcade 65 groups
+  when shared code changes. Do not weaken checks to pass a visual change.
+- node tools/stand-active-performance.mjs chain records actual combat, renderer,
+  frame/CPU timing, long tasks, heap, counts/collision stats. Never modify HP/
+  time or clear effects for flattering numbers. Run without competing heavy tests.
+- Review desktop/phone images. Label staged fixtures and start phone fixtures
+  at phone dimensions; desktop target coordinates do not represent a phone scene.
+- Update English records with behavior, files, reproducible evidence and limits.
+  Preserve immutable tags. When publication is authorized, publish main/new tag
+  and verify actual Pages/cache marker; a feature branch alone is not deployed.
+  Current marker campaign=chain-mech-v1, art=mech-v2, mech=v2.

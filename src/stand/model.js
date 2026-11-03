@@ -29,16 +29,11 @@ export function campaignScores(state) {
   const agent = score((state.agentWork || 0) / (MISSION_SECONDS * 18) * 10000);
   return { health, business, ai, agent, total: score(health * .55 + business * .25 + ai * .12 + agent * .08) };
 }
-export function segmentDistanceSq(x, y, ax, ay, bx, by) {
-  const dx = bx - ax, dy = by - ay, length = dx * dx + dy * dy;
-  const t = length ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / length)) : 0;
-  return (x - ax - t * dx) ** 2 + (y - ay - t * dy) ** 2;
-}
 export function recommendedUpgrade(choices, levels) {
   return [...choices].sort((a, b) => ((levels[a.id] || 0) - (levels[b.id] || 0)) || WEAPON_ORDER.indexOf(a.id) - WEAPON_ORDER.indexOf(b.id))[0]?.id;
 }
 
-// Base projectile constants. CC + XDR guide ordinary fire; MDR retains CC tracking.
+// CC + XDR guide ordinary fire; MDR has autonomous tracking from level one.
 export const OPERATOR = { dmg: 16, rate: 3.4, bulletSpeed: 980, pierce: 1 };
 export const TURRET = { rate: 2.8, bulletSpeed: 940, pierce: 1 };   // EDR endpoint turret
 export const ALLY = { rate: 2.3, bulletSpeed: 980, pierce: 1 };   // MDR teammate
@@ -57,7 +52,7 @@ export const ABILITIES = {
 };
 export const ABILITY_ORDER = ['ir', 'pt', 'rt'];
 
-// Each product is a deployable. max = max level. sensor = feeds the XDR beam.
+// Each product is a deployable. max = max level. sensor = feeds the XDR arc.
 export const WEAPONS = {
   EDR:   { id: 'EDR',   max: 8, sensor: true  },  // endpoint turret(s) beside you
   MDR:   { id: 'MDR',   max: 6, sensor: false },  // managed teammate(s), 24/7
@@ -65,7 +60,7 @@ export const WEAPONS = {
   NDR:   { id: 'NDR',   max: 6, sensor: true  },  // radar: reveals cloak + marks (bonus dmg)
   IAG:   { id: 'IAG',   max: 5, sensor: false },  // egress checkpoint: slow band
   HCI:   { id: 'HCI',   max: 6, sensor: false },  // compute core: fire rate for ALL units
-  XDR:   { id: 'XDR',   max: 6, sensor: false },  // correlation beam, scales with sensors
+  XDR:   { id: 'XDR',   max: 6, sensor: false },  // correlation arc, scales with sensors
   ASTOR: { id: 'ASTOR', max: 5, sensor: false },  // snapshot vault: base shield + restore
   AI:    { id: 'AI', max: 5, sensor: false },     // AI workloads consume HCI capacity
   AGENT: { id: 'AGENT', max: 5, sensor: false },  // agents need AI and compute; no autonomous gun
@@ -113,11 +108,12 @@ export function deriveSquad(levels) {
   // XDR: weak alone, multiplies with the sensor UNITS on the field (its real limit).
   const sensors = edrTurrets + ndrRadars + (afTier > 0 ? 1 : 0);
   const xdr = lvl(levels, 'XDR');
-  const beamOn = xdr > 0;
+  const xdrOn = xdr > 0;
   const linkedDevices = WEAPON_ORDER.filter(id => id !== 'XDR' && lvl(levels, id) > 0).length;
-  const beamDmg = beamOn ? Math.round((85 + xdr * 38) * Math.max(.15, sensors * .45) * (1 + linkedDevices * .08)) : 0;
-  const beamEvery = beamOn ? Math.max(1300, 3800 - xdr * 420) : 0;
-  const beamWidth = beamOn ? 30 + xdr * 10 + sensors * 7 : 0;
+  const xdrDmg = xdrOn ? Math.round((85 + xdr * 38) * Math.max(.15, sensors * .45) * (1 + linkedDevices * .08)) : 0;
+  const xdrEvery = xdrOn ? Math.max(1300, 3800 - xdr * 420) : 0;
+  const xdrTargets = xdrOn ? Math.min(5, 2 + Math.floor((xdr - 1) / 2) + (sensors >= 3 ? 1 : 0)) : 0;
+  const xdrJumpRange = Math.min(240, 150 + sensors * 12);
 
   const astor = lvl(levels, 'ASTOR');
   const shieldMax = astor;
@@ -130,7 +126,7 @@ export function deriveSquad(levels) {
     afTier, afHp, afWeaken, afHalfWidth,
     ndrReveal, ndrMark, ndrRadars, tracking, ccEvery, ccDamage, ccWidth, linkedDevices,
     iagBand, iagSlowMul,
-    sensors, beamOn, beamDmg, beamEvery, beamWidth, xdrIdle: beamOn && sensors === 0,
+    sensors, xdrOn, xdrDmg, xdrEvery, xdrTargets, xdrJumpRange, xdrIdle: xdrOn && sensors === 0,
     shieldMax, shieldEvery, regen,
   };
 }
@@ -150,7 +146,7 @@ export function damageTo(enemy, squad, rawDmg) {
 export const xpToLevel = level => Math.round(5 + Math.pow(level, 1.42) * 2.4);
 
 // Up to 3 upgrade offers, deterministic given rng(). Never offers a maxed product;
-// guarantees a sensor when the XDR beam is idle; favours breadth early.
+// guarantees a sensor when the XDR arc is idle; favours breadth early.
 export function upgradeChoices(levels, rng = Math.random) {
   const avail = WEAPON_ORDER.filter(id => lvl(levels, id) < WEAPONS[id].max &&
     (id !== 'AI' || lvl(levels, 'HCI') > 0) &&

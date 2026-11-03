@@ -52,7 +52,7 @@ export function createEnergyInstances(parent) {
       root.visible = segments.length > 0;
       let orbCount = 0;
       for (let i = 0; i < segments.length; i++) {
-        const s = segments[i]; from.set(wX(s.x), s.height || 1.15, wZ(s.y)); to.set(wX(s.tx), s.height || 1.15, wZ(s.ty));
+        const s = segments[i]; from.set(wX(s.x), s.height ?? 1.15, wZ(s.y)); to.set(wX(s.tx), s.targetHeight ?? s.height ?? 1.15, wZ(s.ty));
         delta.subVectors(to, from); const length = delta.length();
         quat.setFromUnitVectors(axis, delta.normalize()); color.set(s.color);
         for (const layer of layers) {

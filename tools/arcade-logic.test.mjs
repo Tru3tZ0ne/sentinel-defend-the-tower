@@ -297,12 +297,12 @@ test('stand: NGAF deploys a barrier that blocks + weakens; IAG a slow band', () 
   assert.equal(stand.deriveSquad({}).iagSlowMul, 1);
 });
 
-test('stand: the XDR beam is weak alone and multiplies with the SENSOR UNITS on the field', () => {
+test('stand: XDR lightning is weak alone and scales with sensor modules', () => {
   const alone = stand.deriveSquad({ XDR: 3 });
-  assert.ok(alone.beamOn && alone.xdrIdle && alone.sensors === 0);
+  assert.ok(alone.xdrOn && alone.xdrIdle && alone.sensors === 0);
   const fed = stand.deriveSquad({ XDR: 3, EDR: 2, NDR: 2, AF: 1 });
   assert.ok(!fed.xdrIdle && fed.sensors === (2 + 2 + 1), 'EDR turrets + NDR radars + AF barrier count');
-  assert.ok(fed.beamDmg > alone.beamDmg * 2, 'sensors multiply the beam hard');
+  assert.ok(fed.xdrDmg > alone.xdrDmg * 2, 'sensors strengthen the discharge');
 });
 
 test('stand: NDR reveals + marks - cloaked APTs take half damage until NDR, bonus after', () => {
