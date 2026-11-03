@@ -77,7 +77,8 @@ Start with **10,000 HP**, a basic robot and a first-module choice against three 
 MDR tracks independently from level one; CC still boosts its damage. Products become shoulder
 cannons, a managed gun arm, a shield and server pods on the robot. Armor grows
 through four stages. Modules visibly charge **XDR**, whose compact branded
-backpack discharges a thin chain of lightning through nearby targets.
+backpack discharges a thin chain of lightning through up to seven nearby targets.
+CC focuses on guided fire and marking; its former horizontal laser strips are removed.
 Rounded armor, metal joints and pistons refine the mech silhouette.
 No permanent product appliances accumulate on the floor.
 Dodge red boss lanes and time Q/E/R support. A clear requires three real boss
@@ -88,16 +89,16 @@ shortages reduce availability and output; cloud-only investment is vulnerable.
 Rank completed defenses by **55% HP + 25% business + 12% AI + 8% Agent Builder**.
 The new enterprise board preserves previous scores and is local by default.
 Nonblocking upgrade choices, bilingual interfaces and full-quality 3D remain.
-The combined seeded casual mixed-build samples clear 74.4% desktop / 63.3% phone; this is
+The combined seeded casual mixed-build samples clear 72.2% desktop / 68.9% phone; this is
 simulation evidence, not a measured human win rate or guaranteed completion.
 
 These are fictional arcade mechanics and equipment concepts inspired by product
 roles. `stand-sangfor.html` offers the equipment preview; `stand-showroom.html`
 provides optional close inspection of the original eight equipment concepts.
 Owned-product icons show their name, level and a short effect description in both languages.
-See the [CC guidance and loadout record](docs/STAND_CC_GUIDANCE.md)
+See the [guidance and expanded-chain record](docs/STAND_WIDE_CHAIN.md)
 and [English continuation brief](docs/CLAUDE_STAND_VISUALS_HANDOFF.txt), review tag
-`stand-cc-guidance-v1`. Checks run through `npm run test:stand-art`.
+`stand-wide-chain-v1`. Checks run through `npm run test:stand-art`.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your

@@ -97,9 +97,6 @@ export function deriveSquad(levels) {
   const ndrMark = ndr * 0.25;                               // +25% damage to marked threats / level
   const ndrRadars = Math.min(ndr, 2);
   const tracking = ndr > 0;
-  const ccEvery = ndr ? Math.max(1.5, 3.2 - ndr * .2) : 0;
-  const ccDamage = ndr ? 48 + ndr * 18 : 0;
-  const ccWidth = ndr ? 18 + ndr * 4 : 0;
 
   const iag = lvl(levels, 'IAG');
   const iagBand = iag > 0;
@@ -112,8 +109,8 @@ export function deriveSquad(levels) {
   const linkedDevices = WEAPON_ORDER.filter(id => id !== 'XDR' && lvl(levels, id) > 0).length;
   const xdrDmg = xdrOn ? Math.round((85 + xdr * 38) * Math.max(.15, sensors * .45) * (1 + linkedDevices * .08)) : 0;
   const xdrEvery = xdrOn ? Math.max(1300, 3800 - xdr * 420) : 0;
-  const xdrTargets = xdrOn ? Math.min(5, 2 + Math.floor((xdr - 1) / 2) + (sensors >= 3 ? 1 : 0)) : 0;
-  const xdrJumpRange = Math.min(240, 150 + sensors * 12);
+  const xdrTargets = xdrOn ? Math.min(7, 4 + Math.floor((xdr - 1) / 2) + (sensors >= 3 ? 1 : 0)) : 0;
+  const xdrJumpRange = Math.min(260, 170 + sensors * 14);
 
   const astor = lvl(levels, 'ASTOR');
   const shieldMax = astor;
@@ -124,7 +121,7 @@ export function deriveSquad(levels) {
     fireRateMul,
     edrTurrets, edrDmg, mdrAllies, mdrDmg, mdrRate,
     afTier, afHp, afWeaken, afHalfWidth,
-    ndrReveal, ndrMark, ndrRadars, tracking, ccEvery, ccDamage, ccWidth, linkedDevices,
+    ndrReveal, ndrMark, ndrRadars, tracking, linkedDevices,
     iagBand, iagSlowMul,
     sensors, xdrOn, xdrDmg, xdrEvery, xdrTargets, xdrJumpRange, xdrIdle: xdrOn && sensors === 0,
     shieldMax, shieldEvery, regen,

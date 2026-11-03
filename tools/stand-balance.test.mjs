@@ -10,7 +10,7 @@ function enemy(g, type='recon', extra={}) {
   return { id: 90000, type, spec, x: g.fieldL+80, y: 100, r: spec.r,
     hp: 1e6, maxhp: 1e6, slow: 0, hit: 0, wob: 0, spawnAcc: 0, bornAt: g.state.elapsed, attackAcc: 0, ...extra };
 }
-function quiet(g) { g.state.choices=[]; g.state.pendingLevels=0; g.state.offerLeft=0; g.state.opening=false; g.state.spawnAcc = -1e8; g.state.shooters = []; g.state.xdrAcc = -1e8; g.state.ccAcc = -1e8; }
+function quiet(g) { g.state.choices=[]; g.state.pendingLevels=0; g.state.offerLeft=0; g.state.opening=false; g.state.spawnAcc = -1e8; g.state.shooters = []; g.state.xdrAcc = -1e8; }
 function advance(g, seconds) { for (let i=0; i<Math.round(seconds*60); i++) g.step(1/60); }
 
 test('slower rendered frames keep real campaign pace with bounded catch-up and pause', () => {
@@ -63,11 +63,11 @@ test('zero HP is terminal; no post-finalization rewards or production', () => {
   const snapshot=JSON.stringify(g.state); advance(g,2); assert.equal(JSON.stringify(g.state),snapshot);
 });
 
-test('CC horizontal strips hit only their area; MDR buff is unchanged; CC alone guides ordinary fire', () => {
-  const g=createCombatProbe(); g.deploy('NDR'); quiet(g); g.state.ccAcc=10;
+test('CC has no ambient laser damage; MDR buff is unchanged; CC alone guides ordinary fire', () => {
+  const g=createCombatProbe(); g.deploy('NDR'); quiet(g);
   const inBand=enemy(g,'recon',{y:942*.34}), outBand=enemy(g,'recon',{id:90001,y:942*.44});
-  g.state.enemies=[inBand,outBand]; g.step(.05);
-  assert.ok(inBand.hp<1e6); assert.equal(outBand.hp,1e6); assert.equal(g.state.cc.bands.length,2);
+  g.state.enemies=[inBand,outBand]; advance(g,4);
+  assert.equal(inBand.hp,1e6); assert.equal(outBand.hp,1e6);
   assert.ok(deriveSquad({MDR:2,NDR:2}).mdrDmg>deriveSquad({MDR:2,NDR:1}).mdrDmg);
   for (const ids of [[],['NDR'],['XDR'],['NDR','XDR']]) for(const owner of ['op','edr','service','mdr']) {
     const p=createCombatProbe(); for(const id of ids) p.deploy(id); quiet(p);
@@ -125,21 +125,21 @@ test('XDR collects all deployed devices then fires from the actual hub; links do
 
 test('XDR chain hits unique nearby targets once with falling damage, never its visual path', () => {
   const g=createCombatProbe();for(const id of ['XDR','XDR','XDR','XDR','XDR','XDR','EDR','NDR','AF'])g.deploy(id);quiet(g);
-  const s=g.state;s.enemies=Array.from({length:7},(_,i)=>enemy(g,'recon',{id:91000+i,x:s.op.x+i*25,y:600-i*20}));
+  const s=g.state;s.enemies=Array.from({length:9},(_,i)=>enemy(g,'recon',{id:91000+i,x:s.op.x+i*25,y:600-i*20}));
   s.xdrAcc=1e5;g.step(.01);s.link.age=.64;g.step(.02);
-  const arc=s.arc;assert.equal(arc.nodes.length,5);assert.equal(new Set(arc.nodes.map(n=>n.id)).size,5);
+  const arc=s.arc;assert.equal(arc.nodes.length,7);assert.equal(new Set(arc.nodes.map(n=>n.id)).size,7);
   const bystander=enemy(g,'recon',{id:92000,x:s.op.x,y:700});s.enemies.push(bystander);
-  advance(g,.3);
+  advance(g,.45);
   const losses=arc.nodes.map(n=>1e6-s.enemies.find(e=>e.id===n.id).hp);
   assert.ok(losses.every(n=>n>0));for(let i=1;i<losses.length;i++)assert.ok(Math.abs(losses[i]/losses[i-1]-.65)<1e-6);
-  assert.equal(bystander.hp,1e6);assert.equal(s.enemies.find(e=>e.id===91006).hp,1e6);
+  assert.equal(bystander.hp,1e6);assert.equal(s.enemies.find(e=>e.id===91008).hp,1e6);
   const hp=s.enemies.map(e=>e.hp);advance(g,.4);assert.deepEqual(s.enemies.map(e=>e.hp),hp);assert.equal(s.arc,null);
   // Lethal pulse hits must not cascade through the older on-kill correlation.
   const lethal=createCombatProbe();for(const id of ['XDR','EDR','NDR'])lethal.deploy(id);quiet(lethal);
-  const ls=lethal.state,targets=Array.from({length:3},(_,i)=>enemy(lethal,'recon',{
+  const ls=lethal.state,targets=Array.from({length:5},(_,i)=>enemy(lethal,'recon',{
     id:93000+i,x:ls.op.x+i*20,y:600-i*20,hp:1,maxhp:1}));
-  ls.enemies=[...targets];ls.xdrAcc=1e5;lethal.step(.01);ls.link.age=.64;lethal.step(.02);advance(lethal,.2);
-  assert.equal(targets.filter(e=>e.dead).length,2);assert.equal(targets[2].hp,1);
+  ls.enemies=[...targets];ls.xdrAcc=1e5;lethal.step(.01);ls.link.age=.64;lethal.step(.02);advance(lethal,.3);
+  assert.equal(targets.filter(e=>e.dead).length,4);assert.equal(targets[4].hp,1);
 });
 
 test('XDR source follows the backpack, respects jump range, skips dead targets and pause',()=>{
@@ -152,6 +152,12 @@ test('XDR source follows the backpack, respects jump range, skips dead targets a
   s.phase='paused';const before=JSON.stringify(s.arc);advance(g,.2);assert.equal(JSON.stringify(s.arc),before);
   s.phase='play';advance(g,.15);assert.equal(second.hp,1e6);assert.equal(s.arc.nodes[1].skipped,true);
   assert.equal(s.enemies.find(e=>e.id===90002).hp,1e6);
+  // A modestly wider jump now reaches a neighbor beyond the previous 174-unit range.
+  const wider=createCombatProbe();for(const id of ['XDR','EDR','NDR'])wider.deploy(id);quiet(wider);
+  const ws=wider.state,neighbor=enemy(wider,'recon',{id:94001,x:ws.op.x+190,y:600});
+  ws.enemies=[enemy(wider,'recon',{id:94000,x:ws.op.x,y:600}),neighbor];
+  ws.xdrAcc=1e5;wider.step(.01);ws.link.age=.64;wider.step(.02);advance(wider,.1);
+  assert.equal(ws.arc.nodes.length,2);assert.ok(neighbor.hp<1e6);
 });
 
 test('MDR level one fires tracking rounds with neither CC nor XDR',()=>{

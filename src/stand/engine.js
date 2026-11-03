@@ -1,6 +1,6 @@
 // Last Stand — the machine. A real-time 3D base-defense shooter rendered with
 // Three.js (vendored locally). Combat runs in a 2D plane, with Cyber Command
-// guidance, horizontal strips and linked XDR chain lightning. The renderer maps that plane into a 3D world —
+// guidance and linked XDR chain lightning. The renderer maps that plane into a 3D world —
 // a perspective camera looks down the lane, units are lit 3D meshes that carry
 // their official Sangfor product marks, the base you defend wears the Sangfor
 // logo, and a thin 2D overlay paints damage numbers, hit sparks and flashes.
@@ -17,11 +17,11 @@ import {
   comboMult, killScore, SURVIVE_PER_SEC, STEAL_PENALTY, ABILITIES, ABILITY_ORDER,
   bossFor, bossHpScale,
   MISSION_SECONDS, BOSS_TIMES, UPGRADE_SECONDS, STARTER_LEVELS, openingChoices, integrityScore, recommendedUpgrade, cloudRates, campaignScores,
-} from './model.js?campaign=cc-guidance-v1';
+} from './model.js?campaign=wide-chain-v1';
 import { createCollisionIndex, compactLive } from './combat-runtime.js?perf=active-v1';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { sfx } from '../rush/audio.js';
-import { createBulletInstances, createEnemyInstances, createEnergyInstances } from './instances.js?campaign=cc-guidance-v1';
+import { createBulletInstances, createEnemyInstances, createEnergyInstances } from './instances.js?campaign=wide-chain-v1';
 
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -149,10 +149,6 @@ export function createStandGame(canvas, opts = {}) {
   const bullets = createBulletInstances(bulletGroup);
   const enemies = art ? createEnemyInstances(art, enemyGroup, MAX_ACTIVE_THREATS) : null;
   const energy = createEnergyInstances(scene);
-  const ccEmitters = new THREE.Group(); scene.add(ccEmitters);
-  const emitterGeometry = new THREE.CylinderGeometry(.24, .38, .85, 12);
-  const emitterMaterial = new THREE.MeshStandardMaterial({ color: 0x223c4a, roughness: .3, metalness: .7 });
-  for (let i = 0; i < 4; i++) { const emitter = new THREE.Mesh(emitterGeometry, emitterMaterial); ccEmitters.add(emitter); }
   let barrierObj = null, bandObj = null, shieldObj = null, coreObj = null, radarObj = null, radarSweep = null;
 
   // ---- geometry (pixel space for the sim) ----
@@ -213,7 +209,7 @@ export function createStandGame(canvas, opts = {}) {
       enemies: [], shots: [], parts: [], texts: [], fxr: [], arc: null, temps: [],
       pools: { shots: [], parts: [], texts: [], fxr: [] }, collision: createCollisionIndex(), targets: new Map(),
       spawnAcc: 0, xdrAcc: 0, shieldAcc: 0, lastBoss: 0, bossCount: 0, bossesKilled: 0,
-      ccAcc: 0, cc: null, link: null, choices: [], offerLeft: 0, businessWork: 0, aiWork: 0, agentWork: 0, availability: 100, xpAcc: 0, dodged: 0, defeatReason: null,
+      link: null, choices: [], offerLeft: 0, businessWork: 0, aiWork: 0, agentWork: 0, availability: 100, xpAcc: 0, dodged: 0, defeatReason: null,
       shake: 0, flash: 0, flashCol: '255,90,106', hudAcc: 0,
       cd: { ir: 0, pt: 0, rt: 0 }, ptT: 0, rtT: 0,   // active-skill cooldowns + team-summon timers
       corrAnnounced: false,
@@ -546,17 +542,6 @@ export function createStandGame(canvas, opts = {}) {
       if (!S.link.fired && S.link.age >= S.link.charge) { S.link.fired = true; fireXdrChain(); }
       if (S.link.age >= S.link.duration) S.link = null;
     }
-    if (sq.ccEvery) {
-      S.ccAcc += dt;
-      if (S.ccAcc >= sq.ccEvery) { S.ccAcc = 0; S.cc = { life: .55, bands: [H * .34, H * .55], width: sq.ccWidth, dmg: sq.ccDamage }; }
-    }
-    if (S.cc) {
-      S.cc.life -= dt;
-      for (const e of S.enemies) if (!e.dead && S.cc.bands.some(y => Math.abs(e.y - y) < S.cc.width / 2 + e.r)) {
-        dealDamage(e, S.cc.dmg * dt); if (e.hp <= 0) killEnemy(e, true);
-      }
-      if (S.cc.life <= 0) S.cc = null;
-    }
     if (sq.shieldEvery) { S.shieldAcc += dt * 1000; if (S.shieldAcc >= sq.shieldEvery) { S.shieldAcc = 0; S.shield = Math.min(sq.shieldMax, S.shield + 1); } }
     if (sq.regen) S.base = Math.min(S.baseMax, S.base + sq.regen * dt);
 
@@ -848,16 +833,7 @@ export function createStandGame(canvas, opts = {}) {
     if (unitsDirty) rebuildUnits();
     const sq = S.squad, op = S.op, t = S.elapsed;
     art?.sync(S, { wX, wZ, fieldL, fieldR, baseY, bandY });
-    ccEmitters.visible = sq.ndrReveal;
     const segments = [];
-    for (let i = 0; i < 4; i++) {
-      const y = H * (i < 2 ? .34 : .55), x = i % 2 ? fieldR - 5 : fieldL + 5;
-      ccEmitters.children[i].position.set(wX(x), .43, wZ(y));
-    }
-    if (S.cc) for (const y of S.cc.bands) {
-      segments.push({ x: fieldL + 5, y, tx: fieldR - 5, ty: y, width: .065, color: ACCENT.NDR, flow: false });
-      for (const x of [fieldL + 5, fieldR - 5]) segments.push({ x: integrated ? op.x : fieldR - 34, y: integrated ? op.y - 20 : baseY - 30, tx: x, ty: y, width: .012, color: ACCENT.NDR, flow: true });
-    }
     if (S.link?.hub) for (const device of S.link.devices) if (device.id !== 'XDR') {
       segments.push({ x: device.x, y: device.y, tx: S.link.hub.x, ty: S.link.hub.y, width: .028, height: integrated ? 2.2 : 1.15, color: S.link.fired ? ACCENT.XDR : ACCENT[device.id], flow: true });
     }

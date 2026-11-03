@@ -1,6 +1,7 @@
-Continue Last Stand from tag stand-cc-guidance-v1 and branch
-fix/stand-cc-guidance. Fetch origin and preserve later changes. Read
-docs/STAND_CC_GUIDANCE.md and docs/stand-cc-validation.json first.
+Continue Last Stand from tag stand-wide-chain-v1 and branch
+feat/stand-wide-chain. Fetch origin and preserve later changes. Read
+docs/STAND_WIDE_CHAIN.md and docs/stand-wide-validation.json first.
+STAND_CC_GUIDANCE.md records the preceding guidance/loadout correction.
 STAND_CHAIN_MECH.md records the preceding chain-lightning/mechanical refinement.
 STAND_MECH_PERFORMANCE.md and earlier records describe historical releases.
 
@@ -38,7 +39,9 @@ Combat contract:
    at 25/60/95; all must actually die by the deadline. No guaranteed clears,
    HP floors, fabricated kills or forced damage. Only victories rank.
 2. MDR tracks independently FROM LEVEL ONE, with no CC/XDR prerequisite.
-   CC (NDR internally) retains horizontal strips, reveal and MDR damage bonus.
+   CC (NDR internally) retains reveal, marking and its MDR damage bonus.
+   Its horizontal laser strips, periodic area damage and four lane-edge
+   emitters are REMOVED. Do not restore them or their old timer/state fields.
    CC ALONE guides ordinary operator/EDR/service shots, including already
    airborne rounds; XDR is not required. XDR alone does not guide these shots.
    Preserve the limited cone/range, slower ordinary turning, constant speed, lifetime,
@@ -46,8 +49,10 @@ Combat contract:
 3. XDR is now CHAIN LIGHTNING, not a laser cannon/column. Every owned module,
    including AI/Agent Builder, visibly charges it for 0.65s; links deal no damage.
    The moving backpack emits a jagged white-green arc to an aimed target, then
-   nearest unique neighbors within sensor-scaled range. Current pulse: 2-5
-   targets, 65ms hop delays, 65% damage per next hop, one hit per target, 0.62s
+   nearest unique neighbors within sensor-scaled range. Current pulse budget:
+   4-7 targets (base4 + floor((XDRlevel-1)/2) +1 at >=3 sensor units, cap7).
+   Jump range min(260,170+sensors*14). Keep 65ms hop delays, 65% damage per
+   next hop, one hit per target, 0.62s
    lifetime. Skip targets killed before impact without free replacement. No
    incidental line damage or recursive extra correlation from pulse kills.
    Older bounded on-kill correlation from other weapons remains. Keep idle failure.
@@ -68,10 +73,10 @@ Combat contract:
 Balance:
 - Aim roughly 60-70% clears for reasonable casual mixed builds, not a spending
   quota or guaranteed human clear rate. Use the production-combat probe.
-- Current combined main+held-out: desktop 67/90 (74.4%), phone 57/90 (63.3%).
-  Main desktop/phone 45/60 and 35/60; held-out 22/30 on each. Report the spread.
-  Desktop is above the approximate target; no difficulty tuning accompanied this
-  requested CC fix. Check human play before a later balance pass. Informed
+- Current combined main+held-out: desktop 65/90 (72.2%), phone 62/90 (68.9%).
+  Main desktop/phone 44/60 and 41/60; held-out 21/30 on each. Report the spread.
+  Desktop is slightly above the approximate target; no extra difficulty tuning
+  accompanied CC-laser removal/expanded chains. Check human play. Informed
   desktop 11/12, phone 12/12; cloud/no-input 0/12 on each. Do not cherry-pick.
 - Main seeds 101+i*37, held-out 5001+i*37, desktop 1440x942/phone 390x786.
   After combat edits record both viewports, loadouts, deaths, time, HP, work,
@@ -85,13 +90,13 @@ Performance:
   worm children born during piercing hits), object pools, stable compaction,
   shared projection/lightning buffers, cached modules and pooled support.
   Retention bounds apply only to recycled objects, never active effects.
-- Fixed stress: ten maxed products/support, 64 threats, 256 shots, CC+XDR;
-  333 draws / 536,246 triangles / 110 geometries. Prior mech 333/491,226/112.
-  Smoother mech costs 9.2% more triangles; no FPS improvement is claimed.
-  Inspection 233 draws / 141,680 triangles / 119 geometries. Preserve budgets.
+- Fixed stress: ten maxed products/support, 64 threats, 256 shots, seven XDR
+  targets and no CC strips: 329 draws / 536,342 triangles / 109 geometries.
+  Prior CC-guidance tag333/536,246/110. No hardware FPS improvement is claimed.
+  Inspection229 draws / 141,488 triangles / 118 geometries. Preserve budgets.
 - Bullets one draw, capacity 1024 shared geometry. FX fixture retains all 3000
   particles / 80 texts / 24 lightning effects; native DPR 2 verified. Lightning
-  fits the existing 64-segment capacity (maximum 50 including module links/CC).
+  fits the existing 64-segment capacity (maximum58 including module links).
 - Fixed fixtures clear transient FX for reproducibility. They are not natural
   performance evidence. Record actual full combat with effects untouched;
   identify renderer before timing claims. SwiftShader cannot certify hardware FPS.
@@ -110,4 +115,4 @@ Validation and delivery:
 - Update English records with behavior, files, reproducible evidence and limits.
   Preserve immutable tags. When publication is authorized, publish main/new tag
   and verify actual Pages/cache marker; a feature branch alone is not deployed.
-  Current marker campaign=cc-guidance-v1, art=mech-v2, mech=v2.
+  Current marker campaign=wide-chain-v1, art=mech-v2, mech=v2.

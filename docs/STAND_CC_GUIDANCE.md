@@ -1,5 +1,8 @@
 # Last Stand: Cyber Command guidance and readable loadout
 
+Historical release record. [STAND_WIDE_CHAIN.md](STAND_WIDE_CHAIN.md) supersedes
+the CC laser strips, XDR target budget and measurements for the current release.
+
 Release: `stand-cc-guidance-v1`; branch: `fix/stand-cc-guidance`.
 Base: `a6b49ec` / `stand-chain-mech-v1`.
 

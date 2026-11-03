@@ -4,10 +4,10 @@
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
 const { createStandGame, ACCENT } = await import(
-  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=cc-guidance-v1'
-  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=cc-guidance-v1'
-  : './engine.js?campaign=cc-guidance-v1');
-import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, MISSION_SECONDS, recommendedUpgrade } from './model.js?campaign=cc-guidance-v1';
+  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=wide-chain-v1'
+  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=wide-chain-v1'
+  : './engine.js?campaign=wide-chain-v1');
+import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, MISSION_SECONDS, recommendedUpgrade } from './model.js?campaign=wide-chain-v1';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
@@ -170,7 +170,7 @@ Object.assign(EN, {
   'st.chooseSub': 'Combat continues · automatic recommendation in', 'st.auto': 'AUTO',
   'st.charging': 'XDR linking', 'st.firing': 'XDR chain lightning', 'st.ready': 'XDR ready',
   't.xdrLink': 'Modules linked — charging XDR', 'dim.XDR': 'Link → chain lightning',
-  'b.XDR': 'Modules charge the XDR backpack, which releases lightning into an aimed target and nearby enemies. Each jump loses damage; up to five distinct targets. Sensors and linked modules increase its power.',
+  'b.XDR': 'Modules charge the XDR backpack, which releases lightning into an aimed target and nearby enemies. Each jump loses damage; four to seven distinct targets when enough enemies are in range. Sensors and linked modules increase its power.',
   'st.pace': 'No guaranteed clear. Dodge red boss lanes; balance security, business capacity and AI. Only completed defenses enter the board.',
   'st.h1': 'Move with WASD / arrows or drag. MDR tracks enemies on its own. Cyber Command boosts MDR damage and guides ordinary bullets within a forward cone, without requiring XDR.',
   'st.h3': 'HCI supplies compute; AI and Agent Builder turn it into scored work. Balance demand and capacity. Bosses arrive at 25 / 60 / 95 seconds; use Q/E/R support. Zero HP, zero availability or an uncleared boss at 120s means defeat.',
@@ -182,9 +182,9 @@ Object.assign(EN, {
   'reason.bosses': 'A boss remained at the 120-second deadline. Build more firepower and use support.',
   'st.service': 'Availability', 'st.compute': 'Compute / demand', 'st.tracking': 'CC guided fire', 'st.offline': 'XDR not deployed',
   'score.health': 'Remaining HP', 'score.business': 'HCI / business', 'score.ai': 'AI output', 'score.agent': 'Agent Builder',
-  'dim.NDR': 'Side lasers + guidance sensor', 'dim.AI': 'AI workload', 'dim.AGENT': 'Workflow automation',
+  'dim.NDR': 'Guided fire + threat marking', 'dim.AI': 'AI workload', 'dim.AGENT': 'Workflow automation',
   'b.EDR': 'Mounts endpoint shoulder cannons on your mech. Cyber Command enables limited forward-cone guidance. Keep aiming and moving.',
-  'b.NDR': 'Guides ordinary bullets without requiring XDR, fires horizontal laser strips, reveals threats and boosts MDR. Tracking remains limited to the forward cone.',
+  'b.NDR': 'Guides ordinary bullets without requiring XDR, reveals and marks threats, and boosts MDR damage. Tracking remains limited to the forward cone.',
   'b.MDR': 'Mounts a gun arm with autonomous tracking from level one. No CC or XDR required. CC adds damage; upgrades raise firepower and rate.',
   'rail.EDR': 'Shoulder fire', 'rail.MDR': 'Auto tracking', 'rail.AF': 'Front barrier',
   'rail.NDR': 'Guided fire', 'rail.HCI': 'Compute + rate', 'rail.XDR': 'Chain lightning',
@@ -206,7 +206,7 @@ Object.assign(ZH, {
   'st.chooseSub': '战斗继续 · 自动推荐倒计时', 'st.auto': '推荐',
   'st.charging': 'XDR 联动蓄能', 'st.firing': 'XDR 链式闪电', 'st.ready': 'XDR 就绪',
   't.xdrLink': '模块联动——XDR 蓄能中', 'dim.XDR': '联动 → 链式闪电',
-  'b.XDR': '各模块为 XDR 背包蓄能后，向瞄准目标释放闪电，再跳向附近敌人。每次跳跃伤害递减，最多命中五个不同目标；传感器与联动模块可增强伤害。',
+  'b.XDR': '各模块为 XDR 背包蓄能后，向瞄准目标释放闪电，再跳向附近敌人。每次跳跃伤害递减，范围内敌人充足时可连锁四至七个不同目标；传感器与联动模块可增强伤害。',
   'st.pace': '不再保底通关。躲开红色 Boss 攻击带，平衡安全、云算力与 AI；仅成功防守的成绩进入排行榜。',
   'st.h1': '使用 WASD / 方向键或拖动移动。MDR 自带追踪，不依赖其他产品。部署 CC 即可让普通子弹获得前方扇区内的有限追踪，并为 MDR 增伤，无需 XDR。',
   'st.h3': 'HCI 提供算力，AI 与 Agent Builder 将算力变成业务评分。Boss 在 25 / 60 / 95 秒登场，Q/E/R 呼叫支援。血量或可用性归零，或 120 秒时还有 Boss 存活，都会失败。',
@@ -218,9 +218,9 @@ Object.assign(ZH, {
   'reason.bosses': '120 秒结束时仍有 Boss 存活。需要补足火力，并主动使用支援技能。',
   'st.service': '业务可用性', 'st.compute': '算力／需求', 'st.tracking': 'CC 子弹追踪', 'st.offline': 'XDR 未部署',
   'score.health': '剩余血量', 'score.business': 'HCI／业务分', 'score.ai': 'AI 产出分', 'score.agent': 'Agent Builder',
-  'dim.NDR': '侧向激光＋追踪感知', 'dim.AI': 'AI 工作负载', 'dim.AGENT': '智能工作流',
+  'dim.NDR': '子弹追踪＋威胁标记', 'dim.AI': 'AI 工作负载', 'dim.AGENT': '智能工作流',
   'b.EDR': '为机甲装配终端肩炮；部署 CC 即可获得前方扇区内的有限追踪，仍需走位与瞄准。',
-  'b.NDR': '无需 XDR 即可引导普通子弹；同时发射横向条状激光，揭露威胁并强化 MDR。追踪范围限于前方扇区。',
+  'b.NDR': '无需 XDR 即可引导普通子弹，同时揭露、标记威胁并为 MDR 增伤。追踪范围限于前方扇区。',
   'b.MDR': '装配一级即自带追踪的托管炮臂，无需 CC 或 XDR。CC 提供额外增伤，升级提高火力与射速。',
   'rail.EDR': '肩炮火力', 'rail.MDR': '自主追踪', 'rail.AF': '前方屏障',
   'rail.NDR': '子弹追踪', 'rail.HCI': '算力＋射速', 'rail.XDR': '链式闪电',

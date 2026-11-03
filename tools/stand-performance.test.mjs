@@ -16,8 +16,6 @@ export async function inspectStandLoad(page, url, label = 'current') {
     for (const [id, spec] of Object.entries(WEAPONS)) while ((g.state.levels[id] || 0) < spec.max) g.applyUpgrade(id);
     g.state.pendingLevels = 0; g.useAbility('pt'); g.useAbility('rt'); g.pause();
     const s = g.state, canvas = document.querySelector('#stCanvas'), w = canvas.clientWidth;
-    const h=canvas.clientHeight, barY=h-Math.max(52,h*.09), fieldL=(w-440)/2, fieldR=fieldL+440;
-    s.cc={life:.5,bands:[h*.34,h*.55],width:42,dmg:100};
     const hub={id:'XDR',x:s.op.x,y:s.op.y+10};
     const offsets={EDR:[-24,-24],MDR:[30,-4],NDR:[0,-20],AF:[28,0],HCI:[18,5],XDR:[0,10],ASTOR:[-16,16],IAG:[12,20],AI:[-18,-6],AGENT:[-27,4]};
     s.link={age:.3,charge:.65,duration:1.1,hub,devices:Object.entries(offsets).map(([id,[dx,dy]])=>({id,x:s.op.x+dx,y:s.op.y+dy}))};
@@ -29,7 +27,7 @@ export async function inspectStandLoad(page, url, label = 'current') {
         y: 80 + Math.floor(i / 8) * 70, r: spec.r, hp: 150, maxhp: 300, slow: 0, hit: i % 4 ? 0 : 1,
         wob: i * .1, spawnAcc: 0, marked: true, afWeakened: false };
     });
-    s.arc={x:hub.x,y:hub.y,age:.3,life:.32,dmg:100,nodes:s.enemies.slice(0,5).map(e=>({id:e.id,x:e.x,y:e.y,height:e.r*.055+.35,hit:true,skipped:false}))};
+    s.arc={x:hub.x,y:hub.y,age:.4,life:.22,dmg:100,nodes:s.enemies.slice(0,7).map(e=>({id:e.id,x:e.x,y:e.y,height:e.r*.055+.35,hit:true,skipped:false}))};
     s.shots = Array.from({ length: 256 }, (_, i) => ({ x: w / 2 + ((i % 16) - 7.5) * 24,
       y: 70 + Math.floor(i / 16) * 45, vx: 0, vy: -980, dmg: 20, pierce: 1, hit: new Set(), r: 4.5,
       color: ['#9be85a', '#ff8a5a', '#58c8ff'][i % 3] }));

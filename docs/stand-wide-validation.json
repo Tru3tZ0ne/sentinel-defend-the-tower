@@ -1,0 +1,217 @@
+{
+  "release": "stand-wide-chain-v1",
+  "base": "b24a0e2",
+  "suites": {
+    "combatAndRuntime": 25,
+    "arcadeLogic": 35,
+    "browser": "passed: full stand EN/ZH desktop/phone suite including five-target production discharge; seven-target max also inspected separately",
+    "fixedStress": "passed: seven-target arc, no CC strips, full FX retention, pooling, DPR2"
+  },
+  "balance": {
+    "mainSeeds": {
+      "start": 101,
+      "step": 37
+    },
+    "heldOutSeeds": {
+      "start": 5001,
+      "step": 37
+    },
+    "viewports": {
+      "desktop": [
+        1440,
+        942
+      ],
+      "phone": [
+        390,
+        786
+      ]
+    },
+    "main": [
+      {
+        "device": "desktop",
+        "policy": "stationary",
+        "count": 12,
+        "wins": 0,
+        "meanSeconds": 61.4,
+        "minSeconds": 51.4,
+        "maxSeconds": 74.2,
+        "losses": {
+          "integrity": 12,
+          "service": 0,
+          "bosses": 0
+        }
+      },
+      {
+        "device": "desktop",
+        "policy": "cloud",
+        "count": 12,
+        "wins": 0,
+        "meanSeconds": 61.6,
+        "minSeconds": 57.5,
+        "maxSeconds": 66,
+        "losses": {
+          "integrity": 12,
+          "service": 0,
+          "bosses": 0
+        }
+      },
+      {
+        "device": "desktop",
+        "policy": "casual",
+        "count": 60,
+        "wins": 44,
+        "meanSeconds": 118.9,
+        "minSeconds": 65.3,
+        "maxSeconds": 120,
+        "losses": {
+          "integrity": 2,
+          "service": 0,
+          "bosses": 14
+        }
+      },
+      {
+        "device": "desktop",
+        "policy": "informed",
+        "count": 12,
+        "wins": 11,
+        "meanSeconds": 120,
+        "minSeconds": 120,
+        "maxSeconds": 120,
+        "losses": {
+          "integrity": 0,
+          "service": 0,
+          "bosses": 1
+        }
+      },
+      {
+        "device": "phone",
+        "policy": "stationary",
+        "count": 12,
+        "wins": 0,
+        "meanSeconds": 66.8,
+        "minSeconds": 51.9,
+        "maxSeconds": 94.2,
+        "losses": {
+          "integrity": 11,
+          "service": 1,
+          "bosses": 0
+        }
+      },
+      {
+        "device": "phone",
+        "policy": "cloud",
+        "count": 12,
+        "wins": 0,
+        "meanSeconds": 58.2,
+        "minSeconds": 54.3,
+        "maxSeconds": 62.3,
+        "losses": {
+          "integrity": 12,
+          "service": 0,
+          "bosses": 0
+        }
+      },
+      {
+        "device": "phone",
+        "policy": "casual",
+        "count": 60,
+        "wins": 41,
+        "meanSeconds": 117.3,
+        "minSeconds": 60.9,
+        "maxSeconds": 120,
+        "losses": {
+          "integrity": 7,
+          "service": 0,
+          "bosses": 12
+        }
+      },
+      {
+        "device": "phone",
+        "policy": "informed",
+        "count": 12,
+        "wins": 12,
+        "meanSeconds": 120,
+        "minSeconds": 120,
+        "maxSeconds": 120,
+        "losses": {
+          "integrity": 0,
+          "service": 0,
+          "bosses": 0
+        }
+      }
+    ],
+    "heldOut": [
+      {
+        "device": "desktop",
+        "policy": "casual",
+        "count": 30,
+        "wins": 21,
+        "meanSeconds": 118.3,
+        "minSeconds": 69,
+        "maxSeconds": 120,
+        "losses": {
+          "integrity": 1,
+          "service": 0,
+          "bosses": 8
+        }
+      },
+      {
+        "device": "phone",
+        "policy": "casual",
+        "count": 30,
+        "wins": 21,
+        "meanSeconds": 116.1,
+        "minSeconds": 60,
+        "maxSeconds": 120,
+        "losses": {
+          "integrity": 3,
+          "service": 0,
+          "bosses": 6
+        }
+      }
+    ],
+    "combined": [
+      {
+        "device": "desktop",
+        "wins": 65,
+        "count": 90,
+        "rate": 0.7222222222222222
+      },
+      {
+        "device": "phone",
+        "wins": 62,
+        "count": 90,
+        "rate": 0.6888888888888889
+      }
+    ],
+    "limits": "Scripted production-combat policy, not human clear rates. Desktop slightly above approximate 60-70% target. No extra difficulty tuning."
+  },
+  "sceneCost": {
+    "calls": 329,
+    "triangles": 536342,
+    "geometries": 109,
+    "prior": {
+      "calls": 333,
+      "triangles": 536246,
+      "geometries": 110
+    },
+    "bulletDraws": 1,
+    "retina": {
+      "pixelRatio": 2,
+      "ratio": 2
+    },
+    "effects": {
+      "particles": 3000,
+      "texts": 80,
+      "lightning": 24
+    },
+    "inspection": {
+      "calls": 229,
+      "triangles": 141488,
+      "geometries": 118
+    },
+    "maxEnergySegments": 58,
+    "energyCapacity": 64,
+    "limits": "Scene-cost evidence, not an FPS claim or fresh active-combat trace."
+  }
+}
