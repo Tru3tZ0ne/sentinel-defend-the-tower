@@ -1,23 +1,29 @@
 // Original arcade equipment and threat sculptures. Brand decals remain official
 // artwork; these silhouettes do not describe commercial appliance specifications.
 import * as THREE from 'three';
-import { createMechFactory } from './mech-art.js?mech=v3';
+import { createMechFactory } from './mech-art.js?mech=matte-v1';
 import { createStudioEnvironment } from './studio-light.js';
 
 const TAU = Math.PI * 2;
-const COLORS = { white: 0xcbd0d4, armor: 0x6c7e8b, metal: 0x89929c, dark: 0x252a31, black: 0x0d1015,
-  green: 0x72bb38, cyan: 0x32a8ce, amber: 0xcaa261, red: 0xea5260 };
+// Painted/composite shells, elastomer joints and small machined contacts have
+// distinct responses to light. Large chassis surfaces are not bare metal.
+const COLORS = { white: 0xd5dfce, armor: 0xb8ceb9, metal: 0x708481, dark: 0x163d37, black: 0x101f24,
+  green: 0x83be4b, cyan: 0x71cabe, amber: 0xdfb879, red: 0xea5260 };
+const SURFACES = {
+  white: [.62,.03], armor: [.68,.06], metal: [.33,.78], dark: [.74,.08], black: [.86,0],
+  green: [.48,.05], cyan: [.3,.08], amber: [.52,.05], red: [.5,.05],
+};
 
 export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex, laneW, length, integrated = false }) {
   const studio = createStudioEnvironment(renderer);
-  scene.environment = studio.texture; scene.environmentIntensity = .6;
+  scene.environment = studio.texture;
   const templates = new Map(), geometries = new Set(), originals = new Set();
   const textures = new Set(), pendingFits = new Set(), labels = new Map(), planes = new Map();
   const palette = Object.fromEntries(Object.entries(COLORS).map(([id, color]) => [id,
-    new THREE.MeshStandardMaterial({ color, roughness: id === 'white' ? .32 : id === 'metal' ? .28 : .43,
-      metalness: id === 'metal' ? .82 : id === 'armor' ? .68 : id === 'dark' ? .55 : .22,
+    new THREE.MeshStandardMaterial({ color, roughness: SURFACES[id][0], metalness: SURFACES[id][1],
+      envMapIntensity: id === 'metal' ? .7 : .18,
       emissive: ['green', 'cyan', 'red', 'amber'].includes(id) ? color : 0,
-      emissiveIntensity: ['green', 'cyan'].includes(id) ? .4 : .12 })]));
+      emissiveIntensity: ['green', 'cyan'].includes(id) ? .25 : .12 })]));
   Object.values(palette).forEach(m => originals.add(m));
 
   function kit(materials = palette, smooth = false) {
@@ -289,7 +295,7 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
     return root;
   }
 
-  const mech = integrated ? createMechFactory({kit:()=>kit(palette,true),instantiate,decal,labelTexture,markTex,brandTex,flash,networkChassis,serverChassis}) : null;
+  const mech = integrated ? createMechFactory({kit:()=>kit(palette,true),instantiate,decal,labelTexture,markTex,brandTex,flash}) : null;
   function operator() {
     if(mech) return mech.build();
     const root = equipment('COMMAND'); root.name = 'sangfor:operator';
@@ -357,10 +363,10 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
     const type = e.type, color = new THREE.Color(e.spec.color);
     const threatMaterials = {
       shell: new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(.48),
-        roughness: .4, metalness: .25, emissive: color, emissiveIntensity: .055 }),
+        roughness: .64, metalness: .06, emissive: color, emissiveIntensity: .055 }),
       flesh: new THREE.MeshStandardMaterial({ color, roughness: .58, metalness: .08,
         emissive: color, emissiveIntensity: .09 }),
-      jaw: new THREE.MeshStandardMaterial({ color: 0x271c2b, roughness: .3, metalness: .6 }),
+      jaw: new THREE.MeshStandardMaterial({ color: 0x392935, roughness: .7, metalness: .1 }),
       eye: new THREE.MeshStandardMaterial({ color: 0xffdfaf, emissive: 0xff7b55, emissiveIntensity: 1.1 }),
     };
     Object.values(threatMaterials).forEach(material => { material.envMapIntensity = .12; });
@@ -442,36 +448,34 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
       baseEmissive: .09, custom: true };
   }
 
-  // The battleground is a shallow appliance deck, with lighting and mechanical
-  // details kept outside the actual collision lane.
+  // A continuous composite training arena. Recessed edge lighting and low curved
+  // curbs frame movement without repeated industrial bollards or rack fronts.
   function environment() {
     const k = kit();
-    k.box(laneW + .5, .35, length + 7, 0, -.24, length / 2 - 1.5, 'dark', .1);
+    k.box(laneW + .5, .35, length + 7, 0, -.24, length / 2 - 1.5, 'dark', .14);
     for (const side of [-1, 1]) {
-      k.box(.7, .45, length + 7, side * (laneW / 2 + .05), .08, length / 2 - 1.5, 'metal');
-      for (let z = -3; z < length + 2; z += 3.6) {
-        k.box(.12, .035, 1.7, side * (laneW / 2 - .12), .34, z, 'green', .01);
-        k.box(.58, .85, .72, side * (laneW / 2 + .2), .5, z, 'dark');
-        k.box(.3, .09, .09, side * (laneW / 2 + .2), .91, z - .37, 'white');
+      k.box(.65, .27, length + 7, side * (laneW / 2 + .05), .03, length / 2 - 1.5, 'armor', .11);
+      k.box(.12, .035, length + 6.5, side * (laneW / 2 - .19), .18, length / 2 - 1.5, 'dark', .01);
+      for (let z = -2; z < length + 2; z += 5.8) {
+        k.box(.055, .025, 2.2, side * (laneW / 2 - .19), .205, z, 'green', .008);
+        k.box(.36, .14, .66, side * (laneW / 2 + .12), .21, z, 'white', .06);
       }
     }
     const stage = k.finish('sangfor:deck-frame');
     stage.traverse(o => { if (o.isMesh) o.material = o.material.clone(); }); laneFrame.add(stage);
     const fortress = kit();
-    fortress.box(laneW + .5, .6, 2.3, 0, .28, -2, 'dark', .12);
-    for (let i = -3; i <= 3; i++) {
-      fortress.box(2.25, .67, 1.65, i * 2.5, .8, -2.1, 'dark', .045);
-      fortress.box(1.98, .48, .07, i * 2.5, .8, -2.99, 'black');
-      for (let j = 0; j < 6; j++) {
-        fortress.box(.25, .31, .045, i * 2.5 - .8 + j * .32, .8, -3.05, 'metal', .008);
-        fortress.box(.18, .22, .025, i * 2.5 - .8 + j * .32, .8, -3.09, 'black', .006);
-        fortress.box(.025, .1, .015, i * 2.5 - .87 + j * .32, .8, -3.11, 'cyan', .003);
-      }
-      fortress.box(1.55, .025, .025, i * 2.5, 1.1, -3.02, 'green', .005);
+    fortress.box(laneW + .5, .5, 2.3, 0, .23, -2, 'dark', .16);
+    fortress.box(7.5, .38, 1.9, 0, .47, -2, 'armor', .14);
+    fortress.box(5.4, .025, 1.1, 0, .675, -2, 'dark', .01);
+    for (const side of [-1,1]) {
+      fortress.box(3.6, .58, 1.85, side*6.1, .57, -2.1, 'white', .14);
+      fortress.box(2.95, .29, .07, side*6.1, .56, -3.05, 'dark', .04);
+      for (let j=0;j<3;j++) fortress.box(2.5, .025, .025, side*6.1, .49+j*.07, -3.1, 'armor', .004);
+      fortress.box(2.7, .025, .025, side*6.1, .89, -2.35, 'green', .005);
     }
     const base = fortress.finish('sangfor:fortress');
     base.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });
-    decal(base, brandTex, 3.35, .65, 0, 1.15, -2.2, true); laneFrame.add(base);
+    decal(base, brandTex, 3.35, .65, 0, .695, -2, true); laneFrame.add(base);
   }
   environment();
   const aux = new THREE.Group(); aux.name = 'sangfor:installed-products'; scene.add(aux);
@@ -513,18 +517,28 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
 
 export function createDeckTexture() {
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1024;
-  const ctx = canvas.getContext('2d'); ctx.fillStyle = '#273b43'; ctx.fillRect(0, 0, 1024, 1024);
-  for (let y = 0; y < 1024; y += 128) for (let x = 0; x < 1024; x += 256) {
-    ctx.fillStyle = ((x / 256 + y / 128) % 2) ? '#30464d' : '#2d4149';
-    ctx.fillRect(x + 3, y + 3, 250, 122);
-    ctx.strokeStyle = '#53626a'; ctx.lineWidth = 2; ctx.strokeRect(x + 9, y + 9, 238, 110);
-    for (const dx of [16, 240]) for (const dy of [16, 112]) {
-      ctx.fillStyle = '#152a32'; ctx.beginPath(); ctx.arc(x + dx, y + dy, 3, 0, TAU); ctx.fill();
-    }
-    ctx.fillStyle = '#3b5057'; for (let i = 0; i < 6; i++) ctx.fillRect(x + 40 + i * 29, y + 92, 15, 3);
+  const ctx = canvas.getContext('2d'), fill=ctx.createLinearGradient(0,0,1024,0);
+  fill.addColorStop(0,'#263d37');fill.addColorStop(.18,'#344a40');
+  fill.addColorStop(.5,'#3e5145');fill.addColorStop(.82,'#344a40');fill.addColorStop(1,'#263d37');
+  ctx.fillStyle=fill;ctx.fillRect(0,0,1024,1024);
+  // Deterministic fine aggregate, painted once. Never perturb combat randomness.
+  for(let i=0;i<26000;i++) {
+    const x=(i*73+Math.floor(i/97)*31)%1024,y=(i*151+Math.floor(i/43)*19)%1024;
+    ctx.fillStyle=i%2?'rgba(235,243,221,.018)':'rgba(8,28,22,.025)';ctx.fillRect(x,y,1,1);
   }
-  // Quiet dashed guidance supports the firing lane without overpowering threats.
-  ctx.fillStyle = '#8da49c'; for (let y = 0; y < 1024; y += 128) ctx.fillRect(508, y + 32, 4, 34);
+  for(const x of [50,974]) {
+    ctx.fillStyle='#1f3931';ctx.fillRect(x-11,0,22,1024);
+    ctx.fillStyle='#839d74';ctx.fillRect(x-1,0,2,1024);
+    for(let y=48;y<1024;y+=160) {ctx.fillStyle='#accb84';ctx.fillRect(x-3,y,6,29);}
+  }
+  // Broad, quiet zoning replaces the repeated riveted tile grid.
+  ctx.strokeStyle='rgba(190,211,169,.13)';ctx.lineWidth=2;
+  for(const y of [190,510,830]) {
+    ctx.beginPath();ctx.moveTo(125,y);ctx.bezierCurveTo(340,y+32,684,y+32,899,y);ctx.stroke();
+  }
+  ctx.setLineDash([10,28]);ctx.strokeStyle='rgba(191,210,170,.22)';ctx.lineWidth=2;
+  for(const x of [310,714]) {ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,1024);ctx.stroke();}
+  ctx.setLineDash([]);
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(1.5, 3.5); return texture;
+  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping; return texture;
 }

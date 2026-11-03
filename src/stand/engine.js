@@ -51,7 +51,7 @@ const fmtNum = n => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(
 export function createStandGame(canvas, opts = {}) {
   const sculpted = !!opts.artFactory;                // uses the Sangfor equipment/creature models
   const atmosphere = !!opts.atmosphere;              // cinematic stage: env sky, bloom, vignette, dramatic camera
-  const showcase = sculpted && !atmosphere;          // the bloom-less equipment PREVIEW (kept byte-for-byte)
+  const showcase = sculpted && !atmosphere;          // the bloom-less equipment preview
   const onHud = opts.onHud || (() => {});
   const onToast = opts.onToast || (() => {});
   const onLevelUp = opts.onLevelUp || (() => {});
@@ -74,11 +74,11 @@ export function createStandGame(canvas, opts = {}) {
   renderer.info.autoReset = false;
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = showcase ? 1.18 : atmosphere ? 1.28 : 1.22;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = showcase ? 1.12 : sculpted ? 1.12 : atmosphere ? 1.28 : 1.22;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(showcase ? 0x14232b : 0x070b14);
-  scene.fog = new THREE.Fog(showcase ? 0x14232b : 0x0a1526, LEN * (showcase ? 1.1 : .82), LEN * (showcase ? 1.8 : 1.72));
+  scene.background = new THREE.Color(showcase ? 0x152a28 : 0x070b14);
+  scene.fog = new THREE.Fog(sculpted ? 0x18352e : 0x0a1526, LEN * (showcase ? 1.1 : .82), LEN * (showcase ? 1.8 : 1.72));
   const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 200);
   const CAM_BASE = new THREE.Vector3(0, showcase ? 27 : 12.5, showcase ? -10 : -12.5);
   const CAM_LOOK = new THREE.Vector3(0, showcase ? 0 : 2.1, showcase ? 13 : 15);
@@ -86,14 +86,14 @@ export function createStandGame(canvas, opts = {}) {
 
   // lights — showcase keeps the bright, bloom-less product lighting; every other
   // mode uses a cinematic warm key + cool rim + fill, with an env-map sky.
-  const hemi = new THREE.HemisphereLight(showcase ? 0xb9d5e6 : 0x9fc0ff, showcase ? 0x26352d : 0x0a0e18, showcase ? 2.1 : atmosphere ? .95 : .55); scene.add(hemi);
-  const key = new THREE.DirectionalLight(showcase ? 0xffffff : 0xfff0dc, showcase ? 3.2 : atmosphere ? 2.4 : 1.65); key.position.set(-8, 20, 2); key.castShadow = true;
+  const hemi = new THREE.HemisphereLight(sculpted ? 0xd4e3cf : 0x9fc0ff, sculpted ? 0x182f2c : 0x0a0e18, showcase ? 2.1 : sculpted ? .6 : atmosphere ? .95 : .55); scene.add(hemi);
+  const key = new THREE.DirectionalLight(sculpted ? 0xfff1db : 0xfff0dc, showcase ? 3.2 : sculpted ? 1.6 : atmosphere ? 2.4 : 1.65); key.position.set(-8, 20, 2); key.castShadow = true;
   key.shadow.mapSize.set(showcase ? 1024 : 2048, showcase ? 1024 : 2048); key.shadow.camera.near = 1; key.shadow.camera.far = 60;
   key.shadow.camera.left = -16; key.shadow.camera.right = 16; key.shadow.camera.top = 10; key.shadow.camera.bottom = -40;
   key.shadow.bias = showcase ? -0.0008 : -0.0006; if (!showcase) { key.shadow.radius = 3; key.shadow.normalBias = 0.02; }
   scene.add(key); scene.add(key.target); key.target.position.set(0, 0, 16);
-  const rim = new THREE.DirectionalLight(showcase ? 0x66ff9e : 0x6fd0ff, showcase ? 0.4 : 0.95); rim.position.set(6, showcase ? 6 : 7, showcase ? 24 : 30); scene.add(rim);
-  if (!showcase) { const fill = new THREE.DirectionalLight(0xbcd0ff, 0.3); fill.position.set(0, 9, -16); scene.add(fill); }
+  const rim = new THREE.DirectionalLight(sculpted ? 0x9ad6c3 : 0x6fd0ff, showcase ? 0.4 : sculpted ? .7 : .95); rim.position.set(6, showcase ? 6 : 7, showcase ? 24 : 30); scene.add(rim);
+  if (!showcase) { const fill = new THREE.DirectionalLight(sculpted ? 0xd3e5d5 : 0xbcd0ff, 0.3); fill.position.set(0, 9, -16); scene.add(fill); }
   // procedural environment map doubling as a graded sky backdrop — lights the
   // metallic chassis/barrels and forms depth behind the lane (offline, no HDRI).
   // Graded sky backdrop for every cinematic mode. The equipment factory installs
@@ -114,7 +114,7 @@ export function createStandGame(canvas, opts = {}) {
   // portrait phones (set in resize) so the operator's range always stays on-screen.
   const laneW = HALFW * 2;
   const laneFrame = new THREE.Group(); scene.add(laneFrame);
-  const floorMat = new THREE.MeshStandardMaterial({ map: opts.deckTexture ? opts.deckTexture() : makeFloorTex(), roughness: showcase ? 0.92 : 0.6, metalness: showcase ? 0.1 : 0.3, envMapIntensity: showcase ? .06 : 1 });
+  const floorMat = new THREE.MeshStandardMaterial({ map: opts.deckTexture ? opts.deckTexture() : makeFloorTex(), roughness: sculpted ? .94 : .6, metalness: sculpted ? .02 : .3, envMapIntensity: sculpted ? .12 : 1 });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(laneW, LEN + 12), floorMat);
   floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, LEN / 2 - 3); floor.receiveShadow = true; laneFrame.add(floor);
 
@@ -1056,9 +1056,10 @@ export function createStandGame(canvas, opts = {}) {
   function makeEnvTex() {
     const c = document.createElement('canvas'); c.width = 1024; c.height = 512; const g = c.getContext('2d');
     const grd = g.createLinearGradient(0, 0, 0, 512);
-    grd.addColorStop(0, '#16233e'); grd.addColorStop(0.42, '#0a1322'); grd.addColorStop(0.5, '#0d2340'); grd.addColorStop(0.58, '#070f1e'); grd.addColorStop(1, '#03060c');
+    const colors=sculpted?['#263d38','#102521','#24463a','#0c211d','#07120f']:['#16233e','#0a1322','#0d2340','#070f1e','#03060c'];
+    [0,.42,.5,.58,1].forEach((stop,i)=>grd.addColorStop(stop,colors[i]));
     g.fillStyle = grd; g.fillRect(0, 0, 1024, 512);
-    const hg = g.createLinearGradient(0, 236, 0, 276); hg.addColorStop(0, 'rgba(90,160,255,0)'); hg.addColorStop(0.5, 'rgba(120,190,255,0.55)'); hg.addColorStop(1, 'rgba(90,160,255,0)');
+    const hg = g.createLinearGradient(0, 236, 0, 276); hg.addColorStop(0, 'rgba(180,209,174,0)'); hg.addColorStop(0.5, sculpted?'rgba(180,209,174,.16)':'rgba(120,190,255,.55)'); hg.addColorStop(1, 'rgba(180,209,174,0)');
     g.fillStyle = hg; g.fillRect(0, 236, 1024, 40);
     g.fillStyle = 'rgba(200,220,255,0.5)';
     for (let i = 0; i < 60; i++) { const x = Math.random() * 1024, y = Math.random() * 190; g.fillRect(x, y, 1.5, 1.5); }

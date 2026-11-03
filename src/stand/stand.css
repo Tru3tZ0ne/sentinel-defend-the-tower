@@ -1,10 +1,10 @@
-/* Last Stand — a vertical, pseudo-3D survivor defense shooter. Full-bleed canvas
-   plus a glossy, product-branded HUD (XP/level bar, weapon chip, loadout rail,
-   base-integrity bar) and big beveled Sangfor "upgrade cards" on level up.
+/* Last Stand — a vertical 3D survivor defense shooter. Full-bleed canvas
+   with a quiet, product-branded HUD (XP, loadout, service controls and HP).
    Layers on main.css tokens + the shared arcade.css chrome. */
 
 .ar-field { padding: 0; display: block; overflow: hidden;
-  background: radial-gradient(120% 90% at 50% 0%, #10151f 0%, #070a11 70%); }
+  background: radial-gradient(120% 90% at 50% 0%, #203c34 0%, #091b17 70%); }
+.ar-top { background: #10251f; border-bottom-color: #375247; }
 #stCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
 /* 2D feedback overlay (damage numbers, sparks, flash) above the WebGL scene, below the HUD */
 .st-fx { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; z-index: 1; }
@@ -20,8 +20,7 @@
   display: flex; align-items: center; gap: 9px; pointer-events: none; }
 .st-lvbadge { flex: none; font-family: var(--mono); font-size: 10px; font-weight: 800; letter-spacing: .5px;
   color: #042033; padding: 4px 9px; border-radius: 11px; white-space: nowrap;
-  background: linear-gradient(180deg, #a6e9ff, #39c0ff 70%, #1f93d6);
-  box-shadow: 0 0 12px rgba(57,192,255,.5), inset 0 1px 0 rgba(255,255,255,.4); }
+  background: #b7d6a0; box-shadow: 0 2px 7px #0003; }
 .st-xp { position: relative; flex: 1; height: 11px; border-radius: 20px; overflow: hidden;
   background: linear-gradient(180deg, rgba(5,9,16,.92), rgba(8,13,24,.85));
   border: 1px solid var(--line); box-shadow: inset 0 1px 2px rgba(0,0,0,.6); }
@@ -31,11 +30,11 @@
 .st-xp::after { content: ""; position: absolute; inset: 0; border-radius: 20px; pointer-events: none;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.1); }
 .st-weap { pointer-events: none; display: inline-flex; align-items: center; gap: 8px; padding: 5px 11px 5px 7px;
-  border-radius: 14px; border: 1px solid var(--cap, var(--line)); background: linear-gradient(180deg, rgba(18,26,40,.95), rgba(9,14,24,.95));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 0 16px color-mix(in srgb, var(--cap, #39c0ff) 30%, transparent), 0 4px 12px rgba(0,0,0,.5); }
+  border-radius: 14px; border: 1px solid #486353; background: #102b25ed;
+  box-shadow: 0 3px 9px #0003; }
 .st-weap-ico { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; padding: 4px;
-  background: linear-gradient(180deg, #ffffff, #e7edf5); color: var(--cap, #fff);
-  box-shadow: inset 0 0 0 1.5px var(--cap, #fff), 0 0 10px color-mix(in srgb, var(--cap) 40%, transparent); }
+  background: #f2f4e9; color: var(--cap, #fff);
+  box-shadow: inset 0 0 0 1px #b6c5b0; }
 .st-weap-ico svg { width: 20px; height: 20px; }
 /* official product marks in the HUD */
 .st-mark { width: 100%; height: 100%; object-fit: contain; display: block; }
@@ -47,10 +46,10 @@
 .st-rail { position: absolute; top: 56px; right: 10px; z-index: 5; display: flex; flex-direction: column; gap: 6px;
   pointer-events: none; align-items: flex-end; }
 .st-rail-item { display: inline-flex; align-items: center; gap: 6px; padding: 3px 7px 3px 4px; border-radius: 11px;
-  background: linear-gradient(180deg, rgba(14,20,32,.88), rgba(8,12,22,.88)); border: 1px solid color-mix(in srgb, var(--cap, #fff) 45%, var(--line));
+  background: #102b25ed; border: 1px solid color-mix(in srgb, var(--cap, #fff) 30%, #375247);
   box-shadow: 0 2px 8px rgba(0,0,0,.45); backdrop-filter: blur(3px); }
 .st-rail-ico { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; padding: 3px; color: var(--cap, #fff);
-  background: linear-gradient(180deg, #ffffff, #e7edf5); box-shadow: inset 0 0 0 1.5px var(--cap, #fff); }
+  background: #f2f4e9; box-shadow: inset 0 0 0 1px #b6c5b0; }
 .st-rail-ico svg { width: 15px; height: 15px; }
 .st-rail-ico { flex-shrink: 0; }
 .st-rail-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; width: 100px; }
@@ -63,25 +62,25 @@
 .st-ab { position: relative; width: 58px; height: 58px; overflow: hidden; pointer-events: auto; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0; color: #fff;
   border: 1px solid color-mix(in srgb, var(--cap) 60%, var(--line)); border-radius: 15px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--cap) 22%, #0c1320), #0a0f1a 78%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 4px 14px rgba(0,0,0,.55);
+  background: color-mix(in srgb, var(--cap) 7%, #102720);
+  box-shadow: 0 3px 9px #0003;
   transition: transform .1s, box-shadow .15s, border-color .15s; -webkit-tap-highlight-color: transparent; }
 .st-ab-cd { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; z-index: 2; pointer-events: none;
   background: linear-gradient(180deg, rgba(4,7,13,.4), rgba(4,7,13,.82)); transition: height .12s linear; }
 .st-ab-key { position: absolute; top: 3px; right: 4px; z-index: 3; font-family: var(--mono); font-size: 8px; font-weight: 800;
   color: #04121f; background: var(--cap); border-radius: 5px; padding: 1px 4px; opacity: .92; }
 .st-ab-code { position: relative; z-index: 3; font-family: var(--mono); font-weight: 800; font-size: 17px; letter-spacing: .5px;
-  color: var(--cap); text-shadow: 0 0 10px color-mix(in srgb, var(--cap) 60%, transparent); }
+  color: var(--cap); }
 .st-ab-name { position: relative; z-index: 3; font-size: 7px; letter-spacing: .2px; line-height: 1; color: var(--ink-dim);
   max-width: 54px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-ab-timer { position: absolute; inset: 0; z-index: 4; display: grid; place-items: center; font-family: var(--mono);
   font-weight: 800; font-size: 15px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.85); pointer-events: none; }
 .st-ab.ready { border-color: var(--cap); animation: stAbPulse 1.9s ease-in-out infinite; }
 .st-ab.ready:active { transform: scale(.94); }
-.st-ab.active { border-color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 0 22px color-mix(in srgb, var(--cap) 75%, transparent); }
+.st-ab.active { border-color: #fff; box-shadow: 0 0 10px color-mix(in srgb, var(--cap) 40%, transparent); }
 @keyframes stAbPulse {
-  0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 9px color-mix(in srgb, var(--cap) 28%, transparent), 0 4px 14px rgba(0,0,0,.55); }
-  50% { box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 20px color-mix(in srgb, var(--cap) 62%, transparent), 0 4px 14px rgba(0,0,0,.55); }
+  0%, 100% { box-shadow: 0 0 3px color-mix(in srgb, var(--cap) 15%, transparent), 0 3px 9px #0003; }
+  50% { box-shadow: 0 0 8px color-mix(in srgb, var(--cap) 28%, transparent), 0 3px 9px #0003; }
 }
 
 /* ---------- base integrity bar (bottom) ---------- */

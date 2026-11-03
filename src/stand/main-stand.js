@@ -4,9 +4,9 @@
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
 const { createStandGame, ACCENT } = await import(
-  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=agent-workflow-v1'
-  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=agent-workflow-v1'
-  : './engine.js?campaign=agent-workflow-v1');
+  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=matte-arena-v1'
+  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=matte-arena-v1'
+  : './engine.js?campaign=matte-arena-v1');
 import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, WORKFLOW_STEPS, MISSION_SECONDS, UPGRADE_SECONDS, recommendedUpgrade } from './model.js?campaign=agent-workflow-v1';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
@@ -369,7 +369,7 @@ const paintRail = painter();
 let phase = 'start', lastSummary = null, lastResult = null;
 
 const artModule = useArt
-  ? await import('./sangfor-art.js?art=mech-v3') : null;
+  ? await import('./sangfor-art.js?art=matte-arena-v1') : null;
 const game = createStandGame(el.canvas, {
   artFactory: artModule?.createSangforArt,
   deckTexture: artModule?.createDeckTexture,
@@ -434,7 +434,7 @@ function cardHTML(ch, index, recommended) {
   const id = ch.id, isNew = ch.toLevel === 1, maxed = ch.toLevel >= ch.max;
   return `<button class="st-card cap-${id}${recommended ? ' recommended' : ''}" data-up="${id}" title="${esc(t('b.' + id))}">
     <span class="st-card-key">${index + 1}${recommended ? ' · ' + esc(t('st.auto')) : ''}</span>
-    ${equipmentPreview && !['AI', 'AGENT'].includes(id) ? `<img class="st-equipment-preview" src="assets/stand-sangfor/${id.toLowerCase()}.webp?art=v2" alt="" />` : ''}
+    ${equipmentPreview && !['AI', 'AGENT'].includes(id) ? `<img class="st-equipment-preview" src="assets/stand-sangfor/${id.toLowerCase()}.webp?art=matte-v1" alt="" />` : ''}
     <span class="st-card-top">
       <span class="st-card-ico">${MARK(id)}</span>
       ${isNew ? `<span class="st-card-tag">${esc(t('st.new'))}</span>` : `<span class="st-card-tag lv">${esc(t('st.to', { a: ch.toLevel - 1, b: ch.toLevel }))}${maxed ? ' · ' + esc(t('st.max')) : ''}</span>`}
@@ -466,7 +466,7 @@ async function showStart() {
   el.overlay.innerHTML = `
     <div class="ar-overlay">
       <div class="ar-card st-start-card">
-        ${equipmentPreview ? `<img class="st-art-hero" src="assets/stand-sangfor/equipment-preview.webp?art=v2" alt="" />` : ''}
+        ${equipmentPreview ? `<img class="st-art-hero" src="assets/stand-sangfor/equipment-preview.webp?art=matte-v1" alt="" />` : ''}
         ${brandHTML('Last Stand')}
         <h1 class="ar-title">Last <span class="em">Stand</span></h1>
         <p class="ar-tag">${esc(t('st.tag'))}</p>

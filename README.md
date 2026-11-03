@@ -79,7 +79,9 @@ cannons, a managed gun arm, a shield and server pods on the robot. Armor grows
 through four stages. Modules visibly charge **XDR**, whose compact branded
 backpack discharges a thin chain of lightning through up to seven nearby targets.
 CC focuses on guided fire and marking; its former horizontal laser strips are removed.
-Rounded armor, metal joints and pistons refine the mech silhouette.
+Warm matte armor, deep-green insets, metal joints and integrated product pods
+give the mech a consistent material design. A continuous composite arena replaces
+the repeated riveted metal deck; restrained HUD surfaces match the scene.
 No permanent product appliances accumulate on the floor.
 Dodge red boss lanes and time Q/E/R support. Press **F** or tap **Agent Builder**
 beside the services to run **Detect → Analyze → Contain → Recover**. Its compact
@@ -104,9 +106,10 @@ These are fictional arcade mechanics and equipment concepts inspired by product
 roles. `stand-sangfor.html` offers the equipment preview; `stand-showroom.html`
 provides optional close inspection of the original eight equipment concepts.
 Owned-product icons show their name, level and a short effect description in both languages.
-See the [active workflow and choice-timing record](docs/STAND_AGENT_WORKFLOW.md)
+See the [matte chassis and arena record](docs/STAND_MATTE_ARENA.md),
+[active workflow rules](docs/STAND_AGENT_WORKFLOW.md)
 and [English continuation brief](docs/CLAUDE_STAND_VISUALS_HANDOFF.txt), review tag
-`stand-agent-workflow-v1`. Checks run through `npm run test:stand-art`.
+`stand-matte-arena-v1`. Checks run through `npm run test:stand-art`.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your

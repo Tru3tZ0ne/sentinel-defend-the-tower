@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createSangforArt } from './sangfor-art.js?art=v2';
+import { createSangforArt } from './sangfor-art.js?art=matte-arena-v1';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 
 const official = 'https://www.sangfor.com/';
@@ -79,7 +79,7 @@ function relabel() {
   $('reference').innerHTML = p[5] ? `<span>${zh ? '官网产品参考图' : 'OFFICIAL PRODUCT REFERENCE'}</span><img src="assets/stand-sangfor/reference-${p[5]}.webp" alt="Sangfor ${p[0]} official product reference" />` : '';
   $('source').textContent = zh ? '查看官网产品页 ↗' : 'Official product page ↗'; $('source').href = official + p[4];
   $('concept').textContent = zh ? '基于产品特征创作的游戏装备。武器附加结构用于表现游戏机制。' : 'Product-inspired game equipment. Weapon attachments illustrate arcade mechanics.';
-  $('products').innerHTML = Object.entries(profiles).map(([id, info]) => `<button type="button" data-model="${id}" aria-pressed="${id === selected}"><img src="assets/stand-sangfor/${id.toLowerCase()}.webp?art=v2" alt="" /><b>${id === 'ASTOR' ? 'aStor' : id}</b><span>${info[0]}</span></button>`).join('');
+  $('products').innerHTML = Object.entries(profiles).map(([id, info]) => `<button type="button" data-model="${id}" aria-pressed="${id === selected}"><img src="assets/stand-sangfor/${id.toLowerCase()}.webp?art=matte-v1" alt="" /><b>${id === 'ASTOR' ? 'aStor' : id}</b><span>${info[0]}</span></button>`).join('');
 }
 function select(id) {
   if (model) {

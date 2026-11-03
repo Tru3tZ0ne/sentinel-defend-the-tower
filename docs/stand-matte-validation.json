@@ -1,0 +1,63 @@
+{
+  "release": "stand-matte-arena-v1",
+  "base": "04e9560",
+  "suites": {
+    "combatAndRuntime": 27,
+    "browser": "Passed: EN/ZH desktop and phone, F/tap workflow, 10s offers, fail/win, replay, XDR, showroom, no page/resource errors",
+    "fixedStress": "Passed unchanged budgets; full FX, cache reuse, one-draw bullets and native DPR2"
+  },
+  "unchangedCombat": {
+    "closureSHA256": "234d97b9ecd4969e6e5de7edcef1b70874a59296dad8a9081b95eb602772ee60",
+    "identicalToBase": true,
+    "modelUnchanged": true,
+    "runtimeUnchanged": true,
+    "normalization": "CRLF normalized to LF before source comparison"
+  },
+  "rendering": {
+    "before": {
+      "calls": 329,
+      "triangles": 536342,
+      "geometries": 109
+    },
+    "after": {
+      "calls": 315,
+      "triangles": 494942,
+      "geometries": 106
+    },
+    "inspection": {
+      "calls": 206,
+      "triangles": 99494,
+      "geometries": 111
+    },
+    "fixedEntities": {
+      "enemies": 64,
+      "shots": 256,
+      "modules": 10,
+      "groundDevices": 0
+    },
+    "bulletDraws": 1,
+    "bulletCapacity": 1024,
+    "retainedFX": {
+      "particles": 3000,
+      "texts": 80,
+      "lightning": 24
+    },
+    "retina": {
+      "pixelRatio": 2,
+      "ratio": 2
+    },
+    "bloom": {
+      "strength": 0.55,
+      "radius": 0.6,
+      "threshold": 0.72,
+      "unchanged": true
+    },
+    "shadowMap": 2048,
+    "limitation": "Fixed load and visual fixtures, not measured hardware FPS. Geometry changed with the designed pods and arena; live effects/entities, AA, shadows, bloom, animation and native DPR retained."
+  },
+  "assets": "Native Three.js geometry and deterministic 1024px canvas floor. Nine mesh previews re-rendered; official marks unchanged; no external assets or dependencies.",
+  "pages": {
+    "url": "https://tru3tz0ne.github.io/sentinel-defend-the-tower/stand.html",
+    "marker": "campaign=matte-arena-v1"
+  }
+}

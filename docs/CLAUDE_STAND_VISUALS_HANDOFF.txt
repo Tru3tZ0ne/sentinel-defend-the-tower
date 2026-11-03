@@ -1,6 +1,7 @@
-Continue Last Stand from tag stand-agent-workflow-v1 and branch
-feat/stand-agent-workflow. Fetch origin and preserve later changes. Read
-docs/STAND_AGENT_WORKFLOW.md and docs/stand-agent-validation.json first.
+Continue Last Stand from tag stand-matte-arena-v1 and branch
+feat/stand-matte-arena. Fetch origin and preserve later changes. Read
+docs/STAND_MATTE_ARENA.md and docs/stand-matte-validation.json first.
+STAND_AGENT_WORKFLOW.md records the still-current active Agent/ten-second rules.
 STAND_WIDE_CHAIN.md records the preceding CC-laser removal and wider XDR chains.
 STAND_CC_GUIDANCE.md records the preceding guidance/loadout correction.
 STAND_CHAIN_MECH.md records the preceding chain-lightning/mechanical refinement.
@@ -25,7 +26,13 @@ Visual contract:
    module and AI compute. Agent Builder's cached wrist console appears only
    while its manually triggered workflow executes. Never accumulate floor
    appliances. Product changes must be physically legible.
-3. Keep the rounded helmet/armor, metal joints, pistons and segmented limbs.
+3. Preserve the new material hierarchy: warm ivory/sage matte shell, deep-green
+   composite insets, dark joints, small machined contacts, restrained light strips.
+   Do not restore broad blue-gray metal plates, miniature server racks on limbs,
+   hanging label boards, dense riveted tiles or a row of industrial bollards.
+   Keep the curved visor, integrated rounded product pods and shield face.
+   The arena uses continuous matte paving, quiet zoning and low curved curbs.
+   Keep the rounded helmet/armor, metal joints, pistons and segmented limbs.
    Armor stages use total purchased levels 0/3/7/14. Replay restores the bare
    robot while retaining cached geometry. Preserve full silhouette on phones.
 4. Reuse official Sangfor marks. XDR has a compact mark/nameplate, never a giant
@@ -38,6 +45,12 @@ Visual contract:
    verify all nine entries at 390px and 320px. Agent Builder belongs in the
    existing service column, not the purchased-product rail or upgrade pool.
    Do not restore icon-only badges.
+7. Avoid overexposed white shells. Set environment response on actual materials,
+   not only a scene property. Main lights/exposure are calibrated for the new
+   palette; bloom strength/radius/threshold and pass count are unchanged.
+   Keep official mark images intact. These are procedural arcade models, not
+   photorealistic imported assets. Review the native-mesh before/after fixtures
+   with node tools/stand-matte-review.mjs before / after.
 
 Combat contract:
 1. End at 120 active seconds, or earlier on zero HP/service. Three bosses enter
@@ -109,9 +122,10 @@ Performance:
   Retention bounds apply only to recycled objects, never active effects.
 - Fixed stress: nine maxed products plus active wrist controller/support,
   64 threats, 256 shots, seven XDR
-  targets and no CC strips: 329 draws / 536,342 triangles / 109 geometries.
-  Prior CC-guidance tag333/536,246/110. No hardware FPS improvement is claimed.
-  Idle-controller inspection222 draws / 140,918 triangles / 115 geometries.
+  targets and no CC strips: 315 draws / 494,942 triangles / 106 geometries.
+  Prior Agent release329/536,342/109. Geometry changes come from redesigned
+  pods and arena, not live effect/entity caps. No hardware FPS gain is claimed.
+  Idle-controller inspection206 draws / 99,494 triangles / 111 geometries.
   Preserve budgets. The idle controller is intentionally absent, not a quality cut.
 - Bullets one draw, capacity 1024 shared geometry. FX fixture retains all 3000
   particles / 80 texts / 24 lightning effects; native DPR 2 verified. Lightning
@@ -134,4 +148,5 @@ Validation and delivery:
 - Update English records with behavior, files, reproducible evidence and limits.
   Preserve immutable tags. When publication is authorized, publish main/new tag
   and verify actual Pages/cache marker; a feature branch alone is not deployed.
-  Current marker campaign=agent-workflow-v1, art=mech-v3, mech=v3.
+  Current render markers campaign=matte-arena-v1, art=matte-arena-v1,
+  mech=matte-v1. Unchanged model/runtime resources may retain previous markers.

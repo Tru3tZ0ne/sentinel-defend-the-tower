@@ -1,5 +1,8 @@
 # Last Stand: active Agent Builder workflow and ten-second choices
 
+Gameplay remains current. The subsequent material/arena refinement is recorded
+in [STAND_MATTE_ARENA.md](STAND_MATTE_ARENA.md).
+
 Release: `stand-agent-workflow-v1`; branch: `feat/stand-agent-workflow`.
 Base: `fb0fa7d` / `stand-wide-chain-v1`.
 

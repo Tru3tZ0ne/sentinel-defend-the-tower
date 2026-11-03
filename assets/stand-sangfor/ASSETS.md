@@ -14,6 +14,12 @@ with the same procedural helpers. It introduces no new external art assets.
 The active Agent Builder release reuses the existing cached wrist controller
 only during workflow execution. Its step trace is native HTML/CSS; no new
 downloaded or generated art is introduced. See `docs/STAND_AGENT_WORKFLOW.md`.
+The matte-arena release redesigns the native mounted pods, visor, shield and
+arena, and re-renders the same nine WebP previews with the painted/composite
+palette. The 1024px arena texture is generated once in canvas. All official
+marks and reference photographs remain unchanged; no external models, image
+generation service or new runtime asset dependency is introduced. See
+`docs/STAND_MATTE_ARENA.md` for the current design and validation record.
 
 ## Official photograph excerpts used only by the optional showroom
 
