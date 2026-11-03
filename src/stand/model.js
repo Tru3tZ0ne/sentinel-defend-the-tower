@@ -5,21 +5,25 @@ export const START_BASE = 10000;
 export const MAX_ACTIVE_THREATS = 64;
 export const MISSION_SECONDS = 120;
 export const BOSS_TIMES = [25, 60, 95];
-export const UPGRADE_SECONDS = 3;
+export const UPGRADE_SECONDS = 10;
 export const STARTER_LEVELS = {};
 export const openingChoices = () => ['EDR','MDR','HCI'].map(id => ({id,toLevel:1,max:WEAPONS[id].max}));
 export const integrityScore = base => Math.floor(Math.max(0, Math.min(START_BASE, base)));
-export const CLOUD_PRODUCTS = ['HCI', 'ASTOR', 'AI', 'AGENT'];
-export function cloudRates(levels, elapsed, availability = 100) {
-  const hci = levels.HCI || 0, ai = levels.AI || 0, agent = levels.AGENT || 0;
+export const CLOUD_PRODUCTS = ['HCI', 'ASTOR', 'AI'];
+export function cloudRates(levels, elapsed, availability = 100, workflowActive = false) {
+  const hci = levels.HCI || 0, ai = levels.AI || 0;
   const capacity = 60 + hci * 32 + (levels.ASTOR || 0) * 8;
-  const demand = 55 + elapsed * .7 + ai * 14 + agent * 10;
+  const demand = 55 + elapsed * .7 + ai * 14 + (workflowActive ? 18 : 0);
   const served = Math.min(1, capacity / demand), uptime = Math.max(0, availability) / 100;
-  const automation = Math.min(ai, agent, hci);
-  return { capacity, demand, served, business: Math.min(capacity, demand) * uptime * (1 + automation * .06),
-    ai: hci ? ai * 10 * served * uptime * (1 + automation * .1) : 0,
-    agent: hci ? Math.min(ai, agent) * 6 * served * uptime : 0,
-    cooldown: 1 + automation * .04 };
+  return { capacity, demand, served, business: Math.min(capacity, demand) * uptime,
+    ai: hci ? ai * 10 * served * uptime : 0, agent: 0, cooldown: 1 };
+}
+// Agent Builder is a manual workflow, not a passive product upgrade.
+export const WORKFLOW_STEPS = ['detect', 'analyze', 'contain', 'recover'];
+export function workflowSpec(levels) {
+  const hci = levels.HCI || 0, ai = levels.AI || 0, combined = Math.min(hci, ai);
+  return { cd: 28 - combined, targets: Math.min(4, 2 + Math.floor(ai / 2)),
+    damage: 30 + ai * 6 + hci * 2, repair: 30 + combined * 20, work: 100 + combined * 70 };
 }
 export function campaignScores(state) {
   const score = n => Math.floor(Math.max(0, Math.min(10000, n)));
@@ -49,8 +53,9 @@ export const ABILITIES = {
   ir: { id: 'ir', cd: 26, dur: 0,  team: 0 },   // Incident Response - contain: nuke every threat + restore integrity
   pt: { id: 'pt', cd: 22, dur: 8,  team: 3 },   // Penetration Testing - a small expert team joins the fight
   rt: { id: 'rt', cd: 34, dur: 10, team: 6 },   // Red Team Assessment - a large surge of temporary attack teams
+  wf: { id: 'wf', cd: 28, dur: 4.4, team: 0 }, // Agent Builder - four explicit workflow stages
 };
-export const ABILITY_ORDER = ['ir', 'pt', 'rt'];
+export const ABILITY_ORDER = ['ir', 'pt', 'rt', 'wf'];
 
 // Each product is a deployable. max = max level. sensor = feeds the XDR arc.
 export const WEAPONS = {
@@ -63,9 +68,8 @@ export const WEAPONS = {
   XDR:   { id: 'XDR',   max: 6, sensor: false },  // correlation arc, scales with sensors
   ASTOR: { id: 'ASTOR', max: 5, sensor: false },  // snapshot vault: base shield + restore
   AI:    { id: 'AI', max: 5, sensor: false },     // AI workloads consume HCI capacity
-  AGENT: { id: 'AGENT', max: 5, sensor: false },  // agents need AI and compute; no autonomous gun
 };
-export const WEAPON_ORDER = ['EDR', 'MDR', 'AF', 'NDR', 'IAG', 'HCI', 'XDR', 'ASTOR', 'AI', 'AGENT'];
+export const WEAPON_ORDER = ['EDR', 'MDR', 'AF', 'NDR', 'IAG', 'HCI', 'XDR', 'ASTOR', 'AI'];
 export const SENSORS = ['EDR', 'NDR', 'AF'];
 
 const lvl = (levels, id) => (levels && levels[id]) || 0;
@@ -146,8 +150,7 @@ export const xpToLevel = level => Math.round(5 + Math.pow(level, 1.42) * 2.4);
 // guarantees a sensor when the XDR arc is idle; favours breadth early.
 export function upgradeChoices(levels, rng = Math.random) {
   const avail = WEAPON_ORDER.filter(id => lvl(levels, id) < WEAPONS[id].max &&
-    (id !== 'AI' || lvl(levels, 'HCI') > 0) &&
-    (id !== 'AGENT' || (lvl(levels, 'AI') > 0 && lvl(levels, 'HCI') > 0)));
+    (id !== 'AI' || lvl(levels, 'HCI') > 0));
   if (!avail.length) return [];
   const pick = [];
   const take = id => { if (id && !pick.includes(id)) pick.push(id); };

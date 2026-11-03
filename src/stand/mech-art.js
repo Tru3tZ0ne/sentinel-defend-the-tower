@@ -124,7 +124,7 @@ export function createMechFactory({kit,instantiate,decal,labelTexture,markTex,br
     for(let tier=1;tier<=stage;tier++) if(!armor.has(tier)) {const g=armorFrame(tier);armor.set(tier,g);root.add(g);moduleBuilds++;}
     for(const [tier,g]of armor) g.visible=tier<=stage;
     for(const [id,anchor]of Object.entries(anchors)) {
-      const level=S.levels[id]||0;
+      const level=id==='AGENT'?(S.workflow?1:0):(S.levels[id]||0);
       if(level&&!modules.has(id)) {const g=module(id);modules.set(id,g);root.add(g);moduleBuilds++;}
       const g=modules.get(id);if(!g)continue;g.visible=level>0;
       if(level) {

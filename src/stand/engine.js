@@ -16,12 +16,12 @@ import {
   xpToLevel, upgradeChoices, ENEMIES, threatPool, difficultyAt,
   comboMult, killScore, SURVIVE_PER_SEC, STEAL_PENALTY, ABILITIES, ABILITY_ORDER,
   bossFor, bossHpScale,
-  MISSION_SECONDS, BOSS_TIMES, UPGRADE_SECONDS, STARTER_LEVELS, openingChoices, integrityScore, recommendedUpgrade, cloudRates, campaignScores,
-} from './model.js?campaign=wide-chain-v1';
+  MISSION_SECONDS, BOSS_TIMES, UPGRADE_SECONDS, STARTER_LEVELS, openingChoices, integrityScore, recommendedUpgrade, cloudRates, campaignScores, workflowSpec, WORKFLOW_STEPS,
+} from './model.js?campaign=agent-workflow-v1';
 import { createCollisionIndex, compactLive } from './combat-runtime.js?perf=active-v1';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { sfx } from '../rush/audio.js';
-import { createBulletInstances, createEnemyInstances, createEnergyInstances } from './instances.js?campaign=wide-chain-v1';
+import { createBulletInstances, createEnemyInstances, createEnergyInstances } from './instances.js?campaign=agent-workflow-v1';
 
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -211,7 +211,8 @@ export function createStandGame(canvas, opts = {}) {
       spawnAcc: 0, xdrAcc: 0, shieldAcc: 0, lastBoss: 0, bossCount: 0, bossesKilled: 0,
       link: null, choices: [], offerLeft: 0, businessWork: 0, aiWork: 0, agentWork: 0, availability: 100, xpAcc: 0, dodged: 0, defeatReason: null,
       shake: 0, flash: 0, flashCol: '255,90,106', hudAcc: 0,
-      cd: { ir: 0, pt: 0, rt: 0 }, ptT: 0, rtT: 0,   // active-skill cooldowns + team-summon timers
+      cd: { ir: 0, pt: 0, rt: 0, wf: 0 }, ptT: 0, rtT: 0,
+      workflow: null, workflows: 0, wfCdMax: ABILITIES.wf.cd,
       corrAnnounced: false,
     };
   }
@@ -363,6 +364,7 @@ export function createStandGame(canvas, opts = {}) {
     if(integrated) {
       const offsets={EDR:[-24,-24],MDR:[30,-4],NDR:[0,-20],AF:[28,0],HCI:[18,5],XDR:[0,10],ASTOR:[-16,16],IAG:[12,20],AI:[-18,-6],AGENT:[-27,4]};
       for(const id of WEAPON_ORDER) if(S.levels[id]) {const [dx,dy]=offsets[id];devices.push({id,x:op.x+dx,y:op.y+dy});}
+      if(S.workflow) devices.push({id:'AGENT',x:op.x-27,y:op.y+4});
       return devices;
     }
     for (const sh of S.shooters) if (sh.kind !== 'op') devices.push({ id: sh.kind === 'edr' ? 'EDR' : 'MDR', x: unitX(sh), y: unitY(sh) });
@@ -371,7 +373,7 @@ export function createStandGame(canvas, opts = {}) {
     if (S.levels.HCI) devices.push({ id: 'HCI', x: fieldL + 65, y: baseY - 113 });
     if (S.levels.IAG) devices.push({ id: 'IAG', x: fieldL + 23, y: bandY });
     if (S.levels.AI) devices.push({ id: 'AI', x: fieldL + 23, y: baseY - 184 });
-    if (S.levels.AGENT) devices.push({ id: 'AGENT', x: fieldL + 23, y: baseY - 258 });
+    if (S.workflow) devices.push({ id: 'AGENT', x: fieldL + 23, y: baseY - 258 });
     if (S.levels.ASTOR) devices.push({ id: 'ASTOR', x: fieldL + 23, y: baseY - 17 });
     if (sq.xdrOn) devices.push({ id: 'XDR', x: fieldR - 23, y: baseY - 78 });
     return devices;
@@ -441,12 +443,50 @@ export function createStandGame(canvas, opts = {}) {
   function useAbility(id) {
     if (!S || S.phase !== 'play') return false;
     const spec = ABILITIES[id]; if (!spec || S.cd[id] > 0) return false;
+    if (id === 'wf') return beginWorkflow();
     S.cd[id] = spec.cd;
     if (id === 'ir') abilityIR();
     else if (id === 'pt') { S.ptT = spec.dur; summonTeam('pt', spec); onToast('ptOn', 'good'); }
     else if (id === 'rt') { S.rtT = spec.dur; summonTeam('rt', spec); onToast('rtOn', 'good'); S.flash = 0.4; S.flashCol = '255,90,106'; }
     pushHud();
     return true;
+  }
+  function beginWorkflow() {
+    if (S.workflow) return false;
+    const plan = workflowSpec(S.levels);
+    const targets = S.enemies.filter(e=>!e.dead && e.y>-e.r && e.y<baseY)
+      .sort((a,b)=>b.y-a.y).slice(0,plan.targets);
+    if (!targets.length) { onToast('wfEmpty','bad'); return false; }
+    S.cd.wf = plan.cd; S.wfCdMax = plan.cd;
+    S.workflow = { age:0, stage:0, ids:targets.map(e=>e.id), plan };
+    for(const e of targets) {e.marked=true;ring(e.x,e.y,ACCENT.AGENT,e.r*1.8,2);}
+    ring(S.op.x,S.op.y,ACCENT.AGENT,65,2);sfx.ability();pushHud();
+    return true;
+  }
+  function updateWorkflow(dt) {
+    const wf=S.workflow;if(!wf)return;
+    wf.age+=dt;
+    while(wf.stage<WORKFLOW_STEPS.length-1 && wf.age>=(wf.stage+1)*1.1) {
+      wf.stage++;
+      if(wf.stage===3) {
+        const delivery=cloudRates(S.levels,S.elapsed,S.availability,true);
+        S.agentWork+=wf.plan.work*delivery.served*Math.max(0,S.availability)/100;
+        S.businessWork+=delivery.business*2;
+        S.base=Math.min(S.baseMax,S.base+wf.plan.repair);
+        S.availability=Math.min(100,S.availability+2);
+        S.workflows++;ring(S.op.x,S.op.y,ACCENT.AGENT,90,3);
+        onToast('wfDone','good');
+      } else for(const id of wf.ids) {
+        const e=S.enemies.find(e=>e.id===id&&!e.dead);if(!e)continue;
+        if(wf.stage===1) {e.slow=Math.max(e.slow||0,2500);zap(S.op.x,S.op.y,e.x,e.y,ACCENT.AGENT);}
+        else {
+          const dealt=dealDamage(e,wf.plan.damage);
+          dmgText(e.x,e.y-e.r,dealt,ACCENT.AGENT,false);burst(e.x,e.y,ACCENT.AGENT,6,80);
+          if(e.hp<=0)killEnemy(e,true,true);
+        }
+      }
+    }
+    if(wf.age>=ABILITIES.wf.dur)S.workflow=null;
   }
   // Summon a temporary SERVICE team: `spec.team` operatives fan out beside the
   // operator and fire for `spec.dur` seconds, then withdraw.
@@ -497,8 +537,8 @@ export function createStandGame(canvas, opts = {}) {
     dt = Math.min(dt, Math.max(0, MISSION_SECONDS - S.elapsed));
     S.elapsed = Math.min(MISSION_SECONDS, S.elapsed + dt);
     const d = difficultyAt(S.elapsed), sq = S.squad, op = S.op;
-    const cloud = cloudRates(S.levels, S.elapsed, S.availability);
-    S.businessWork += cloud.business * dt; S.aiWork += cloud.ai * dt; S.agentWork += cloud.agent * dt;
+    const cloud = cloudRates(S.levels, S.elapsed, S.availability, !!S.workflow);
+    S.businessWork += cloud.business * dt; S.aiWork += cloud.ai * dt;
     S.availability = clamp(S.availability + (cloud.capacity >= cloud.demand ? 1.2 : -(1 - cloud.served) * 3.5) * dt, 0, 100);
     if (S.availability <= 0) { S.defeatReason = 'service'; gameOver(); return; }
     S.xpAcc += dt; if (S.xpAcc >= 2) { S.xpAcc -= 2; gainXp(1); }
@@ -517,6 +557,7 @@ export function createStandGame(canvas, opts = {}) {
     for (const k in S.cd) if (S.cd[k] > 0) S.cd[k] = Math.max(0, S.cd[k] - dt * cloud.cooldown);
     if (S.ptT > 0) S.ptT = Math.max(0, S.ptT - dt);
     if (S.rtT > 0) S.rtT = Math.max(0, S.rtT - dt);
+    updateWorkflow(dt);
 
     if (S.bossCount < BOSS_TIMES.length && S.elapsed >= BOSS_TIMES[S.bossCount]) spawnBoss();
     S.spawnAcc += dt * 1000;
@@ -1088,10 +1129,16 @@ export function createStandGame(canvas, opts = {}) {
   // ---- hud ----
   function pushHud() {
     const abilities = {};
-    for (const id of ABILITY_ORDER) { const spec = ABILITIES[id]; abilities[id] = { cd: S.cd[id], cdMax: spec.cd, ready: S.cd[id] <= 0, active: id === 'pt' ? S.ptT > 0 : id === 'rt' ? S.rtT > 0 : false }; }
+    for (const id of ABILITY_ORDER) {
+      const spec = ABILITIES[id];
+      abilities[id] = { cd:S.cd[id], cdMax:id==='wf'?S.wfCdMax:spec.cd,
+        ready:S.cd[id]<=0 && !(id==='wf'&&S.workflow),
+        active:id==='pt'?S.ptT>0:id==='rt'?S.rtT>0:id==='wf'?!!S.workflow:false,
+        stage:id==='wf'?(S.workflow?.stage??-1):-1, runs:id==='wf'?S.workflows:0 };
+    }
     let boss = null; for (const e of S.enemies) if (e.spec.boss && !e.dead && (!boss || e.y > boss.y)) boss = e;
     const bossHud = boss ? { type: boss.type, hp: Math.max(0, Math.round(boss.hp)), maxhp: boss.maxhp, frac: clamp(boss.hp / boss.maxhp, 0, 1), color: boss.spec.color, mega: !!boss.spec.mega } : null;
-    const scores=campaignScores(S), cloud=cloudRates(S.levels,S.elapsed);
+    const scores=campaignScores(S), cloud=cloudRates(S.levels,S.elapsed,S.availability,!!S.workflow);
     onHud({ base: integrityScore(S.base), baseMax: S.baseMax, score: scores.total, scores, availability: Math.floor(S.availability), demand: Math.round(cloud.demand), capacity: cloud.capacity, best: S.best, combo: S.combo, mult: comboMult(S.combo), elapsed: Math.floor(S.elapsed), level: S.level, xp: S.xp, xpNeed: S.xpNeed, tier: WEAPON_ORDER.reduce((a, id) => a + (S.levels[id] || 0), 0), levels: { ...S.levels }, dom: dominant(), sensors: S.squad.sensors, shield: S.shield, shieldMax: S.squad.shieldMax, corr: correlationLinks(), abilities, boss: bossHud, bossesKilled: S.bossesKilled, offerLeft: S.offerLeft, hasChoices: S.choices.length > 0, mechanized: integrated, rigStage: art?.rigDiagnostics?.stage || 0, tracking: S.squad.tracking, linkPhase: !S.levels.XDR ? 'offline' : S.arc ? 'firing' : S.link ? 'charging' : 'ready' });
   }
 
@@ -1107,7 +1154,7 @@ export function createStandGame(canvas, opts = {}) {
     if (S) { syncScene(dt); render(); }
     raf = requestAnimationFrame(frame);
   }
-  function gameOver() { if (S.phase === 'over') return; S.phase = 'over'; const scores = campaignScores(S), health = scores.health, outcome = !S.defeatReason && S.bossesKilled === BOSS_TIMES.length ? 'victory' : 'defeat'; if (outcome === 'victory') S.best = Math.max(S.best, scores.total); pushHud(); sfx.over(); onOver({ outcome, reason: S.defeatReason || (outcome === 'defeat' ? 'bosses' : null), health, scores, score: scores.total, best: S.best, bossesKilled: S.bossesKilled, availability: Math.floor(S.availability), dodged: S.dodged, kills: S.kills, elapsed: Math.round(S.elapsed), maxCombo: S.maxCombo, level: S.level, levels: { ...S.levels } }); }
+  function gameOver() { if (S.phase === 'over') return; S.phase = 'over'; const scores = campaignScores(S), health = scores.health, outcome = !S.defeatReason && S.bossesKilled === BOSS_TIMES.length ? 'victory' : 'defeat'; if (outcome === 'victory') S.best = Math.max(S.best, scores.total); pushHud(); sfx.over(); onOver({ workflows:S.workflows, outcome, reason: S.defeatReason || (outcome === 'defeat' ? 'bosses' : null), health, scores, score: scores.total, best: S.best, bossesKilled: S.bossesKilled, availability: Math.floor(S.availability), dodged: S.dodged, kills: S.kills, elapsed: Math.round(S.elapsed), maxCombo: S.maxCombo, level: S.level, levels: { ...S.levels } }); }
 
   // ---- input ----
   const toLocal = ev => { const r = canvas.getBoundingClientRect(); const p = ev.touches ? ev.touches[0] : ev; return { x: p.clientX - r.left, y: p.clientY - r.top }; };

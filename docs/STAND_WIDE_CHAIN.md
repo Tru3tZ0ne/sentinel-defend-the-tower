@@ -1,5 +1,8 @@
 # Last Stand: guidance-only Cyber Command and wider XDR chains
 
+Historical release record. Active Agent Builder and ten-second product choices
+are documented in [STAND_AGENT_WORKFLOW.md](STAND_AGENT_WORKFLOW.md).
+
 Release: `stand-wide-chain-v1`; branch: `feat/stand-wide-chain`.
 Base: `b24a0e2` / `stand-cc-guidance-v1`.
 

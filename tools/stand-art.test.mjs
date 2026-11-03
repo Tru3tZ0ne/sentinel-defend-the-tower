@@ -54,7 +54,7 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.locator('.st-card').first().waitFor({ timeout: 30000 });
     await page.evaluate(()=>window.__stand.game.pause());
     const offers=await page.locator('.st-card').evaluateAll(cards=>cards.map(c=>c.dataset.up));
-    assert.equal(await page.locator('.st-equipment-preview').count(),offers.filter(id=>!['AI','AGENT'].includes(id)).length);
+    assert.equal(await page.locator('.st-equipment-preview').count(),offers.filter(id=>id!=='AI').length);
     assert.ok(await page.locator('.st-equipment-preview').evaluateAll(images => images.every(i => i.complete && i.naturalWidth > 0)));
     await page.screenshot({ path: shots + '/stand-sangfor-upgrades.png' });
     const offerTime = await page.evaluate(() => window.__stand.game.state.elapsed);
@@ -71,7 +71,7 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.evaluate(async () => {
       const g = window.__stand.game;
       g.start();
-      for (const id of ['EDR', 'EDR', 'EDR', 'MDR', 'MDR', 'AF', 'NDR', 'XDR', 'IAG', 'HCI', 'HCI', 'ASTOR', 'AI', 'AGENT']) g.applyUpgrade(id);
+      for (const id of ['EDR', 'EDR', 'EDR', 'EDR', 'MDR', 'MDR', 'AF', 'NDR', 'XDR', 'IAG', 'HCI', 'HCI', 'ASTOR', 'AI']) g.applyUpgrade(id);
       g.state.pendingLevels = 0; g.pause();
       const s = g.state, { ENEMIES } = await import(new URL('src/stand/model.js', location.href));
       s.parts = []; s.fxr = []; s.texts = []; s.shake = 0; s.flash = 0; s.afHp = s.afMax;
@@ -86,7 +86,7 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     });
     await settle();
     metrics.inspection = await page.evaluate(() => window.__stand.game.diagnostics);
-    // Ten products (including the new AI and workflow consoles), nine threat types.
+    // Nine purchasable products, nine threat types. Workflow controller is active-only.
     assert.ok(metrics.inspection.calls < 330, JSON.stringify(metrics.inspection));
     assert.ok(metrics.inspection.triangles < 150000);
     await page.screenshot({ path: shots + '/stand-sangfor-all-products-threats-FIXTURE.png' });
@@ -140,9 +140,12 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     assert.ok(await page.locator('#stLevelUp').evaluate(el=>el.getBoundingClientRect().top > innerHeight*.65 && el.getBoundingClientRect().height < 125 && el.getBoundingClientRect().left > 70));
     assert.equal(await page.locator('.st-card.recommended').count(),1);
     await page.screenshot({path:shots+'/stand-command-mobile-offer-FIXTURE.png'});
-    await page.waitForFunction(() => !window.__stand.game.state.choices.length);
+    const choiceStarted=await page.evaluate(()=>window.__stand.game.state.elapsed);
+    await page.waitForFunction(t=>window.__stand.game.state.elapsed>t+3.1,choiceStarted,{timeout:60000});
+    assert.equal(await page.locator('#stLevelUp').count(),1,'Choices must still be present after three seconds');
+    await page.waitForFunction(() => !window.__stand.game.state.choices.length,null,{timeout:60000});
     assert.equal(await page.evaluate(() => Object.values(window.__stand.game.state.levels).reduce((a,b)=>a+b,0)),2);
-    assert.ok(await page.evaluate(() => window.__stand.game.state.elapsed >= 3));
+    assert.ok(await page.evaluate(() => window.__stand.game.state.elapsed >= 10));
     assert.equal(await page.locator('#stLevelUp').count(),0);
     // The main entry is the COMBINED build: sculpted models under the cinematic
     // stage. It uses the art models but keeps the default HUD (no preview hero/thumbs).
@@ -154,12 +157,13 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     // Production charging and expanded chain transitions, with explicit durable targets.
     await page.evaluate(async () => {
       const g=window.__stand.game, s=g.state;
-      for(const id of ['EDR','MDR','AF','NDR','XDR','IAG','HCI','ASTOR','AI','AGENT']) g.applyUpgrade(id);
+      for(const id of ['EDR','MDR','AF','NDR','XDR','IAG','HCI','ASTOR','AI']) g.applyUpgrade(id);
       const {ENEMIES}=await import(new URL('src/stand/model.js',location.href));
       const w=document.querySelector('#stCanvas').clientWidth;
       s.enemies=Array.from({length:8},(_,i)=>({id:98000+i,type:'malware',spec:{...ENEMIES.malware,speed:0},
         x:w/2+((i%4)-1.5)*75,y:240+Math.floor(i/4)*140,r:17,hp:100000,maxhp:100000,slow:0,hit:0,wob:0,spawnAcc:0}));
       s.xdrAcc=1e5; s.xpNeed=1e9;
+      g.useAbility('wf');
     });
     await page.waitForFunction(() => {
       const g=window.__stand.game;
@@ -187,7 +191,7 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     // Start a phone-sized fixture: desktop pixel coordinates are not a phone scene.
     await page.evaluate(async()=>{
       const g=window.__stand.game;g.start();g.chooseUpgrade('EDR');const s=g.state;
-      for(const id of ['MDR','AF','NDR','XDR','IAG','HCI','ASTOR','AI','AGENT'])g.applyUpgrade(id);
+      for(const id of ['MDR','AF','NDR','XDR','IAG','HCI','ASTOR','AI'])g.applyUpgrade(id);
       const {ENEMIES}=await import(new URL('src/stand/model.js',location.href));
       const w=document.querySelector('#stCanvas').clientWidth;
       s.enemies=Array.from({length:8},(_,i)=>({id:98500+i,type:'malware',spec:{...ENEMIES.malware,speed:0},
@@ -202,6 +206,49 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     assert.ok(await page.locator('#stCloudScores').evaluate(el=>el.getBoundingClientRect().bottom<innerHeight*.45),'Scores leave the lower movement area clear');
     await page.screenshot({path:shots+'/stand-enterprise-mobile-xdr-FIXTURE.png'});
+    // Active Agent Builder: keyboard and touch execute the actual staged workflow.
+    // Durable stationary enemies isolate UI transitions; these are explicit fixtures.
+    const stageWorkflow = async (leaveOffer=false) => page.evaluate(async leaveOffer=>{
+      const g=window.__stand.game;g.start();if(!leaveOffer)g.chooseUpgrade('HCI');
+      const s=g.state,{ENEMIES}=await import(new URL('src/stand/model.js',location.href));
+      s.base=9000;s.spawnAcc=-1e6;s.xpNeed=1e9;
+      s.enemies=Array.from({length:3},(_,i)=>({id:98600+i,type:'malware',spec:{...ENEMIES.malware,speed:0},
+        x:s.op.x+(i-1)*40,y:180+i*40,r:17,hp:100000,maxhp:100000,slow:0,hit:0,wob:0,spawnAcc:0}));
+    },leaveOffer);
+    await page.setViewportSize({width:1440,height:1000});await stageWorkflow();
+    assert.equal(await page.locator('[data-ab]').count(),4);
+    await page.keyboard.press('f');
+    await page.locator('#stWorkflow:not([hidden])').waitFor();
+    assert.match(await page.locator('#stWorkflow .current').innerText(),/Detect/);
+    await page.waitForFunction(()=>window.__stand.game.state.workflow?.stage===1);
+    await page.evaluate(()=>window.__stand.game.pause());await settle();
+    const workflowAge=await page.evaluate(()=>window.__stand.game.state.workflow.age);
+    assert.match(await page.locator('#stWorkflow .current').innerText(),/Analyze/);
+    await page.screenshot({path:shots+'/stand-agent-workflow-en-FIXTURE.png'});
+    await settle();assert.equal(await page.evaluate(()=>window.__stand.game.state.workflow.age),workflowAge);
+    await page.evaluate(()=>window.__stand.game.resume());
+    await page.waitForFunction(()=>window.__stand.game.state.workflow?.stage===2);
+    assert.equal(await page.evaluate(()=>window.__stand.game.state.agentWork),0);
+    await page.waitForFunction(()=>window.__stand.game.state.workflow?.stage===3);
+    assert.ok(await page.evaluate(()=>window.__stand.game.state.agentWork>0&&window.__stand.game.state.base>9000));
+    assert.equal(await page.evaluate(()=>window.__stand.game.state.workflows),1);
+    await page.waitForFunction(()=>!window.__stand.game.state.workflow);
+    await page.waitForFunction(()=>document.querySelector('#stWorkflow').hidden);
+    assert.equal(await page.evaluate(()=>window.__stand.game.useAbility('wf')),false);
+    for(const width of [390,320]) {
+      await page.setViewportSize({width,height:width===320?640:844});await stageWorkflow(true);
+      await page.locator('[data-ab="wf"]').click();
+      await page.locator('#stWorkflow:not([hidden])').waitFor();
+      await page.evaluate(()=>window.__stand.game.pause());await settle();
+      assert.ok(await page.locator('[data-ab]').evaluateAll(nodes=>nodes.every(n=>{
+        const r=n.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight;
+      })),'All four service controls fit the phone');
+      assert.ok(await page.locator('#stWorkflow').evaluate(el=>{
+        const r=el.getBoundingClientRect(),dock=document.querySelector('#stLevelUp').getBoundingClientRect();
+        return r.left>=70&&r.right<=innerWidth&&r.bottom<=dock.top&&el.scrollWidth<=el.clientWidth;
+      }),'Workflow trace clears the phone offer dock');
+      await page.screenshot({path:shots+`/stand-agent-mobile-${width}-FIXTURE.png`});
+    }
     await page.setViewportSize({width:1440,height:1000}); await settle();
     // A failed defense cannot submit or contaminate either previous board.
     const boardBefore=await page.evaluate(()=>localStorage.getItem('sentinel.stand.enterprise.scores.v1'));
@@ -236,10 +283,25 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     assert.match(await page.locator('.ar-result').innerText(),/综合分/);
     assert.match(await page.locator('.ar-result').innerText(),/业务/);
     await page.screenshot({path:shots+'/stand-enterprise-result-zh-FIXTURE.png'});
+    await page.locator('[data-act="again"]').click();
+    await page.setViewportSize({width:320,height:640});await stageWorkflow(true);
+    await page.locator('[data-ab="wf"]').click();
+    await page.locator('#stWorkflow:not([hidden])').waitFor();
+    await page.evaluate(()=>window.__stand.game.pause());await settle();
+    assert.match(await page.locator('#stWorkflow').innerText(),/检测/);
+    assert.match(await page.locator('#stWorkflow').innerText(),/恢复/);
+    assert.match(await page.locator('#stCloudScores').innerText(),/剩余血量/);
+    assert.ok(await page.locator('#stWorkflow').evaluate(el=>el.scrollWidth<=el.clientWidth));
+    await page.screenshot({path:shots+'/stand-agent-mobile-zh-FIXTURE.png'});
+    // Return through a real terminal screen before testing the localized replay.
+    await page.evaluate(()=>{const g=window.__stand.game;g.state.elapsed=119.95;g.state.bossCount=3;g.resume();});
+    await page.locator('[data-act="again"]').waitFor();
     await page.locator('[data-act="lang"]').click();
     await page.locator('[data-act="again"]').click();
     await page.waitForFunction(() => window.__stand.game.state.elapsed > .1 && window.__stand.game.state.elapsed < 5);
     assert.equal(await page.evaluate(() => window.__stand.game.state.base),10000);
+    assert.equal(await page.evaluate(() => window.__stand.game.state.workflows),0);
+    assert.equal(await page.locator('#stWorkflow').getAttribute('hidden'),'');
     await page.evaluate(() => window.__stand.game.pause());
     // The optional showroom shares the actual game models and renders on input.
     await page.goto(url + '/stand-showroom.html');

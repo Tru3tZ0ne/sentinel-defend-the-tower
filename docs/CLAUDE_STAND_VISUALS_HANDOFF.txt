@@ -1,6 +1,7 @@
-Continue Last Stand from tag stand-wide-chain-v1 and branch
-feat/stand-wide-chain. Fetch origin and preserve later changes. Read
-docs/STAND_WIDE_CHAIN.md and docs/stand-wide-validation.json first.
+Continue Last Stand from tag stand-agent-workflow-v1 and branch
+feat/stand-agent-workflow. Fetch origin and preserve later changes. Read
+docs/STAND_AGENT_WORKFLOW.md and docs/stand-agent-validation.json first.
+STAND_WIDE_CHAIN.md records the preceding CC-laser removal and wider XDR chains.
 STAND_CC_GUIDANCE.md records the preceding guidance/loadout correction.
 STAND_CHAIN_MECH.md records the preceding chain-lightning/mechanical refinement.
 STAND_MECH_PERFORMANCE.md and earlier records describe historical releases.
@@ -13,14 +14,16 @@ Playable entries:
 - stand.html: cinematic modular mech campaign.
 - stand-sangfor.html: same mech/combat, sharp equipment-preview stage.
 - stand-showroom.html: eight earlier individual equipment concepts; it does
-  not yet inspect all ten modules or the assembled mech.
+  not yet inspect all nine purchases, the active controller or the assembled mech.
 
 Visual contract:
 1. Start with one basic robot, 10,000 HP and no preinstalled products. The
-   opening EDR/MDR/HCI offer supports 1/2/3, tap and a three-second recommendation.
+   opening EDR/MDR/HCI offer supports 1/2/3, tap and a TEN-SECOND recommendation.
+   Every later choice also lasts ten active seconds; explicit pause freezes it.
 2. Mount products on ONE mech: EDR shoulder cannons, MDR gun arm, NGAF shield,
    CC head sensor, HCI compute pod, compact XDR backpack, aStor hip pod, IAG leg
-   module, AI compute and Agent Builder wrist console. Never accumulate floor
+   module and AI compute. Agent Builder's cached wrist console appears only
+   while its manually triggered workflow executes. Never accumulate floor
    appliances. Product changes must be physically legible.
 3. Keep the rounded helmet/armor, metal joints, pistons and segmented limbs.
    Armor stages use total purchased levels 0/3/7/14. Replay restores the bare
@@ -32,7 +35,9 @@ Visual contract:
    Check both movement extremes, short portrait screens, toasts and both languages.
 6. Owned products in the right rail show icon, short name, numeric level and
    one short localized effect. Keep the phone rail narrow and clear of scores;
-   verify all ten entries at 390px and 320px. Do not restore icon-only badges.
+   verify all nine entries at 390px and 320px. Agent Builder belongs in the
+   existing service column, not the purchased-product rail or upgrade pool.
+   Do not restore icon-only badges.
 
 Combat contract:
 1. End at 120 active seconds, or earlier on zero HP/service. Three bosses enter
@@ -47,7 +52,8 @@ Combat contract:
    Preserve the limited cone/range, slower ordinary turning, constant speed, lifetime,
    safe retargeting and MDR's faster broad acquisition. Aim/movement must matter.
 3. XDR is now CHAIN LIGHTNING, not a laser cannon/column. Every owned module,
-   including AI/Agent Builder, visibly charges it for 0.65s; links deal no damage.
+   including AI and an executing Agent Builder controller, visibly charges it
+   for 0.65s; links deal no damage. Idle Agent Builder adds no device link.
    The moving backpack emits a jagged white-green arc to an aimed target, then
    nearest unique neighbors within sensor-scaled range. Current pulse budget:
    4-7 targets (base4 + floor((XDRlevel-1)/2) +1 at >=3 sensor units, cap7).
@@ -60,8 +66,16 @@ Combat contract:
    xdrTargets/xdrJumpRange. Do not restore obsolete beam properties. Reuse the
    instanced energy layer and separate source/target heights for the 3D arc.
 5. Dodge warned boss columns; AI slightly extends warnings. Preserve Q/E/R
-   timing/tradeoffs. HCI supports throughput/fire rate, aStor snapshots, AI work
-   and Agent workflows. AI needs HCI; Agent offers need HCI+AI. Overload hurts
+   timing/tradeoffs. F/tap starts Agent Builder beside Q/E/R services. It commits
+   2-4 visible targets and executes Detect -> Analyze -> Contain -> Recover,
+   at 0/1.1/2.2/3.3s, with the trace closing at 4.4s. Only recovery awards actual
+   workflow/business work, HP and availability; never passive or repeated credit.
+   Skip dead committed targets without replacement. No targets means no cooldown.
+   Its 28s cooldown, response, recovery and target capacity improve with HCI/AI;
+   use workflowSpec as the authoritative formulas. Execution adds 18 compute
+   demand. No extra team/indefinite automation; keep recovery modest for ranking.
+   HCI supports throughput/fire rate, aStor snapshots and AI work. AI needs HCI;
+   Agent Builder is available without a purchase. Overload hurts
    availability/output. Pure-cloud investment must remain vulnerable and lose.
 6. Score actual delivered work/HP: HP/business/AI/agents each 0-10,000, weighted
    55/25/12/8. Preserve ties, old boards, storage/API keys and local-by-default
@@ -73,11 +87,14 @@ Combat contract:
 Balance:
 - Aim roughly 60-70% clears for reasonable casual mixed builds, not a spending
   quota or guaranteed human clear rate. Use the production-combat probe.
-- Current combined main+held-out: desktop 65/90 (72.2%), phone 62/90 (68.9%).
-  Main desktop/phone 44/60 and 41/60; held-out 21/30 on each. Report the spread.
-  Desktop is slightly above the approximate target; no extra difficulty tuning
-  accompanied CC-laser removal/expanded chains. Check human play. Informed
-  desktop 11/12, phone 12/12; cloud/no-input 0/12 on each. Do not cherry-pick.
+- Current combined main+held-out: desktop 68/90 (75.6%), phone 64/90 (71.1%).
+  Main desktop/phone 47/60 and 39/60; held-out 21/30 and 25/30. Report the spread.
+  Desktop is above the approximate target; phone is near its upper edge. Boss/
+  spawn/HP rules are unchanged. Informed desktop/phone 12/12; cloud/no-input
+  0/12 on each. Casual Agent input reacts below 9000 HP or 85% availability;
+  informed Agent input activates proactively with >=3 enemies. Earlier passive
+  Agent samples use different input/upgrade pools. Do not cherry-pick or claim
+  a measured human clear rate. Check human play before more difficulty tuning.
 - Main seeds 101+i*37, held-out 5001+i*37, desktop 1440x942/phone 390x786.
   After combat edits record both viewports, loadouts, deaths, time, HP, work,
   support and bosses. Human first-time/event-hardware playtesting remains useful.
@@ -90,10 +107,12 @@ Performance:
   worm children born during piercing hits), object pools, stable compaction,
   shared projection/lightning buffers, cached modules and pooled support.
   Retention bounds apply only to recycled objects, never active effects.
-- Fixed stress: ten maxed products/support, 64 threats, 256 shots, seven XDR
+- Fixed stress: nine maxed products plus active wrist controller/support,
+  64 threats, 256 shots, seven XDR
   targets and no CC strips: 329 draws / 536,342 triangles / 109 geometries.
   Prior CC-guidance tag333/536,246/110. No hardware FPS improvement is claimed.
-  Inspection229 draws / 141,488 triangles / 118 geometries. Preserve budgets.
+  Idle-controller inspection222 draws / 140,918 triangles / 115 geometries.
+  Preserve budgets. The idle controller is intentionally absent, not a quality cut.
 - Bullets one draw, capacity 1024 shared geometry. FX fixture retains all 3000
   particles / 80 texts / 24 lightning effects; native DPR 2 verified. Lightning
   fits the existing 64-segment capacity (maximum58 including module links).
@@ -103,7 +122,7 @@ Performance:
 - Preserve <=1/60s simulation substeps and <=0.25s catch-up per rendered frame.
 
 Validation and delivery:
-- npm run test:stand-art covers 25 combat/runtime groups, EN/ZH browser flow,
+- npm run test:stand-art covers 27 combat/runtime groups, EN/ZH browser flow,
   kill-to-upgrade, lightning, mobile, real fail/win, score isolation, replay,
   showroom, stress/reuse, retained FX and DPR. Run engine/rush/arcade 65 groups
   when shared code changes. Do not weaken checks to pass a visual change.
@@ -115,4 +134,4 @@ Validation and delivery:
 - Update English records with behavior, files, reproducible evidence and limits.
   Preserve immutable tags. When publication is authorized, publish main/new tag
   and verify actual Pages/cache marker; a feature branch alone is not deployed.
-  Current marker campaign=wide-chain-v1, art=mech-v2, mech=v2.
+  Current marker campaign=agent-workflow-v1, art=mech-v3, mech=v3.

@@ -173,8 +173,11 @@ test('upgrade offers do not pause, expire into recommendation, reject invalid or
   assert.equal(g.state.phase,'play'); assert.equal(g.state.choices.length,3);
   const offered=g.state.choices.map(c=>c.id), rec=recommendedUpgrade(g.state.choices,g.state.levels), before=g.state.levels[rec]||0;
   assert.equal(g.choose('INVALID'),false); assert.equal(g.choose(Object.keys(WEAPONS).find(id=>!offered.includes(id))),false);
-  const elapsed=g.state.elapsed; advance(g,3.1);
-  assert.ok(g.state.elapsed>=elapsed+3); assert.equal(g.state.levels[rec],before+1); assert.equal(g.state.choices.length,0);
+  const elapsed=g.state.elapsed; advance(g,9.9);
+  assert.equal(g.state.choices.length,3);assert.equal(g.state.levels[rec]||0,before);
+  g.state.phase='paused';const offer=g.state.offerLeft;advance(g,2);assert.equal(g.state.offerLeft,offer);
+  g.state.phase='play';advance(g,.2);
+  assert.ok(g.state.elapsed>=elapsed+10); assert.equal(g.state.levels[rec],before+1); assert.equal(g.state.choices.length,0);
   while(g.deploy('EDR')) {} assert.equal(g.state.levels.EDR,WEAPONS.EDR.max);
   g.state.phase='paused'; const snapshot=JSON.stringify(g.state); advance(g,2); assert.equal(JSON.stringify(g.state),snapshot);
 });
@@ -252,18 +255,50 @@ test('cloud and AI offers respect prerequisites and leave a security choice', ()
   for(const levels of [{},{HCI:1},{HCI:1,AI:1}]) for(let i=0;i<20;i++) {
     const offers=upgradeChoices(levels,()=>i/20).map(o=>o.id);
     if(!levels.HCI)assert.ok(!offers.includes('AI')&&!offers.includes('AGENT'));
-    if(!levels.AI)assert.ok(!offers.includes('AGENT'));
+    assert.ok(!offers.includes('AGENT'));
     assert.ok(offers.some(id=>!CLOUD_PRODUCTS.includes(id)));assert.ok(offers.some(id=>CLOUD_PRODUCTS.includes(id)));
   }
 });
 
 test('HCI serves workloads; overload and service damage affect real output and can fail', () => {
-  const low=cloudRates({HCI:1,AI:5,AGENT:5},100),high=cloudRates({HCI:5,AI:5,AGENT:5},100);
-  assert.ok(low.served<high.served && low.ai<high.ai && low.agent<high.agent);
+  const low=cloudRates({HCI:1,AI:5},100),high=cloudRates({HCI:5,AI:5},100);
+  assert.ok(low.served<high.served && low.ai<high.ai);assert.equal(low.agent,0);assert.equal(high.agent,0);
   assert.equal(cloudRates({AI:3,AGENT:2},10).ai,0);assert.equal(cloudRates({HCI:2,AGENT:2},10).agent,0);
   assert.equal(cloudRates({HCI:2,AI:2,AGENT:2},10,0).business,0);
-  const g=createCombatProbe();quiet(g);g.deploy('HCI');g.deploy('AI');g.deploy('AGENT');advance(g,2);
-  assert.ok(g.state.businessWork>0 && g.state.aiWork>0 && g.state.agentWork>0);
+  const g=createCombatProbe();quiet(g);g.deploy('HCI');g.deploy('AI');advance(g,2);
+  assert.equal(g.deploy('AGENT'),false);
+  assert.ok(g.state.businessWork>0 && g.state.aiWork>0);assert.equal(g.state.agentWork,0);
   g.state.elapsed=110;g.state.availability=.0001;g.state.levels.HCI=0;g.step(.05);
   assert.equal(g.summary.reason,'service');const work=g.state.businessWork;advance(g,2);assert.equal(g.state.businessWork,work);
+});
+
+test('Agent Builder manually executes committed workflow stages and credits completed work once',()=>{
+  const g=createCombatProbe();quiet(g);const s=g.state;s.base=9000;
+  const targets=Array.from({length:3},(_,i)=>enemy(g,'recon',{id:95000+i,x:s.op.x+i*20,y:400+i*20}));
+  s.enemies=[...targets];assert.equal(g.useAbility('wf'),true);assert.equal(g.useAbility('wf'),false);
+  assert.equal(s.workflow.stage,0);assert.equal(s.workflow.ids.length,2);assert.equal(s.agentWork,0);
+  advance(g,1.15);assert.equal(s.workflow.stage,1);assert.ok(targets[2].slow>0);
+  assert.equal(targets[2].hp,1e6);assert.equal(s.agentWork,0);
+  advance(g,1.1);assert.equal(s.workflow.stage,2);assert.ok(targets[2].hp<1e6);assert.equal(targets[0].hp,1e6);
+  const hp=targets[2].hp;advance(g,1.1);assert.equal(s.workflow.stage,3);
+  assert.equal(s.workflows,1);assert.ok(s.agentWork>0);assert.equal(s.base,9030);
+  const work=s.agentWork;advance(g,2);assert.equal(s.workflow,null);assert.equal(s.workflows,1);
+  assert.equal(s.agentWork,work);assert.equal(targets[2].hp,hp);assert.equal(g.useAbility('wf'),false);
+});
+
+test('workflow obeys pause, terminal states, dead targets, capacity and empty-start guards',()=>{
+  const g=createCombatProbe();quiet(g);const s=g.state;
+  assert.equal(g.useAbility('wf'),false);assert.equal(s.cd.wf,0);
+  const a=enemy(g,'recon'),b=enemy(g,'recon',{id:96001,y:200});s.enemies=[a,b];
+  assert.equal(g.useAbility('wf'),true);b.dead=true;
+  advance(g,.5);s.phase='paused';const snapshot=JSON.stringify(s);advance(g,5);assert.equal(JSON.stringify(s),snapshot);
+  assert.equal(g.useAbility('wf'),false);s.phase='play';advance(g,2);assert.equal(b.hp,1e6);
+  s.availability=.0001;s.elapsed=110;g.step(.02);assert.equal(g.summary.outcome,'defeat');
+  const work=s.agentWork,completed=s.workflows;advance(g,10);
+  assert.equal(s.agentWork,work);assert.equal(s.workflows,completed);assert.equal(g.useAbility('wf'),false);
+  const complete=levels=>{const p=createCombatProbe();quiet(p);for(const [id,n]of Object.entries(levels))for(let i=0;i<n;i++)p.deploy(id);
+    p.state.enemies=[enemy(p,'recon',{y:200})];p.useAbility('wf');advance(p,3.4);return p.state;};
+  const low=complete({}),high=complete({HCI:4,AI:4});
+  assert.ok(high.agentWork>low.agentWork);assert.ok(high.cd.wf<low.cd.wf);
+  assert.ok(cloudRates({},50,100,true).demand>cloudRates({},50).demand);
 });

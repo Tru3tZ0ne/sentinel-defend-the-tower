@@ -11,6 +11,9 @@ It adds no external model files or new raster assets. See
 `docs/STAND_CHAIN_MECH.md` for the current release and validation record.
 The chain-mech refinement adds rounded armor, metal joints and piston details
 with the same procedural helpers. It introduces no new external art assets.
+The active Agent Builder release reuses the existing cached wrist controller
+only during workflow execution. Its step trace is native HTML/CSS; no new
+downloaded or generated art is introduced. See `docs/STAND_AGENT_WORKFLOW.md`.
 
 ## Official photograph excerpts used only by the optional showroom
 

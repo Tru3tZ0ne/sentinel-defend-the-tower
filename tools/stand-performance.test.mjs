@@ -12,7 +12,7 @@ export async function inspectStandLoad(page, url, label = 'current') {
   await page.locator('[data-act="play"]').click();
   await page.waitForFunction(() => window.__stand?.game.state.elapsed > .1);
   await page.evaluate(async () => {
-    const g = window.__stand.game, { ENEMIES, WEAPONS } = await import(new URL('src/stand/model.js', location.href));
+    const g = window.__stand.game, { ENEMIES, WEAPONS, workflowSpec } = await import(new URL('src/stand/model.js', location.href));
     for (const [id, spec] of Object.entries(WEAPONS)) while ((g.state.levels[id] || 0) < spec.max) g.applyUpgrade(id);
     g.state.pendingLevels = 0; g.useAbility('pt'); g.useAbility('rt'); g.pause();
     const s = g.state, canvas = document.querySelector('#stCanvas'), w = canvas.clientWidth;
@@ -27,6 +27,8 @@ export async function inspectStandLoad(page, url, label = 'current') {
         y: 80 + Math.floor(i / 8) * 70, r: spec.r, hp: 150, maxhp: 300, slow: 0, hit: i % 4 ? 0 : 1,
         wob: i * .1, spawnAcc: 0, marked: true, afWeakened: false };
     });
+    // Paused fixed-load fixture: all nine purchases plus the cached active controller.
+    s.workflow={age:.5,stage:0,ids:s.enemies.slice(0,4).map(e=>e.id),plan:workflowSpec(s.levels)};
     s.arc={x:hub.x,y:hub.y,age:.4,life:.22,dmg:100,nodes:s.enemies.slice(0,7).map(e=>({id:e.id,x:e.x,y:e.y,height:e.r*.055+.35,hit:true,skipped:false}))};
     s.shots = Array.from({ length: 256 }, (_, i) => ({ x: w / 2 + ((i % 16) - 7.5) * 24,
       y: 70 + Math.floor(i / 16) * 45, vx: 0, vy: -980, dmg: 20, pierce: 1, hit: new Set(), r: 4.5,

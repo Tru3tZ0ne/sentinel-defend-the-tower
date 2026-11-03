@@ -57,8 +57,8 @@ function priority(id, levels, policy) {
   if (id === 'NDR' && !n) return 22;
   if (id === 'XDR' && !n) return 21;
   if (id === 'HCI' && n < 2) return 18-n;
-  const target={EDR:3,MDR:3,AF:2,NDR:2,XDR:2,IAG:1,HCI:3,ASTOR:1,AI:2,AGENT:1};
-  return (target[id]-n)*3 + ({EDR:2,MDR:3,AF:1,NDR:2,XDR:0,IAG:0,HCI:1,ASTOR:0,AI:0,AGENT:0}[id]);
+  const target={EDR:3,MDR:3,AF:2,NDR:2,XDR:2,IAG:1,HCI:3,ASTOR:1,AI:2};
+  return (target[id]-n)*3 + ({EDR:2,MDR:3,AF:1,NDR:2,XDR:0,IAG:0,HCI:1,ASTOR:0,AI:0}[id]);
 }
 
 export function playProbe({ policy = 'informed', limit = 121, ...options } = {}) {
@@ -85,13 +85,15 @@ export function playProbe({ policy = 'informed', limit = 121, ...options } = {})
           g.useAbility('pt'); g.useAbility('rt');
         }
         if (s.enemies.some(e=>e.spec.boss && e.hp < e.maxhp*.65) || s.enemies.length > (policy === 'informed' ? 14 : 24) || s.base < 1500) g.useAbility('ir');
+        // Informed players orchestrate proactively; casual players react to pressure.
+        if(policy==='informed'?s.enemies.length>=3:(s.base<9000||s.availability<85))g.useAbility('wf');
       }
     }
     g.step(dt); peakEnemies = Math.max(peakEnemies, g.state.enemies.length);
   }
   const s = g.state;
   return { seconds: Math.round(s.elapsed * 10) / 10, ended: s.phase === 'over', level: s.level,
-    kills: s.kills, choices, peakEnemies, levels: s.levels, health: Math.floor(s.base), bossesKilled: s.bossesKilled, availability: Math.floor(s.availability), victory: g.summary?.outcome === 'victory', scores: g.summary?.scores, dodged: s.dodged, summary: g.summary };
+    kills: s.kills, choices, peakEnemies, levels: s.levels, health: Math.floor(s.base), bossesKilled: s.bossesKilled, availability: Math.floor(s.availability), victory: g.summary?.outcome === 'victory', scores: g.summary?.scores, workflows:s.workflows, dodged: s.dodged, summary: g.summary };
 }
 
 export function sampleBalance({ seeds = 12, seedStart = 101, ...options } = {}) {

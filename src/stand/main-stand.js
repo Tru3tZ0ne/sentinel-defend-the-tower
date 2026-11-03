@@ -4,10 +4,10 @@
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
 const { createStandGame, ACCENT } = await import(
-  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=wide-chain-v1'
-  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=wide-chain-v1'
-  : './engine.js?campaign=wide-chain-v1');
-import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, MISSION_SECONDS, recommendedUpgrade } from './model.js?campaign=wide-chain-v1';
+  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=agent-workflow-v1'
+  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=agent-workflow-v1'
+  : './engine.js?campaign=agent-workflow-v1');
+import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, WORKFLOW_STEPS, MISSION_SECONDS, UPGRADE_SECONDS, recommendedUpgrade } from './model.js?campaign=agent-workflow-v1';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
@@ -166,14 +166,14 @@ Object.assign(EN, {
   'ui.score': 'Total score', 'ui.best': 'Best clear', 'ui.board': 'Enterprise ranking',
   'st.time': 'Remaining', 'st.over': 'Defense complete', 'st.bosses': 'Bosses',
   'st.mech': 'Sentinel mech',
-  'st.h2': 'Start with a basic robot. Choose your first module: EDR shoulder cannons, an MDR gun arm or an HCI compute pod. Press 1/2/3 or tap; after 3 seconds the marked recommendation mounts. Combat upgrades add modules and armor to your mech.',
+  'st.h2': 'Start with a basic robot. Choose your first module: EDR shoulder cannons, an MDR gun arm or an HCI compute pod. Press 1/2/3 or tap; after 10 seconds the marked recommendation mounts. Combat upgrades add modules and armor to your mech.',
   'st.chooseSub': 'Combat continues · automatic recommendation in', 'st.auto': 'AUTO',
   'st.charging': 'XDR linking', 'st.firing': 'XDR chain lightning', 'st.ready': 'XDR ready',
   't.xdrLink': 'Modules linked — charging XDR', 'dim.XDR': 'Link → chain lightning',
   'b.XDR': 'Modules charge the XDR backpack, which releases lightning into an aimed target and nearby enemies. Each jump loses damage; four to seven distinct targets when enough enemies are in range. Sensors and linked modules increase its power.',
   'st.pace': 'No guaranteed clear. Dodge red boss lanes; balance security, business capacity and AI. Only completed defenses enter the board.',
   'st.h1': 'Move with WASD / arrows or drag. MDR tracks enemies on its own. Cyber Command boosts MDR damage and guides ordinary bullets within a forward cone, without requiring XDR.',
-  'st.h3': 'HCI supplies compute; AI and Agent Builder turn it into scored work. Balance demand and capacity. Bosses arrive at 25 / 60 / 95 seconds; use Q/E/R support. Zero HP, zero availability or an uncleared boss at 120s means defeat.',
+  'st.h3': 'HCI supplies compute; AI produces scored work. Press F or tap Agent Builder to run Detect → Analyze → Contain → Recover. Use Q/E/R support and dodge bosses at 25 / 60 / 95 seconds. Zero HP, zero availability or an uncleared boss at 120s means defeat.',
   'st.tag': '120 seconds. Three bosses. Build a defense that keeps the business and AI running.',
   'st.overSub': '{b}/3 bosses cleared · {s}s · {k} threats stopped. Total = HP 55% + business 25% + AI 12% + agents 8%.',
   'st.success': 'Security and business held. Your completed defense is eligible for ranking.',
@@ -193,23 +193,29 @@ Object.assign(EN, {
   'b.AF': 'An arm-mounted NGAF shield projects a barrier ahead of the mech, blocking threats and weakening those that break through.',
   'b.ASTOR': 'A hip-mounted aStor snapshot pod absorbs hits and restores base integrity.',
   'b.AI': 'Runs AI workloads on HCI, producing AI score and earlier boss warnings. Each level increases compute demand.',
-  'b.AGENT': 'Needs AI and HCI. Automated workflows produce agent score, improve business output and slightly shorten support cooldowns. They do not fire weapons.',
+  'b.AGENT': 'Active skill [F], available beside security services. Runs Detect → Analyze → Contain → Recover on committed targets. Completion restores HP and delivers scored workflow/business work. HCI and AI improve its capacity, response and cooldown.',
   'g.AI': 'An AI application platform hosts model-backed applications.', 'l.AI': 'Needs compute and security; it does not stop attacks by itself.',
-  'g.AGENT': 'Agent Builder orchestrates application workflows.', 'l.AGENT': 'Depends on AI and compute. This is a game abstraction, not a separate appliance specification.',
+  'g.AGENT': 'Agent Builder orchestrates application workflows.', 'l.AGENT': 'Needs a visible threat to start, consumes compute while running, and has a cooldown. This is an arcade abstraction.',
+  'ab.wf': 'Agent Builder', 'wf.short': 'Workflow', 'wf.title': 'Agent Builder · workflow',
+  'wf.detect': 'Detect', 'wf.analyze': 'Analyze', 'wf.contain': 'Contain', 'wf.recover': 'Recover',
+  'wf.runs': 'Agent Builder: {n} completed workflows',
+  'abd.wf': 'Run Detect → Analyze → Contain → Recover. Slow and respond to selected threats, restore HP, then deliver workflow and business work. HCI + AI strengthen the run. [F]',
+  't.wfEmpty': 'Agent Builder needs a visible threat to start a workflow',
+  't.wfDone': 'Agent Builder workflow completed — recovery and work delivered',
   't.bossAim': 'Boss targeting your lane — move!',
 });
 Object.assign(ZH, {
   'ui.score': '综合评分', 'ui.best': '最佳通关', 'ui.board': '综合排行榜',
   'st.time': '倒计时', 'st.over': '防守成功', 'st.bosses': 'Boss',
   'st.mech': '哨兵机甲',
-  'st.h2': '开局只有普通机器人。先选择首个模块：EDR 肩炮、MDR 炮臂或 HCI 算力舱。按 1/2/3 或点击，3 秒后自动装配推荐项；战斗升级会逐步增加产品模块与机甲装甲。',
+  'st.h2': '开局只有普通机器人。先选择首个模块：EDR 肩炮、MDR 炮臂或 HCI 算力舱。按 1/2/3 或点击，10 秒后自动装配推荐项；战斗升级会逐步增加产品模块与机甲装甲。',
   'st.chooseSub': '战斗继续 · 自动推荐倒计时', 'st.auto': '推荐',
   'st.charging': 'XDR 联动蓄能', 'st.firing': 'XDR 链式闪电', 'st.ready': 'XDR 就绪',
   't.xdrLink': '模块联动——XDR 蓄能中', 'dim.XDR': '联动 → 链式闪电',
   'b.XDR': '各模块为 XDR 背包蓄能后，向瞄准目标释放闪电，再跳向附近敌人。每次跳跃伤害递减，范围内敌人充足时可连锁四至七个不同目标；传感器与联动模块可增强伤害。',
   'st.pace': '不再保底通关。躲开红色 Boss 攻击带，平衡安全、云算力与 AI；仅成功防守的成绩进入排行榜。',
   'st.h1': '使用 WASD / 方向键或拖动移动。MDR 自带追踪，不依赖其他产品。部署 CC 即可让普通子弹获得前方扇区内的有限追踪，并为 MDR 增伤，无需 XDR。',
-  'st.h3': 'HCI 提供算力，AI 与 Agent Builder 将算力变成业务评分。Boss 在 25 / 60 / 95 秒登场，Q/E/R 呼叫支援。血量或可用性归零，或 120 秒时还有 Boss 存活，都会失败。',
+  'st.h3': 'HCI 提供算力，AI 产出评分；按 F 或点击 Agent Builder，执行「检测→分析→处置→恢复」工作流。Q/E/R 呼叫安全服务，躲避 25 / 60 / 95 秒登场的 Boss。血量、可用性归零或 120 秒仍有 Boss 存活都会失败。',
   'st.tag': '120 秒，三大 Boss。在守住防线的同时，让云业务与 AI 持续运转。',
   'st.overSub': '清除 {b}/3 个 Boss · {s} 秒 · 拦截 {k} 个威胁。综合分＝血量 55%＋业务 25%＋AI 12%＋Agent 8%。',
   'st.success': '安全与业务守住了，通关成绩计入排行榜。',
@@ -229,9 +235,15 @@ Object.assign(ZH, {
   'b.AF': '臂载 NGAF 盾牌向机甲前方投射屏障，拦截威胁，并削弱突破屏障的敌人。',
   'b.ASTOR': '腰部 aStor 快照舱替基地抵挡攻击，并恢复完整度。',
   'b.AI': '在 HCI 上运行 AI 任务，积累 AI 评分，并提前预警 Boss 落点。每级都会增加算力需求。',
-  'b.AGENT': '依赖 AI 与 HCI，自动工作流积累 Agent 分、提升业务产出，并小幅缩短支援冷却；不会自动发射武器。',
+  'b.AGENT': '主动技能［F］，与安全服务并列。对选定目标执行「检测→分析→处置→恢复」，完成后恢复血量并交付工作流及业务评分；HCI 和 AI 可增强处理能力、处置效果并缩短冷却。',
   'g.AI': 'AI 应用平台承载基于模型的应用。', 'l.AI': '需要算力与安全保护，本身无法阻止攻击。',
-  'g.AGENT': 'Agent Builder 编排应用工作流。', 'l.AGENT': '依赖 AI 与算力；这里是游戏机制抽象，不代表独立硬件规格。',
+  'g.AGENT': 'Agent Builder 编排应用工作流。', 'l.AGENT': '需要可见威胁才能启动，运行时消耗算力，且有冷却时间；这里是游戏机制抽象。',
+  'ab.wf': 'Agent Builder', 'wf.short': '工作流', 'wf.title': 'Agent Builder · 工作流',
+  'wf.detect': '检测', 'wf.analyze': '分析', 'wf.contain': '处置', 'wf.recover': '恢复',
+  'wf.runs': 'Agent Builder：已完成 {n} 次工作流',
+  'abd.wf': '执行「检测→分析→处置→恢复」，减速并处置选定威胁、恢复血量，完成后交付工作流及业务评分；HCI＋AI 可增强效果。［F］',
+  't.wfEmpty': 'Agent Builder 需要可见威胁才能启动工作流',
+  't.wfDone': 'Agent Builder 工作流完成——恢复并交付业务产出',
   't.bossAim': 'Boss 已锁定你的落点——立即移动！',
 });
 const i18n = makeI18n(EN, ZH);
@@ -277,6 +289,7 @@ app.innerHTML = `
     <div class="st-rail" id="stRail"></div>
     <div class="st-network" id="stNetwork"></div><div class="st-cloud-score" id="stCloudScores"></div>
     <div class="st-abil" id="stAbil"></div>
+    <div class="st-workflow" id="stWorkflow" hidden aria-live="polite"></div>
     <div class="st-base"><i id="stBaseFill"></i><span class="st-base-txt" id="stBaseTxt"></span></div>
   </div>
   <div class="ar-toasts" id="stToasts"></div>
@@ -296,6 +309,7 @@ const el = {
   baseFill: document.getElementById('stBaseFill'),
   baseTxt: document.getElementById('stBaseTxt'),
   abil: document.getElementById('stAbil'),
+  workflow: document.getElementById('stWorkflow'),
   boss: document.getElementById('stBoss'),
   bossName: document.getElementById('stBossName'),
   bossHp: document.getElementById('stBossHp'),
@@ -305,17 +319,18 @@ const el = {
 };
 
 // ---------- active operator skills (bottom bar) ----------
-const ABIL_CAP = { ir: 'NDR', pt: 'IAG', rt: 'EDR' };   // accent reuse
-const ABIL_KEY = { ir: 'Q', pt: 'E', rt: 'R' };
+const ABIL_CAP = { ir: 'NDR', pt: 'IAG', rt: 'EDR', wf: 'AGENT' };
+const ABIL_KEY = { ir: 'Q', pt: 'E', rt: 'R', wf: 'F' };
+const paintWorkflow = painter();
 const abilBtns = {};
 function buildAbilBar() {
   el.abil.innerHTML = ABILITY_ORDER.map(id => `
-    <button class="st-ab cap-${ABIL_CAP[id]}" data-ab="${id}" type="button"
+    <button class="st-ab cap-${ABIL_CAP[id]}${id==='wf'?' st-ab-workflow':''}" data-ab="${id}" type="button"
       title="${esc(t('ab.' + id))} - ${esc(t('abd.' + id))}" aria-label="${esc(t('ab.' + id))}">
       <span class="st-ab-cd"></span>
       <span class="st-ab-key">${ABIL_KEY[id]}</span>
-      <span class="st-ab-code">${id.toUpperCase()}</span>
-      <span class="st-ab-name">${esc(t('ab.' + id))}</span>
+      <span class="st-ab-code">${id==='wf'?'AGENT':id.toUpperCase()}</span>
+      <span class="st-ab-name">${esc(t(id==='wf'?'wf.short':'ab.' + id))}</span>
       <span class="st-ab-timer"></span>
     </button>`).join('');
   for (const id of ABILITY_ORDER) {
@@ -342,8 +357,11 @@ function updateAbilBar(abilities) {
     ui.cd.style.height = pct + '%';
     ui.btn.classList.toggle('ready', a.ready);
     ui.btn.classList.toggle('active', !!a.active);
-    ui.timer.textContent = a.ready ? '' : Math.ceil(a.cd) + 's';
+    ui.timer.textContent = id==='wf'&&a.active ? t('wf.'+WORKFLOW_STEPS[a.stage]) : a.ready ? '' : Math.ceil(a.cd) + 's';
   }
+  const wf=abilities.wf;
+  el.workflow.hidden=!wf?.active;
+  if(wf?.active)paintWorkflow(el.workflow,`<div class="st-workflow-title">${esc(t('wf.title'))}</div><div class="st-workflow-steps">${WORKFLOW_STEPS.map((step,i)=>`<span class="${i<wf.stage?'done':i===wf.stage?'current':''}">${i<wf.stage?'✓':i+1} ${esc(t('wf.'+step))}</span>`).join('')}</div>`);
 }
 const paintScore = painter();
 const paintWeap = painter();
@@ -351,7 +369,7 @@ const paintRail = painter();
 let phase = 'start', lastSummary = null, lastResult = null;
 
 const artModule = useArt
-  ? await import('./sangfor-art.js?art=mech-v2') : null;
+  ? await import('./sangfor-art.js?art=mech-v3') : null;
 const game = createStandGame(el.canvas, {
   artFactory: artModule?.createSangforArt,
   deckTexture: artModule?.createDeckTexture,
@@ -432,7 +450,7 @@ function showLevelUp(choices, level) {
   el.overlay.insertAdjacentHTML('beforeend', `
     <section class="st-upgrade-dock" id="stLevelUp" aria-label="${esc(t('st.choose'))}">
       <div class="st-offer-header"><b>${esc(t('st.levelup', { n: level }))}</b>
-        <span>${esc(t('st.chooseSub'))} <strong id="stOfferTimer">3s</strong></span></div>
+        <span>${esc(t('st.chooseSub'))} <strong id="stOfferTimer">${UPGRADE_SECONDS}s</strong></span></div>
       <div class="st-cards">${choices.map((ch, index) => cardHTML(ch, index, ch.id === recommendedUpgrade(choices, game.state.levels))).join('')}</div>
     </section>`);
 }
@@ -476,7 +494,10 @@ function scoreMetrics(scores, availability, capacity, demand) {
 }
 function updateCloudScores(h) {
   const root = document.getElementById('stCloudScores');
-  if (!root.firstElementChild) root.innerHTML = scoreMetrics(h.scores, h.availability, h.capacity, h.demand);
+  if (!root.firstElementChild || root.dataset.lang !== lang()) {
+    root.innerHTML = scoreMetrics(h.scores, h.availability, h.capacity, h.demand);
+    root.dataset.lang = lang();
+  }
   root.querySelectorAll('.st-metrics b').forEach((node, i) => {
     const value = fmt(h.scores[['health','business','ai','agent'][i]]);
     if (node.textContent !== value) node.textContent = value;
@@ -500,7 +521,7 @@ function boardBlock(b, meId) {
 
 function codexRows() {
   const L = lang();
-  return WEAPON_ORDER.map(id => {
+  return [...WEAPON_ORDER,'AGENT'].map(id => {
     const p = PRODUCTS[id];
     const real = p ? p.capability[L] : t('g.' + id);
     const lim = p ? p.limitation[L] : t('l.' + id);
@@ -531,6 +552,7 @@ async function onGameOver(summary) {
   el.time.textContent = Math.max(0, 120-summary.elapsed) + 's'; el.combo.textContent = `${t('st.bosses')} ${summary.bossesKilled}/3`;
   paintScore(el.score, fmt(summary.score)); el.best.textContent = fmt(summary.best);
   el.abil.innerHTML = '';
+  el.workflow.hidden = true;
   if (el.boss) el.boss.hidden = true;
   if (summary.best > getBest()) saveBest(summary.best);
   renderOver(summary, null);
@@ -555,6 +577,7 @@ function renderOver(summary, result) {
           <div class="sub">${esc(t('st.overSub', { s: summary.elapsed, k: summary.kills, b: summary.bossesKilled }))}</div>
           <div class="sub">${esc(t(summary.reason ? 'reason.' + summary.reason : 'st.success'))}</div>
           ${scoreMetrics(summary.scores, summary.availability)}
+          <div class="sub">${esc(t('wf.runs',{n:summary.workflows||0}))}</div>
           ${result ? `<div class="sub">${esc(t('ui.youRank'))}<span class="hot">${result.rank}</span> · ${esc(result.mode === 'world' ? t('ui.world') : t('ui.local'))}</div>` : ''}
         </div>
         <div class="st-build-h">${esc(t('st.loadout'))}</div>
@@ -579,6 +602,7 @@ function resetHud() {
   el.baseFill.style.width = '100%'; el.baseFill.className = 'ok'; el.baseTxt.textContent = START_BASE;
   el.xpFill.style.width = '0%'; el.lvTxt.textContent = `${t('st.lv')} 1`;
   paintWeap(el.weap, ''); paintRail(el.rail, ''); el.abil.innerHTML = '';
+  el.workflow.hidden = true;
   paintScore(el.score, '0'); document.getElementById('stCloudScores').innerHTML = ''; document.getElementById('stNetwork').textContent = '';
   if (el.boss) el.boss.hidden = true;
   el.time.textContent = '120s'; el.combo.textContent = `${t('st.bosses')} 0/3`; el.combo.classList.remove('on');
@@ -609,7 +633,7 @@ el.overlay.addEventListener('click', e => {
   else if (act === 'share') shareResult(e.target);
 });
 
-const ABIL_HOTKEY = { q: 'ir', e: 'pt', r: 'rt' };
+const ABIL_HOTKEY = { q: 'ir', e: 'pt', r: 'rt', f: 'wf' };
 window.addEventListener('keydown', e => {
   if (phase === 'play' && document.getElementById('stLevelUp') && '123'.includes(e.key)) {
     const cards = document.querySelectorAll('#stLevelUp .st-card');

@@ -258,3 +258,25 @@
   .st-offer-header { font-size: 9px; }
   #stCombo { font-size: 10px; letter-spacing: 0; }
 }
+
+/* A short-lived execution trace beside the existing service controls. */
+.st-ab-workflow .st-ab-code { font-size: 13px; letter-spacing: 0; }
+.st-ab-workflow .st-ab-name { display: block; font-size: 8px; }
+.st-ab-workflow:not(.ready) .st-ab-name { visibility: hidden; }
+.st-ab-workflow .st-ab-timer { inset: auto 0 4px; min-height: 11px; font-size: 9px; }
+.st-workflow { position: absolute; z-index: 6; left: 80px; bottom: 48px;
+  width: min(280px, calc(100% - 96px)); padding: 7px; border: 1px solid #6ce5d766;
+  border-radius: 8px; background: #071b22ed; color: #cdeae5; pointer-events: none; }
+.st-workflow[hidden] { display: none; }
+.st-workflow-title { font-size: 9px; margin-bottom: 5px; }
+.st-workflow-steps { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 3px; }
+.st-workflow-steps span { font-size: 9px; text-align: center; white-space: nowrap; padding: 3px 0;
+  border-radius: 4px; background: #163039; color: #91aaa8; }
+.st-workflow-steps .current { background: #6ce5d7; color: #082c28; font-weight: 700; }
+.st-workflow-steps .done { color: #90efbc; }
+.ar-field:has(.st-workflow:not([hidden])) .st-network { bottom: 108px; }
+.wrap:has(#stLevelUp) .st-workflow { bottom: 145px; }
+@media (max-width: 560px) {
+  .st-workflow { left: 76px; width: min(280px, calc(100% - 88px)); }
+  .st-workflow-steps span { font-size: 8px; }
+}

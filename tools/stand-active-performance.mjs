@@ -34,8 +34,8 @@ try {
     const priorities=(id,levels)=>{
       const n=levels[id]||0;
       if(id==='NDR'&&!n)return 22;if(id==='XDR'&&!n)return 21;if(id==='HCI'&&n<2)return 18-n;
-      return ({EDR:3,MDR:3,AF:2,NDR:2,XDR:2,IAG:1,HCI:3,ASTOR:1,AI:2,AGENT:1}[id]-n)*3+
-        ({EDR:2,MDR:3,AF:1,NDR:2,XDR:0,IAG:0,HCI:1,ASTOR:0,AI:0,AGENT:0}[id]||0);
+      return ({EDR:3,MDR:3,AF:2,NDR:2,XDR:2,IAG:1,HCI:3,ASTOR:1,AI:2}[id]-n)*3+
+        ({EDR:2,MDR:3,AF:1,NDR:2,XDR:0,IAG:0,HCI:1,ASTOR:0,AI:0}[id]||0);
     };
     const timer=setInterval(()=>{
       const s=g.state;
@@ -49,6 +49,7 @@ try {
         const l=x<s.op.x-8,r=x>s.op.x+8;
         if(l!==left){key('ArrowLeft',l);left=l;}if(r!==right){key('ArrowRight',r);right=r;}
         g.useAbility('pt');g.useAbility('rt');
+        if(s.enemies.length>=3||s.base<8000)g.useAbility('wf');
         if(s.enemies.some(e=>e.spec.boss&&e.hp<e.maxhp*.65)||s.enemies.length>14||s.base<1500)g.useAbility('ir');
       }
       if(Math.floor(s.elapsed)!==lastSecond) {

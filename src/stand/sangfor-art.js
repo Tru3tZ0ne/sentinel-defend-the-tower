@@ -1,7 +1,7 @@
 // Original arcade equipment and threat sculptures. Brand decals remain official
 // artwork; these silhouettes do not describe commercial appliance specifications.
 import * as THREE from 'three';
-import { createMechFactory } from './mech-art.js?mech=v2';
+import { createMechFactory } from './mech-art.js?mech=v3';
 import { createStudioEnvironment } from './studio-light.js';
 
 const TAU = Math.PI * 2;

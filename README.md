@@ -81,24 +81,32 @@ backpack discharges a thin chain of lightning through up to seven nearby targets
 CC focuses on guided fire and marking; its former horizontal laser strips are removed.
 Rounded armor, metal joints and pistons refine the mech silhouette.
 No permanent product appliances accumulate on the floor.
-Dodge red boss lanes and time Q/E/R support. A clear requires three real boss
+Dodge red boss lanes and time Q/E/R support. Press **F** or tap **Agent Builder**
+beside the services to run **Detect → Analyze → Contain → Recover**. Its compact
+trace appears during execution, and its wrist controller is cached. HCI/AI improve
+the workflow; completion delivers work/recovery, with compute cost and cooldown.
+Agent Builder is an active ability, removed from passive product upgrades.
+A clear requires three real boss
 deaths by 120 seconds and surviving HP/business availability.
 
 Balance security with **HCI business capacity, AI and Agent Builder**. Compute
 shortages reduce availability and output; cloud-only investment is vulnerable.
 Rank completed defenses by **55% HP + 25% business + 12% AI + 8% Agent Builder**.
 The new enterprise board preserves previous scores and is local by default.
-Nonblocking upgrade choices, bilingual interfaces and full-quality 3D remain.
-The combined seeded casual mixed-build samples clear 72.2% desktop / 68.9% phone; this is
+Nonblocking upgrade choices now last **10 active seconds**, then automatically
+deploy the highlighted recommendation. Pause freezes the countdown.
+Bilingual interfaces and full-quality 3D remain.
+The combined seeded casual mixed-build samples clear 75.6% desktop / 71.1% phone; this is
 simulation evidence, not a measured human win rate or guaranteed completion.
+Desktop remains above the approximate 60–70% goal; human testing is recommended.
 
 These are fictional arcade mechanics and equipment concepts inspired by product
 roles. `stand-sangfor.html` offers the equipment preview; `stand-showroom.html`
 provides optional close inspection of the original eight equipment concepts.
 Owned-product icons show their name, level and a short effect description in both languages.
-See the [guidance and expanded-chain record](docs/STAND_WIDE_CHAIN.md)
+See the [active workflow and choice-timing record](docs/STAND_AGENT_WORKFLOW.md)
 and [English continuation brief](docs/CLAUDE_STAND_VISUALS_HANDOFF.txt), review tag
-`stand-wide-chain-v1`. Checks run through `npm run test:stand-art`.
+`stand-agent-workflow-v1`. Checks run through `npm run test:stand-art`.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your
