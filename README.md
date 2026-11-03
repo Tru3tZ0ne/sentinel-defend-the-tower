@@ -38,7 +38,7 @@ Several self-contained experiences share the brand, i18n and assets:
 | `soc.html` | **Incident Zero** — live SOC: **XDR correlation** + stage-correct containment | `src/soc/` (+ `src/arcade/`) |
 | `vector.html` | **Threat Vector** — survivor shooter: monsters charge, product **drops** level you up | `src/vector/` (+ `src/arcade/`) |
 | `line.html` | **Breach Line** — a Plants-vs-Zombies lane defense; deploy product **defenders** in a grid | `src/line/` (+ `src/arcade/`) |
-| `stand.html` | **Last Stand** — a vertical survivor shooter; each product **deploys as a unit** on the field | `src/stand/` (+ `src/arcade/`) |
+| `stand.html` | **Last Stand** — a vertical survivor shooter; products mount on **one evolving mech** | `src/stand/` (+ `src/arcade/`) |
 
 The last three are **quick-play arcade games** — pick-up-and-play, instant score, and each maps
 to real Sangfor products. They share a small common layer in `src/arcade/` (bilingual strings,
@@ -72,10 +72,12 @@ capability legible at a glance. The in-game Product Codex pairs every product's 
 on-board role and honest limitation. Pure logic is unit-tested in `tools/arcade-logic.test.mjs`.
 
 **Last Stand** (`stand.html`) is a real-time 3D, **120-second event campaign**.
-Start with **10,000 HP** and EDR/MDR/HCI against exactly three bosses at
+Start with **10,000 HP**, a basic robot and a first-module choice against three bosses at
 25, 60 and 95 seconds. **Cyber Command + XDR together** guide ordinary bullets;
-MDR retains its existing CC tracking and damage boost. Devices visibly charge
-**XDR**, which fires the final laser from its conspicuously marked appliance.
+MDR retains its existing CC tracking and damage boost. Products become shoulder
+cannons, a managed gun arm, a shield and server pods on the robot. Armor grows
+through four stages. Modules visibly charge **XDR**, whose compact branded
+backpack fires the final laser. No permanent product appliances accumulate on the floor.
 Dodge red boss lanes and time Q/E/R support. A clear requires three real boss
 deaths by 120 seconds and surviving HP/business availability.
 
@@ -84,14 +86,15 @@ shortages reduce availability and output; cloud-only investment is vulnerable.
 Rank completed defenses by **55% HP + 25% business + 12% AI + 8% Agent Builder**.
 The new enterprise board preserves previous scores and is local by default.
 Nonblocking upgrade choices, bilingual interfaces and full-quality 3D remain.
-The seeded casual mixed-build policy clears 63.3% desktop / 66.7% phone; this is
+The seeded casual mixed-build policy clears 65% desktop / 66.7% phone; this is
 simulation evidence, not a measured human win rate or guaranteed completion.
 
 These are fictional arcade mechanics and equipment concepts inspired by product
 roles. `stand-sangfor.html` offers the equipment preview; `stand-showroom.html`
-provides optional close inspection. See the [development record](docs/STAND_ENTERPRISE_BALANCE.md)
+provides optional close inspection of the original eight equipment concepts.
+See the [mech and performance record](docs/STAND_MECH_PERFORMANCE.md)
 and [English continuation brief](docs/CLAUDE_STAND_VISUALS_HANDOFF.txt), review tag
-`stand-enterprise-balance-v1`. Checks run through `npm run test:stand-art`.
+`stand-mech-performance-v1`. Checks run through `npm run test:stand-art`.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your

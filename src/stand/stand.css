@@ -241,7 +241,15 @@
   .ar-stats { display: grid; width: 100%; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; }
   .ar-stat { text-align: center; min-width: 0; }
   .ar-stat .k { font-size: 8px; letter-spacing: .4px; }
-  .st-upgrade-dock { top: 158px; padding: 8px; }
+  .st-upgrade-dock { top: auto; bottom: max(38px, env(safe-area-inset-bottom)); left: auto; right: 8px;
+    transform: none; width: min(440px, calc(100vw - 84px)); padding: 6px; border-radius: 10px; }
+  .st-upgrade-dock .st-card { padding: 4px 3px; gap: 3px; border-radius: 7px; }
+  .st-upgrade-dock .st-card-ico { width: 22px; height: 22px; }
+  .st-upgrade-dock .st-card-name { font-size: 9px; line-height: 1.1; }
+  .st-upgrade-dock .st-card-dim { display: none; }
+  .st-upgrade-dock .st-offer-header { font-size: 8px; margin-bottom: 4px; }
+  .wrap:has(#stLevelUp) .ar-toasts { bottom: 150px; }
+  .ar-toast { font-size: 10px; padding: 5px 9px; max-width: 230px; }
   .st-offer-header { font-size: 9px; }
   #stCombo { font-size: 10px; letter-spacing: 0; }
 }

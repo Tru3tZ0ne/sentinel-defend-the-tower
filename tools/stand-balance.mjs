@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { compileFunction } from 'node:vm';
 import { pathToFileURL } from 'node:url';
-import * as rules from '../src/stand/model.js';
+import * as model from '../src/stand/model.js';
+import * as runtime from '../src/stand/combat-runtime.js';
+const rules = {...model, ...runtime};
 
 const source = readFileSync(new URL('../src/stand/engine.js', import.meta.url), 'utf8');
 function section(from, to) {
@@ -20,6 +22,7 @@ const frame = section('  function frame(ts)', '  function gameOver()');
 const create = compileFunction(`
   const { ${Object.keys(rules).join(', ')} } = rules;
   ${constants}
+  const integrated = rules.integratedRig ?? true;
   const W = width, H = height, barH = Math.max(52, H * .09), baseY = H - barH;
   const opHome = baseY - 62, bandY = H * .44, fieldW = clamp(W * .92, 340, 440);
   const fieldL = Math.round((W - fieldW) / 2), fieldR = fieldL + fieldW;
@@ -34,7 +37,7 @@ const create = compileFunction(`
   ${combat}
   ${over}
   ${frame}
-  S = fresh(); S.phase = 'play'; recompute();
+  S = fresh(); S.phase = 'play'; recompute(); openLevelUp();
   return { get state() { return S; }, get offers() { return offers; }, toasts,
     get summary() { return summary; }, choose: chooseUpgrade, deploy: applyUpgrade, fire: fireUp, useAbility, keys, fieldL, fieldR, baseY,
     frameMs(ms) { frame(lastTS + ms); },

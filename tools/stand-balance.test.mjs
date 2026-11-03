@@ -10,7 +10,7 @@ function enemy(g, type='recon', extra={}) {
   return { id: 90000, type, spec, x: g.fieldL+80, y: 100, r: spec.r,
     hp: 1e6, maxhp: 1e6, slow: 0, hit: 0, wob: 0, spawnAcc: 0, bornAt: g.state.elapsed, attackAcc: 0, ...extra };
 }
-function quiet(g) { g.state.spawnAcc = -1e8; g.state.shooters = []; g.state.beamAcc = -1e8; g.state.ccAcc = -1e8; }
+function quiet(g) { g.state.choices=[]; g.state.pendingLevels=0; g.state.offerLeft=0; g.state.opening=false; g.state.spawnAcc = -1e8; g.state.shooters = []; g.state.beamAcc = -1e8; g.state.ccAcc = -1e8; }
 function advance(g, seconds) { for (let i=0; i<Math.round(seconds*60); i++) g.step(1/60); }
 
 test('slower rendered frames keep real campaign pace with bounded catch-up and pause', () => {
@@ -21,10 +21,11 @@ test('slower rendered frames keep real campaign pace with bounded catch-up and p
   g.state.phase='paused'; g.frameMs(100); assert.ok(Math.abs(g.state.elapsed-.35)<1e-8);
 });
 
-test('campaign starts with 10,000 HP and mixed core devices; three bosses never wrap', () => {
+test('campaign starts with 10,000 HP and an explicit first deployment; three bosses never wrap', () => {
   const g=createCombatProbe();
   assert.equal(START_BASE,10000); assert.equal(g.state.base,10000);
   assert.deepEqual(g.state.levels,STARTER_LEVELS);
+  assert.deepEqual(g.offers.map(o=>o.id),['EDR','MDR','HCI']);
   assert.deepEqual(BOSS_TIMES,[25,60,95]); assert.deepEqual(BOSS_ORDER,['ransom','botnet','siege']);
   assert.equal(bossFor(3),undefined);
   quiet(g);
@@ -38,7 +39,7 @@ test('campaign starts with 10,000 HP and mixed core devices; three bosses never 
   assert.deepEqual(seen,BOSS_ORDER);
   assert.equal(g.state.bossCount,3); assert.equal(g.state.bossesKilled,3);
   assert.equal(g.summary.outcome,'victory'); assert.equal(g.summary.elapsed,120);
-  assert.deepEqual(STARTER_LEVELS,{EDR:1,MDR:1,HCI:1});
+  assert.deepEqual(STARTER_LEVELS,{});
   assert.equal(g.toasts.includes('allied'),false);
 });
 
@@ -104,7 +105,7 @@ test('XDR collects all deployed devices then fires from the actual hub; links do
   g.state.beamAcc=1e5; g.step(.01);
   assert.deepEqual([...new Set(g.state.link.devices.map(d=>d.id))].sort(),Object.keys(WEAPONS).sort());
   assert.equal(g.state.beam,null); assert.equal(target.hp,1e6);
-  const {hub}=g.state.link; assert.equal(hub.x,g.fieldR-23); assert.equal(hub.y,g.baseY-78);
+  const {hub}=g.state.link; assert.equal(hub.x,g.state.op.x); assert.equal(hub.y,g.state.op.y+10);
   advance(g,.6); assert.equal(g.state.beam,null); assert.equal(target.hp,1e6);
   advance(g,.1); assert.ok(g.state.link.fired); assert.ok(g.state.beam); assert.ok(target.hp<1e6);
   assert.equal(g.state.beam.x,hub.x); assert.equal(g.state.beam.y,hub.y);
@@ -113,11 +114,18 @@ test('XDR collects all deployed devices then fires from the actual hub; links do
 
 test('XDR collision follows the angled segment, not the legacy vertical column', () => {
   const g=createCombatProbe(); quiet(g);
-  const a={x:g.fieldL+20,y:600}, b={x:g.fieldL+320,y:100};
-  const hit=enemy(g,'recon',{x:(a.x+b.x)/2,y:350}), miss=enemy(g,'recon',{id:90001,x:a.x,y:350});
+  const a={x:g.state.op.x,y:g.state.op.y+10}, b={x:g.fieldL+320,y:100};
+  const hit=enemy(g,'recon',{x:(a.x+b.x)/2,y:(a.y+b.y)/2}), miss=enemy(g,'recon',{id:90001,x:a.x-100,y:(a.y+b.y)/2});
   g.state.enemies=[hit,miss]; g.state.beam={...a,tx:b.x,ty:b.y,life:1,width:20,dmg:100}; g.step(.05);
   assert.ok(hit.hp<1e6); assert.equal(miss.hp,1e6);
   assert.equal(segmentDistanceSq(a.x,a.y,a.x,a.y,b.x,b.y),0);
+});
+
+test('the XDR laser source follows the moving backpack while its target stays committed',()=>{
+  const g=createCombatProbe();quiet(g);const s=g.state;
+  s.beam={x:s.op.x,y:s.op.y+10,tx:s.op.x+100,ty:100,life:1,width:20,dmg:100};
+  const target=s.beam.tx;s.op.x+=60;g.step(.01);
+  assert.equal(s.beam.x,s.op.x);assert.equal(s.beam.y,s.op.y+10);assert.equal(s.beam.tx,target);
 });
 
 test('upgrade offers do not pause, expire into recommendation, reject invalid or capped IDs', () => {
@@ -215,7 +223,7 @@ test('HCI serves workloads; overload and service damage affect real output and c
   assert.ok(low.served<high.served && low.ai<high.ai && low.agent<high.agent);
   assert.equal(cloudRates({AI:3,AGENT:2},10).ai,0);assert.equal(cloudRates({HCI:2,AGENT:2},10).agent,0);
   assert.equal(cloudRates({HCI:2,AI:2,AGENT:2},10,0).business,0);
-  const g=createCombatProbe();quiet(g);g.deploy('AI');g.deploy('AGENT');advance(g,2);
+  const g=createCombatProbe();quiet(g);g.deploy('HCI');g.deploy('AI');g.deploy('AGENT');advance(g,2);
   assert.ok(g.state.businessWork>0 && g.state.aiWork>0 && g.state.agentWork>0);
   g.state.elapsed=110;g.state.availability=.0001;g.state.levels.HCI=0;g.step(.05);
   assert.equal(g.summary.reason,'service');const work=g.state.businessWork;advance(g,2);assert.equal(g.state.businessWork,work);

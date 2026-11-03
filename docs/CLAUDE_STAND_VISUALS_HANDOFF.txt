@@ -1,103 +1,107 @@
-Continue Last Stand from tag stand-enterprise-balance-v1 on branch
-feat/stand-enterprise-balance. Fetch origin and preserve later changes.
-Read docs/STAND_ENTERPRISE_BALANCE.md before editing. Earlier campaign notes in
-docs/STAND_COMMAND_CAMPAIGN.md are historical; their guaranteed clear, CC-only
-ordinary homing and HP-only ranking contracts are superseded.
+Continue Last Stand from tag stand-mech-performance-v1 and branch
+perf/stand-active-combat. Fetch origin and preserve later changes. Read
+docs/STAND_MECH_PERFORMANCE.md and stand-mech-validation.json first.
+Earlier enterprise/command records are historical. Their preinstalled products,
+floor appliances, large XDR callout and older measurements are superseded.
 
-Your task is to continue implementation and playtesting of this existing game,
-not to return a design proposal or rebuild its interface. Inspect the actual
-current source and run the game before choosing the next improvement. Preserve
+Continue implementing and playtesting this game, not just proposing a plan.
+Inspect current source and play before choosing the next improvement. Preserve
 English and Chinese interfaces and use English for development records.
+Keep the established interface compact; do not add more panels.
 
 Playable entries:
-- stand.html: cinematic stage and branded physical equipment.
-- stand-sangfor.html: equipment preview using the same engine and balance.
-- stand-showroom.html: optional inspection of the existing eight core products.
+- stand.html: cinematic modular mech campaign.
+- stand-sangfor.html: same mech/combat, sharp equipment-preview stage.
+- stand-showroom.html: existing eight individual equipment concepts. It does
+  not yet inspect all ten modules or the assembled mech.
 
-Current gameplay contract:
-1. The campaign starts with 10,000 HP and EDR/MDR/HCI level 1. It ends after
-   120 active seconds, or earlier on zero HP or business availability. Exactly
-   three bosses enter at 25/60/95 seconds. Only actual boss deaths count.
-   All three must die by the deadline to win. Do not restore mandatory allied
-   damage, a one-HP floor, fabricated deaths or guaranteed clears.
-2. CC uses the NDR ID. It retains horizontal side laser strips and its existing
-   MDR boost. MDR remains unchanged: CC-only tracking, existing damage/rate,
-   10% damage per CC level and fast turn response. Ordinary operator/EDR/service
-   bullets need BOTH CC and XDR, with limited forward-cone guidance, range and
-   slower turning. Preserve finite flight life, constant speed and safe
-   retargeting after a kill or pierced target. Aiming and movement must matter.
-3. XDR visibly collects energy from every deployed device, including AI and
-   Agent Builder, then fires the main laser from the XDR appliance. Thin links
-   deal no damage; beam collision follows its actual angled segment. The large
-   official XDR mark/name must stay legible on desktop and phone during firing.
-   Death-chain branching/damage are deliberately restrained to avoid idle clears.
-4. Boss strikes warn a fixed column before damage. Moving out avoids the hit;
-   AI extends warning time slightly. Support cooldown/aim timing must matter.
-   Incident Response deals 20% max HP to bosses and 60% to ordinary threats,
-   retains its minimum damage, heals and grants a hit shield. Keep Q/E/R.
-5. Cloud is a real tradeoff. HCI supplies compute and fire-rate support, aStor
-   adds shielding and some capacity, AI produces scored work and Agent Builder
-   adds workflow output and modest automation. AI offers require HCI; Agent
-   offers require HCI and AI. Demand above capacity reduces availability and
-   delivered output. Cloud-only investment must remain vulnerable to attacks.
-6. Score actual delivered work, not purchases. Show remaining HP, HCI/business,
-   AI and Agent Builder components (0-10,000 each). Total weights are 55/25/12/8.
-   Only victories rank. Ties share rank. Preserve earlier boards; use
-   sentinel.stand.enterprise.scores.v1, sentinel.stand.enterprise.best.v1 and
-   optional window.__STAND_ENTERPRISE_API with its own backend namespace.
-   GitHub Pages defaults to browser-local ranking; never imply a global board.
-7. Upgrades are nonblocking 1/2/3 or tap, with a three-second auto-recommendation.
-   Explicit pause freezes production, combat, skills and offer timers. Terminal
-   states cannot award later work or allow upgrades/abilities. Guard stale async
-   score submissions so a previous result cannot overwrite a replay.
+Visual contract:
+1. One basic robot, 10,000 HP and no preinstalled products. The opening offer
+   is EDR/MDR/HCI, with 1/2/3, tap and the three-second recommendation.
+2. Mount products on ONE mech: EDR shoulder cannons, MDR gun arm, NGAF shield,
+   CC head sensor, HCI compute pod, XDR backpack, aStor hip storage, IAG leg
+   module, AI compute and Agent Builder wrist console. Do not restore a
+   growing field of permanent product appliances.
+3. Total purchased levels 0/3/7/14 select armor stages I/II/III/IV. Replay
+   returns to a plain robot while retaining cached geometry. Keep upgrades
+   physically visible without letting the mech obscure combat.
+4. Reuse official Sangfor marks. XDR has a compact backpack mark and readable
+   XDR plate, not an oversized floating board. Models are original arcade
+   concepts, not certified commercial appliances. AI uses AICP; Agent Builder
+   has a functional label, not a fabricated official logo.
+5. Phone choices sit bottom-right, clear of support buttons/HP and below the
+   forward enemy view. Check toasts/card overlap and full-mech framing at both
+   movement extremes, short portraits and in both languages.
 
-Balance evidence and next priorities:
-- Target roughly 60-70% clears for reasonable mixed builds with ordinary active
-  play, not a 60-70% security spending requirement or guaranteed human win rate.
-- The 192-run seeded production-combat suite reports casual mixed 38/60 desktop
-  (63.3%) and 40/60 phone (66.7%), informed 11/12 on each, pure cloud and idle
-  0/12 each. The probe policy, seeds and limits are in the development record.
-- Separate held-out seeds (5001 + i*37) clear 21/30 (70%) on each viewport.
-  Combined mixed samples: 59/90 desktop (65.6%), 61/90 phone (67.8%).
-- Validate with real first-time players on the event hardware. Record actual
-  loadouts, boss failures, support usage, health and service output. Tune causes
-  using held-out seeds and both viewports, rather than selecting favorable runs.
-- Improve the clarity of upgrade consequences and product deployment only where
-  observed playtests show confusion. Keep the compact HUD and avoid more panels.
-- AI and Agent Builder have distinct physical consoles and energy links. AI uses
-  the official AICP mark. The Agent console has a functional label, not a made-up
-  official mark. A future focused showroom extension can add both; the current
-  showroom still inspects eight core models. Do not pretend this is finished.
-- Models are original arcade concepts, not certified commercial product replicas.
-  Read assets/stand-sangfor/ASSETS.md and docs/STAND_SANGFOR_VISUALS.md before art
-  changes. Preserve official marks/proportions and current equipment silhouettes.
+Combat contract:
+1. Start at 10,000 HP. End at 120 active seconds, or earlier at zero HP/service
+   availability. Exactly three bosses enter at 25/60/95. All must actually die
+   by the deadline. No guaranteed clear, HP floor, fabricated death or forced
+   allied damage. Only victories rank.
+2. CC uses NDR internally. Retain side laser strips and its MDR boost. MDR
+   retains CC-only tracking, existing damage/rate and fast turning. Ordinary
+   operator/EDR/service shots need BOTH CC and XDR, with limited range/cone,
+   slower turning, constant speed and finite lifetime. Retarget safely after
+   kills/piercing; aiming and movement must matter.
+3. All owned modules charge XDR, including AI and Agent Builder. Links are
+   visual only. XDR alone fires the damaging beam from the moving backpack;
+   its target stays committed. Collision follows the actual angled segment.
+   Keep restrained chain damage so idle play can fail.
+4. Boss attacks warn a fixed column before damage; moving out avoids it.
+   AI extends warnings slightly. Preserve Q/E/R timing and support tradeoffs.
+5. HCI supplies compute/business throughput and fire-rate support. aStor adds
+   snapshots; AI produces work; Agent Builder adds workflows and modest
+   automation. AI requires HCI; Agent offers require HCI + AI. Overload reduces
+   availability/output. Cloud-only investment must lose to uncontained attacks.
+6. Score actual delivered work and HP, not purchases. Four components range
+   0-10,000 and use HP/business/AI/agents weights 55/25/12/8. Preserve tie ranks,
+   old boards and enterprise storage/API keys. Pages is browser-local ranking
+   unless a separate backend is configured. Do not claim a global board.
+7. Choices never pause combat. Explicit pause freezes combat/work/support/
+   offers. Terminal states award no later work/upgrades. Guard stale async
+   result submissions so they cannot overwrite replay screens.
 
-Performance requirements:
-- Keep all 3D geometry, animation, lights, shadows, bloom, particles, lightning,
-  damage numbers, antialiasing and native DPR up to 2. No resolution/entity/effect
-  cuts disguised as optimization. No new runtime external service dependencies.
-- Retain instanced threats/bullets, cached equipment/material templates and DOM
-  node reuse. Do not rebuild the scene or score strip on every HUD update.
-- Full-quality fixed stress: ten maxed products, support teams, 64 threats,
-  256 bullets, CC strips and XDR charge/beam = 440 draws, 526,724 triangles,
-  129 geometries. The older eight-product fixture was 415 draws; document the
-  extra two products honestly. All bullets use one draw. Keep the <450 budget.
-- Reintroduction must reuse resources. Bullet growth to 513 uses capacity 1024
-  and shared geometry. Check high-DPI ratio 2. Hardware FPS requires hardware
-  WebGL measurement; software rendering does not establish a hardware FPS claim.
-- Preserve <=1/60s simulation substeps and <=0.25s catch-up per rendered frame.
+Balance:
+- Aim roughly 60-70% clears for a reasonable casual mixed-build policy, not a
+  security spending quota or guaranteed first-time-player rate.
+- Read current seeded and held-out results in the validation record. The probe
+  compiles production combat closures, not a simplified replacement engine.
+- After real combat changes, run both viewports and held-out seeds; record
+  loadouts, deaths, time, support, HP and service work. Do not select favorable
+  runs. Human playtesting on actual event hardware remains a follow-up.
 
-Validation and delivery:
-- Run node --test tools/engine.test.mjs tools/rush-logic.test.mjs
-  tools/arcade-logic.test.mjs (65 groups) after relevant shared-code changes.
-- Run npm run test:stand-art: 17 combat/balance groups, browser integration,
-  all-product maximum-load/resource-reuse checks and DPR verification.
-- Review actual desktop/phone screenshots in both languages. Distinguish staged
-  FIXTURE captures from natural play. Tests must not assert mandatory victory.
-- Keep an English development record: final behavior, files, validation evidence,
-  limitations and exact tag/commit. Publish a new review tag without moving old
-  tags. Push reviewed changes to main when authorized, and verify the actual
-  GitHub Pages version rather than assuming a branch is the live site.
-- Report unresolved tuning/model/hardware limits candidly. Do not claim human
-  clear rates, global ranking, official appliance fidelity or hardware FPS from
-  simulations, screenshots or software-WebGL tests.
+Performance:
+- Preserve geometry, antialiasing, shadows, bloom, lights, animation, particles,
+  lightning, text and native DPR up to 2. Do not cut effects/entities/resolution
+  to disguise cost. Do not add external runtime dependencies.
+- Retain instanced threats/bullets and the order-preserving collision grid.
+  Worm children born during the same piercing shot must remain hittable.
+- Retain object pools, stable compaction, shared projection/lightning buffers,
+  cached modules and pooled support teams. Pool limits apply only to recycled
+  objects; never discard still-live effects. Replays must reuse models.
+- Fixed fixture: ten maxed products, support teams, 64 threats, 256 shots, CC
+  strips and XDR link/beam = 333 draws / 491,226 triangles / 112 geometries.
+  Older separate appliances were 440 draws / 526,724 triangles. This compares
+  scene cost, not identical geometry or a universal FPS improvement percentage.
+- Bullets use one draw; growth to capacity 1,024 retains shared geometry.
+  Keep the existing <450 draw budget and verify native DPR 2.
+- Fixed counts clear transient FX for reproducibility. A separate FX fixture
+  retains 3,000 particles/80 texts/24 lightning effects. Neither establishes
+  natural-play smoothness. Use the active recorder with effects untouched and
+  identify the renderer before timing claims.
+- Preserve <=1/60s substeps and <=0.25s catch-up per rendered frame.
+
+Validation and publication:
+- npm run test:stand-art runs balance/runtime, EN/ZH browser interactions,
+  kill-to-upgrade, charge/fire, mobile movement/choices, real fail/win results,
+  board isolation/replay/showroom, fixed stress, FX retention and DPR checks.
+- node tools/stand-active-performance.mjs mech records real combat, renderer,
+  frame/CPU timing, long tasks, heap, counts and collision candidates. Do not
+  mutate HP/time or clear FX to obtain flattering results.
+- Run existing engine/rush/arcade groups after shared-code changes.
+- Review desktop/phone captures in both languages; label staged fixtures.
+  Software rendering cannot establish hardware FPS or human clear rates.
+- Update English records with behavior/files, reproducible evidence, limits
+  and a new immutable tag; preserve old tags. When authorized to publish,
+  update main and verify the actual Pages version/cache. A feature branch
+  alone does not update the public site.

@@ -36,8 +36,13 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.screenshot({ path: shots + '/stand-sangfor-menu-zh.png' });
     await page.locator('[data-act="lang"]').click();
     await page.locator('[data-act="play"]').click();
-    await page.waitForFunction(() => window.__stand?.game.state?.elapsed > .1);
+    await page.waitForFunction(() => {const g=window.__stand?.game;if(g?.state?.elapsed>.1){g.pause();return true;}return false;});
     assert.equal(await page.evaluate(() => window.__stand.game.diagnostics.art), 'sangfor');
+    assert.deepEqual(await page.evaluate(()=>window.__stand.game.state.levels),{});
+    assert.deepEqual(await page.locator('.st-card').evaluateAll(cards=>cards.map(c=>c.dataset.up)),['EDR','MDR','HCI']);
+    await page.evaluate(()=>window.__stand.game.resume());
+    await page.keyboard.press('1');
+    assert.deepEqual(await page.evaluate(()=>window.__stand.game.state.levels),{EDR:1});
     // A one-hit, one-XP target exercises actual shooting -> XP -> choice -> deployment.
     await page.evaluate(async () => {
       const { ENEMIES } = await import(new URL('src/stand/model.js', location.href));
@@ -47,24 +52,26 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
         r: spec.r, hp: 1, maxhp: 1, slow: 0, hit: 0, wob: 0, marked: false }];
     });
     await page.locator('.st-card').first().waitFor({ timeout: 30000 });
+    await page.evaluate(()=>window.__stand.game.pause());
     const offers=await page.locator('.st-card').evaluateAll(cards=>cards.map(c=>c.dataset.up));
     assert.equal(await page.locator('.st-equipment-preview').count(),offers.filter(id=>!['AI','AGENT'].includes(id)).length);
     assert.ok(await page.locator('.st-equipment-preview').evaluateAll(images => images.every(i => i.complete && i.naturalWidth > 0)));
     await page.screenshot({ path: shots + '/stand-sangfor-upgrades.png' });
     const offerTime = await page.evaluate(() => window.__stand.game.state.elapsed);
-    assert.equal(await page.evaluate(() => window.__stand.game.phase), 'play');
-    await page.keyboard.press('e');
-    assert.equal(await page.evaluate(() => window.__stand.game.state.temps.length), 3);
+    assert.equal(await page.evaluate(() => window.__stand.game.phase), 'paused');
     const upgrade = await page.locator('.st-card').first().getAttribute('data-up');
     const beforeLevel = await page.evaluate(id => window.__stand.game.state.levels[id] || 0, upgrade);
-    await page.locator('.st-card').first().click();
+    await page.evaluate(()=>window.__stand.game.resume());
+    await page.keyboard.press('1');
     assert.equal(await page.evaluate(id => window.__stand.game.state.levels[id], upgrade), beforeLevel + 1);
-    assert.ok(await page.evaluate(() => window.__stand.game.state.elapsed) > offerTime);
+    await page.keyboard.press('e');
+    assert.equal(await page.evaluate(() => window.__stand.game.state.temps.length), 3);
+    await page.waitForFunction(time=>window.__stand.game.state.elapsed>time,offerTime);
     // All product renderers and every normal/boss silhouette, in a paused inspection fixture.
     await page.evaluate(async () => {
       const g = window.__stand.game;
       g.start();
-      for (const id of ['EDR', 'EDR', 'MDR', 'AF', 'NDR', 'XDR', 'IAG', 'HCI', 'ASTOR', 'AI', 'AGENT']) g.applyUpgrade(id);
+      for (const id of ['EDR', 'EDR', 'EDR', 'MDR', 'MDR', 'AF', 'NDR', 'XDR', 'IAG', 'HCI', 'HCI', 'ASTOR', 'AI', 'AGENT']) g.applyUpgrade(id);
       g.state.pendingLevels = 0; g.pause();
       const s = g.state, { ENEMIES } = await import(new URL('src/stand/model.js', location.href));
       s.parts = []; s.fxr = []; s.texts = []; s.shake = 0; s.flash = 0; s.afHp = s.afMax;
@@ -104,8 +111,9 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.screenshot({ path: shots + '/stand-sangfor-service-teams-FIXTURE.png' });
     // Reset and phone movement, without retaining any purchased equipment.
     await page.evaluate(() => window.__stand.game.start());
-    assert.equal(await page.locator('#stLevelUp').count(), 0);
-    assert.deepEqual(await page.evaluate(() => window.__stand.game.state.levels), {EDR:1,MDR:1,HCI:1});
+    assert.equal(await page.locator('#stLevelUp').count(), 1);
+    assert.deepEqual(await page.evaluate(() => window.__stand.game.state.levels), {});
+    await page.locator('[data-up="EDR"]').click();
     await page.waitForFunction(() => document.querySelector('#stNetwork').textContent.includes('not deployed'));
     assert.equal(await page.locator('#stCloudScores .st-metrics span').count(),4);
     await page.setViewportSize({ width: 390, height: 844 }); await settle();
@@ -121,7 +129,7 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     metrics.mobile = await page.evaluate(() => window.__stand.game.diagnostics);
     // A phone-sized offer remains compact and auto-deploys without pausing.
     await page.evaluate(async () => {
-      const g=window.__stand.game; g.start(); const s=g.state;
+      const g=window.__stand.game; g.start(); g.chooseUpgrade('EDR'); const s=g.state;
       const {ENEMIES}=await import(new URL('src/stand/model.js',location.href));
       s.xp=s.xpNeed-1;
       s.enemies=[{id:97500,type:'recon',spec:ENEMIES.recon,x:s.op.x,y:200,r:13,hp:1,maxhp:1,slow:0,hit:0,wob:0}];
@@ -129,11 +137,11 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     });
     await page.locator('#stLevelUp').waitFor();
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-    assert.ok(await page.locator('#stLevelUp').evaluate(el=>el.getBoundingClientRect().bottom < innerHeight*.5));
+    assert.ok(await page.locator('#stLevelUp').evaluate(el=>el.getBoundingClientRect().top > innerHeight*.65 && el.getBoundingClientRect().height < 125 && el.getBoundingClientRect().left > 70));
     assert.equal(await page.locator('.st-card.recommended').count(),1);
     await page.screenshot({path:shots+'/stand-command-mobile-offer-FIXTURE.png'});
     await page.waitForFunction(() => !window.__stand.game.state.choices.length);
-    assert.equal(await page.evaluate(() => Object.values(window.__stand.game.state.levels).reduce((a,b)=>a+b,0)),4);
+    assert.equal(await page.evaluate(() => Object.values(window.__stand.game.state.levels).reduce((a,b)=>a+b,0)),2);
     assert.ok(await page.evaluate(() => window.__stand.game.state.elapsed >= 3));
     assert.equal(await page.locator('#stLevelUp').count(),0);
     // The main entry is the COMBINED build: sculpted models under the cinematic
@@ -146,7 +154,7 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     // Production charging and side-laser transitions, with explicit durable targets.
     await page.evaluate(async () => {
       const g=window.__stand.game, s=g.state;
-      for(const id of ['MDR','AF','NDR','XDR','IAG','HCI','ASTOR','AI','AGENT']) g.applyUpgrade(id);
+      for(const id of ['EDR','MDR','AF','NDR','XDR','IAG','HCI','ASTOR','AI','AGENT']) g.applyUpgrade(id);
       const {ENEMIES}=await import(new URL('src/stand/model.js',location.href));
       const w=document.querySelector('#stCanvas').clientWidth;
       s.enemies=Array.from({length:8},(_,i)=>({id:98000+i,type:'malware',spec:{...ENEMIES.malware,speed:0},
@@ -189,11 +197,11 @@ export async function verifyStandArt(page, url, shots = 'tools/shots') {
     await page.screenshot({path:shots+'/stand-enterprise-failure-FIXTURE.png'});
     // Actual final kill and real result callback at the campaign endpoint.
     await page.evaluate(async () => {
-      const g=window.__stand.game; g.start(); const s=g.state;
+      const g=window.__stand.game; g.start(); g.chooseUpgrade('EDR'); const s=g.state;
       const {ENEMIES}=await import(new URL('src/stand/model.js?campaign=enterprise-balance-v1',location.href));
       const spec=ENEMIES.siege;
       s.elapsed=119.8; s.bossCount=3; s.bossesKilled=2; s.base=8605;
-      s.businessWork=7200;s.aiWork=2100;s.agentWork=1080;
+      g.applyUpgrade('HCI');s.businessWork=7200;s.aiWork=2100;s.agentWork=1080;
       s.enemies=[{id:99000,type:'siege',spec,x:s.op.x,y:200,r:50,hp:1,maxhp:1000,slow:0,hit:0,wob:0,spawnAcc:0,bornAt:119.8,attackAcc:0}];
       g.useAbility('ir');
     });

@@ -1,13 +1,14 @@
 // Original arcade equipment and threat sculptures. Brand decals remain official
 // artwork; these silhouettes do not describe commercial appliance specifications.
 import * as THREE from 'three';
+import { createMechFactory } from './mech-art.js?mech=v1';
 import { createStudioEnvironment } from './studio-light.js';
 
 const TAU = Math.PI * 2;
-const COLORS = { white: 0xcbd0d4, metal: 0x89929c, dark: 0x252a31, black: 0x0d1015,
+const COLORS = { white: 0xcbd0d4, armor: 0x6c7e8b, metal: 0x89929c, dark: 0x252a31, black: 0x0d1015,
   green: 0x72bb38, cyan: 0x32a8ce, amber: 0xcaa261, red: 0xea5260 };
 
-export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex, laneW, length }) {
+export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex, laneW, length, integrated = false }) {
   const studio = createStudioEnvironment(renderer);
   scene.environment = studio.texture; scene.environmentIntensity = .6;
   const templates = new Map(), geometries = new Set(), originals = new Set();
@@ -96,11 +97,11 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
 
   function labelTexture(text) {
     if (labels.has(text)) return labels.get(text);
-    const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 96;
-    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#10161d'; ctx.fillRect(0, 0, 512, 96);
+    const canvas = document.createElement('canvas'); canvas.width = text.length <= 5 ? 256 : 512; canvas.height = 96;
+    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#10161d'; ctx.fillRect(0, 0, canvas.width, 96);
     ctx.fillStyle = '#72bb38'; ctx.fillRect(0, 0, 6, 96);
-    ctx.fillStyle = '#e8edf1'; ctx.font = '600 42px "Segoe UI",sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(text, 257, 65);
+    ctx.fillStyle = '#e8edf1'; ctx.font = `700 ${text.length <= 5 ? 64 : 42}px "Segoe UI",sans-serif`; ctx.textAlign = 'center';
+    ctx.fillText(text, canvas.width / 2, text.length <= 5 ? 72 : 65);
     const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
     textures.add(texture); labels.set(text, texture); return texture;
   }
@@ -288,7 +289,9 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
     return root;
   }
 
+  const mech = integrated ? createMechFactory({kit,instantiate,decal,labelTexture,markTex,brandTex,flash,networkChassis,serverChassis}) : null;
   function operator() {
+    if(mech) return mech.build();
     const root = equipment('COMMAND'); root.name = 'sangfor:operator';
     const tracks = instantiate('command-tracks', () => {
       const k = kit();
@@ -327,14 +330,14 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
     return root;
   }
 
-  function barrier() {
+  function barrier(compact = false) {
     const root = new THREE.Group(); root.name = 'sangfor:AF-gateway';
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.5), new THREE.MeshBasicMaterial({
       color: COLORS.green, transparent: true, opacity: .12, side: THREE.DoubleSide, depthWrite: false }));
     wall.position.y = .78; root.add(wall);
     const top = new THREE.Mesh(new THREE.BoxGeometry(1, .035, .035), new THREE.MeshBasicMaterial({ color: COLORS.green }));
     top.position.y = 1.5; root.add(top);
-    const posts = [-1, 1].map(side => {
+    const posts = compact ? [] : [-1, 1].map(side => {
       const grp = instantiate('AF-post', () => {
         const k = kit();
         k.box(1.4, .16, 1.35, 0, .1, 0, 'black');
@@ -474,7 +477,8 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
   const aux = new THREE.Group(); aux.name = 'sangfor:installed-products'; scene.add(aux);
   const installed = new Map();
   function sync(S, { wX, wZ, fieldL, fieldR, baseY, bandY }) {
-    for (const [id, side, y] of [['ASTOR', -1, baseY - 17], ['XDR', 1, baseY - 78], ['IAG', -1, bandY], ['AI', -1, baseY - 184], ['AGENT', -1, baseY - 258]]) {
+    mech?.sync(S);
+    for (const [id, side, y] of (integrated ? [] : [['ASTOR', -1, baseY - 17], ['XDR', 1, baseY - 78], ['IAG', -1, bandY], ['AI', -1, baseY - 184], ['AGENT', -1, baseY - 258]])) {
       if (!S.levels[id]) { const old = installed.get(id); if (old) old.visible = false; continue; }
       if (!installed.has(id)) { const root = equipment(id); aux.add(root); installed.set(id, root); }
       const root = installed.get(id); root.visible = true;
@@ -501,8 +505,8 @@ export function createSangforArt({ scene, laneFrame, renderer, markTex, brandTex
     mesh.body.material.emissiveIntensity = e.hit > 0 ? .9 : .09;
     mesh.body.material.emissive.set(e.hit > 0 ? 0xffe0ce : e.spec.color);
   }
-  return { operator, turret: () => equipment('EDR'), ally: () => operative('MDR'), operative,
-    radar: () => equipment('NDR'), core: () => equipment('HCI'), barrier, enemy, sync, animateEnemy,
+  return { integrated, get rigDiagnostics(){return mech?.diagnostics;}, operator, turret: () => equipment('EDR'), ally: () => operative('MDR'), operative,
+    radar: () => equipment('NDR'), core: () => equipment('HCI'), barrier:()=>barrier(integrated), enemy, sync, animateEnemy,
     product: id => id === 'AF' ? barrier() : id === 'MDR' ? operative('MDR') : equipment(id),
     dispose() { studio.dispose(); geometries.forEach(g => g.dispose()); originals.forEach(m => m.dispose()); textures.forEach(t => t.dispose()); } };
 }

@@ -6,7 +6,8 @@ export const MAX_ACTIVE_THREATS = 64;
 export const MISSION_SECONDS = 120;
 export const BOSS_TIMES = [25, 60, 95];
 export const UPGRADE_SECONDS = 3;
-export const STARTER_LEVELS = { EDR: 1, MDR: 1, HCI: 1 };
+export const STARTER_LEVELS = {};
+export const openingChoices = () => ['EDR','MDR','HCI'].map(id => ({id,toLevel:1,max:WEAPONS[id].max}));
 export const integrityScore = base => Math.floor(Math.max(0, Math.min(START_BASE, base)));
 export const CLOUD_PRODUCTS = ['HCI', 'ASTOR', 'AI', 'AGENT'];
 export function cloudRates(levels, elapsed, availability = 100) {
@@ -199,7 +200,7 @@ export const BOSS_ORDER = ['ransom', 'botnet', 'siege'];
 export function bossFor(index) { return BOSS_ORDER[index]; }
 // Bounded campaign pressure; larger crowds never replace combat mechanics.
 export function bossHpScale(t, mega) {
-  return .76 * (8 + Math.min(t, MISSION_SECONDS) * (mega ? .036 : .024));
+  return .57 * (8 + Math.min(t, MISSION_SECONDS) * (mega ? .036 : .024));
 }
 
 export function threatPool(t) {
@@ -215,7 +216,7 @@ export function difficultyAt(t) {
   return {
     spawnGap: Math.max(480, 900 - t * 4),
     batch: Math.min(3, 1 + Math.floor(t / 40)),
-    hpMul: 1 + Math.min(t, MISSION_SECONDS) * .12,
+    hpMul: 1 + Math.min(t, MISSION_SECONDS) * .10,
     speedMul: Math.min(1.55, 1 + t * .005),
   };
 }

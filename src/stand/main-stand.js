@@ -4,10 +4,10 @@
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
 const { createStandGame, ACCENT } = await import(
-  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=enterprise-balance-v1'
-  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=enterprise-balance-v1'
-  : './engine.js?campaign=enterprise-balance-v1');
-import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, MISSION_SECONDS, recommendedUpgrade } from './model.js?campaign=enterprise-balance-v1';
+  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=active-combat-v1'
+  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=active-combat-v1'
+  : './engine.js?campaign=active-combat-v1');
+import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, MISSION_SECONDS, recommendedUpgrade } from './model.js?campaign=active-combat-v1';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
@@ -44,8 +44,8 @@ const EN = {
   'st.to': 'Lv {a} -> {b}',
   'st.new': 'NEW',
   // what each product DEPLOYS (card dimension line)
-  'dim.EDR': 'Endpoint turret',
-  'dim.MDR': '24/7 teammate',
+  'dim.EDR': 'Shoulder cannons',
+  'dim.MDR': 'Managed gun arm',
   'dim.AF': 'Perimeter barrier',
   'dim.IAG': 'Egress slow band',
   'dim.HCI': 'Compute core (fire rate)',
@@ -106,8 +106,8 @@ const ZH = {
   'st.max': '满级',
   'st.to': '{a} → {b} 级',
   'st.new': '新',
-  'dim.EDR': '终端炮塔',
-  'dim.MDR': '7×24 队友',
+  'dim.EDR': '终端肩炮',
+  'dim.MDR': '托管炮臂',
   'dim.AF': '边界屏障',
   'dim.IAG': '出口减速带',
   'dim.HCI': '算力核心（射速）',
@@ -164,7 +164,8 @@ if (useArt) {
 Object.assign(EN, {
   'ui.score': 'Total score', 'ui.best': 'Best clear', 'ui.board': 'Enterprise ranking',
   'st.time': 'Remaining', 'st.over': 'Defense complete', 'st.bosses': 'Bosses',
-  'st.h2': 'Choose an upgrade with 1 / 2 / 3 or tap a card. Combat continues; after 3 seconds a recommended upgrade deploys automatically.',
+  'st.mech': 'Sentinel mech',
+  'st.h2': 'Start with a basic robot. Choose your first module: EDR shoulder cannons, an MDR gun arm or an HCI compute pod. Press 1/2/3 or tap; after 3 seconds the marked recommendation mounts. Combat upgrades add modules and armor to your mech.',
   'st.chooseSub': 'Combat continues · automatic recommendation in', 'st.auto': 'AUTO',
   'st.charging': 'XDR linking', 'st.firing': 'XDR firing', 'st.ready': 'XDR ready',
   't.xdrLink': 'Devices linked — charging XDR', 'dim.XDR': 'Link → charge → laser',
@@ -181,10 +182,12 @@ Object.assign(EN, {
   'st.service': 'Availability', 'st.compute': 'Compute / demand', 'st.tracking': 'CC + XDR guidance', 'st.offline': 'XDR not deployed',
   'score.health': 'Remaining HP', 'score.business': 'HCI / business', 'score.ai': 'AI output', 'score.agent': 'Agent Builder',
   'dim.NDR': 'Side lasers + guidance sensor', 'dim.AI': 'AI workload', 'dim.AGENT': 'Workflow automation',
-  'b.EDR': 'Deploys endpoint turrets. CC + XDR together enable limited forward-cone guidance. Keep aiming and moving.',
+  'b.EDR': 'Mounts endpoint shoulder cannons on your mech. CC + XDR together enable limited forward-cone guidance. Keep aiming and moving.',
   'b.NDR': 'Fires horizontal laser strips, reveals threats and boosts MDR. Pair with XDR to guide ordinary bullets; tracking is not an automatic win.',
-  'b.MDR': 'The same managed teammate: CC boosts its damage and tracking; upgrades raise its damage and rate.',
-  'b.HCI': 'Adds compute capacity, business output and squad fire rate. It cannot replace threat containment.',
+  'b.MDR': 'Mounts a managed gun arm. CC boosts its damage and tracking; upgrades raise its damage and rate.',
+  'b.HCI': 'Mounts a server pod for compute capacity, business output and squad fire rate. It cannot replace threat containment.',
+  'b.AF': 'An arm-mounted NGAF shield projects a barrier ahead of the mech, blocking threats and weakening those that break through.',
+  'b.ASTOR': 'A hip-mounted aStor snapshot pod absorbs hits and restores base integrity.',
   'b.AI': 'Runs AI workloads on HCI, producing AI score and earlier boss warnings. Each level increases compute demand.',
   'b.AGENT': 'Needs AI and HCI. Automated workflows produce agent score, improve business output and slightly shorten support cooldowns. They do not fire weapons.',
   'g.AI': 'An AI application platform hosts model-backed applications.', 'l.AI': 'Needs compute and security; it does not stop attacks by itself.',
@@ -194,7 +197,8 @@ Object.assign(EN, {
 Object.assign(ZH, {
   'ui.score': '综合评分', 'ui.best': '最佳通关', 'ui.board': '综合排行榜',
   'st.time': '倒计时', 'st.over': '防守成功', 'st.bosses': 'Boss',
-  'st.h2': '按 1 / 2 / 3 或点击卡片选择强化，战斗持续进行。3 秒内未选择将自动部署推荐装备。',
+  'st.mech': '哨兵机甲',
+  'st.h2': '开局只有普通机器人。先选择首个模块：EDR 肩炮、MDR 炮臂或 HCI 算力舱。按 1/2/3 或点击，3 秒后自动装配推荐项；战斗升级会逐步增加产品模块与机甲装甲。',
   'st.chooseSub': '战斗继续 · 自动推荐倒计时', 'st.auto': '推荐',
   'st.charging': 'XDR 联动蓄能', 'st.firing': 'XDR 主激光', 'st.ready': 'XDR 就绪',
   't.xdrLink': '设备联动——XDR 蓄能中', 'dim.XDR': '联动 → 蓄能 → 激光',
@@ -211,10 +215,12 @@ Object.assign(ZH, {
   'st.service': '业务可用性', 'st.compute': '算力／需求', 'st.tracking': 'CC＋XDR 协同追踪', 'st.offline': 'XDR 未部署',
   'score.health': '剩余血量', 'score.business': 'HCI／业务分', 'score.ai': 'AI 产出分', 'score.agent': 'Agent Builder',
   'dim.NDR': '侧向激光＋追踪感知', 'dim.AI': 'AI 工作负载', 'dim.AGENT': '智能工作流',
-  'b.EDR': '部署终端炮塔；同时拥有 CC 与 XDR 才能获得前方扇区内的有限追踪，仍需走位与瞄准。',
+  'b.EDR': '为机甲装配终端肩炮；同时拥有 CC 与 XDR 才能获得前方扇区内的有限追踪，仍需走位与瞄准。',
   'b.NDR': '发射横向条状激光，揭露威胁并强化 MDR。搭配 XDR 让普通子弹获得有限追踪，不等于自动获胜。',
-  'b.MDR': '保留原有托管队友：CC 强化其伤害和追踪，升级提高火力与射速。',
-  'b.HCI': '增加算力、业务产出和全队射速，无法代替安全产品阻止攻击。',
+  'b.MDR': '装配托管炮臂：CC 强化其伤害和追踪，升级提高火力与射速。',
+  'b.HCI': '装配服务器算力舱，增加算力、业务产出和全队射速，无法代替安全产品阻止攻击。',
+  'b.AF': '臂载 NGAF 盾牌向机甲前方投射屏障，拦截威胁，并削弱突破屏障的敌人。',
+  'b.ASTOR': '腰部 aStor 快照舱替基地抵挡攻击，并恢复完整度。',
   'b.AI': '在 HCI 上运行 AI 任务，积累 AI 评分，并提前预警 Boss 落点。每级都会增加算力需求。',
   'b.AGENT': '依赖 AI 与 HCI，自动工作流积累 Agent 分、提升业务产出，并小幅缩短支援冷却；不会自动发射武器。',
   'g.AI': 'AI 应用平台承载基于模型的应用。', 'l.AI': '需要算力与安全保护，本身无法阻止攻击。',
@@ -338,7 +344,7 @@ const paintRail = painter();
 let phase = 'start', lastSummary = null, lastResult = null;
 
 const artModule = useArt
-  ? await import('./sangfor-art.js?art=enterprise-v1') : null;
+  ? await import('./sangfor-art.js?art=mech-v1') : null;
 const game = createStandGame(el.canvas, {
   artFactory: artModule?.createSangforArt,
   deckTexture: artModule?.createDeckTexture,
@@ -372,11 +378,11 @@ const game = createStandGame(el.canvas, {
 
 function weapHTML(h) {
   const id = h.dom;
-  if (!id) return `<span class="st-weap-ico cap-XDR">${MARK('XDR')}</span><span class="st-weap-lv"><b>${esc(t('st.weapon'))}</b><span>T0</span></span>`;
+  if (!id) return `<span class="st-weap-lv"><b>${esc(t('st.mech'))}</b><span>Mk.I · ${esc(t('st.none'))}</span></span>`;
   const lvl = h.levels[id] || 0;
   const corr = h.corr > 0 ? ` · <em class="st-corr-in">${esc(t('st.corr'))}&times;${h.corr}</em>` : '';
   return `<span class="st-weap-ico cap-${id}">${MARK(id)}</span>` +
-    `<span class="st-weap-lv"><b>${esc(CAP_NAME[id])}</b><span>Lv${lvl} · T${h.tier}${corr}</span></span>`;
+    `<span class="st-weap-lv"><b>${esc(h.mechanized ? t('st.mech')+' Mk.'+['I','II','III','IV'][h.rigStage] : CAP_NAME[id])}</b><span>${esc(CAP_NAME[id])} Lv${lvl}${corr}</span></span>`;
 }
 function railHTML(levels) {
   const ids = WEAPON_ORDER.filter(id => (levels[id] || 0) > 0);

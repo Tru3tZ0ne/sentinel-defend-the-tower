@@ -18,10 +18,9 @@ export async function inspectStandLoad(page, url, label = 'current') {
     const s = g.state, canvas = document.querySelector('#stCanvas'), w = canvas.clientWidth;
     const h=canvas.clientHeight, barY=h-Math.max(52,h*.09), fieldL=(w-440)/2, fieldR=fieldL+440;
     s.cc={life:.5,bands:[h*.34,h*.55],width:42,dmg:100};
-    const hub={id:'XDR',x:fieldR-23,y:barY-78};
-    s.link={age:.3,charge:.65,duration:1.1,hub,devices:[hub,...s.shooters.filter(sh=>sh.kind!=='op').map(sh=>({id:sh.kind==='edr'?'EDR':'MDR',x:sh.fixed?fieldL+440*sh.frac:s.op.x+sh.off,y:barY-50})),
-      {id:'NDR',x:fieldR-34,y:barY-30},{id:'AF',x:s.op.x-120,y:s.op.y-62},{id:'AF',x:s.op.x+120,y:s.op.y-62},
-      {id:'IAG',x:fieldL+23,y:h*.44},{id:'ASTOR',x:fieldL+23,y:barY-17},{id:'HCI',x:fieldL+65,y:barY-113},{id:'AI',x:fieldL+23,y:barY-184},{id:'AGENT',x:fieldL+23,y:barY-258}]};
+    const hub={id:'XDR',x:s.op.x,y:s.op.y+10};
+    const offsets={EDR:[-24,-24],MDR:[30,-4],NDR:[0,-20],AF:[28,0],HCI:[18,5],XDR:[0,10],ASTOR:[-16,16],IAG:[12,20],AI:[-18,-6],AGENT:[-27,4]};
+    s.link={age:.3,charge:.65,duration:1.1,hub,devices:Object.entries(offsets).map(([id,[dx,dy]])=>({id,x:s.op.x+dx,y:s.op.y+dy}))};
     s.beam={x:hub.x,y:hub.y,tx:w/2-100,ty:100,width:100,life:.7,dmg:100};
     s.elapsed = 120; s.shake = 0; s.flash = 0; s.parts = []; s.fxr = []; s.texts = [];
     const types = ['recon', 'malware', 'worm', 'apt', 'exfil'];
@@ -49,6 +48,8 @@ export async function inspectStandLoad(page, url, label = 'current') {
   await page.evaluate(() => { window.__stand.game.state.shots = []; }); await settle();
   const noShots = await page.evaluate(() => window.__stand.game.diagnostics);
   assert.equal(full.enemies, 64); assert.equal(full.shots, 256);
+  assert.equal(full.rig.stage, 3); assert.equal(full.rig.modules.length, 10);
+  assert.equal(full.rig.groundDevices, 0);
   assert.ok(full.calls < 450, `Full-frame draw budget: ${full.calls}`);
   assert.equal(full.calls - noShots.calls, 1, 'Every bullet must share one draw');
   assert.equal(restored.geometries, full.geometries);
@@ -66,6 +67,15 @@ export async function inspectStandLoad(page, url, label = 'current') {
   }
   const reused = await page.evaluate(() => window.__stand.game.diagnostics);
   for (const key of ['geometries', 'textures', 'programs', 'cachedEnemyBatches']) assert.equal(reused[key], warmed[key], key);
+  // The separate FX fixture retains every live object and draws it above the full scene.
+  await page.evaluate(()=>{
+    const s=window.__stand.game.state;
+    s.parts=Array.from({length:3000},(_,i)=>({x:s.op.x+(i%30-15)*10,y:90+Math.floor(i/30)*5,r:1.5,life:.6,color:'#9be85a'}));
+    s.texts=Array.from({length:80},(_,i)=>({x:s.op.x+(i%8-4)*40,y:150+Math.floor(i/8)*50,life:.7,text:'42',color:'#fff',big:false}));
+    s.fxr=Array.from({length:24},(_,i)=>({t:'zap',x1:s.op.x,y1:s.op.y,x2:s.op.x+(i%6-3)*50,y2:120+i*20,life:.5,color:'#9be85a'}));
+  }); await settle();
+  const effects=await page.evaluate(()=>window.__stand.game.diagnostics);
+  assert.equal(effects.particleCount,3000);assert.equal(effects.textCount,80);assert.equal(effects.effectCount,24);
   await page.evaluate(() => {
     const s = window.__stand.game.state;
     s.shots = Array.from({ length: 513 }, (_, i) => ({ x: s.op.x + (i % 8) * 5, y: 100 + i,
@@ -79,8 +89,11 @@ export async function inspectStandLoad(page, url, label = 'current') {
   assert.ok(await page.evaluate(() => window.__stand.game.state.elapsed < 5));
   const restarted = await page.evaluate(() => window.__stand.game.diagnostics);
   assert.equal(restarted.enemies, 0);
+  assert.equal(restarted.modelBuilds, full.modelBuilds, 'Replay must reuse the operator and team models');
+  assert.equal(restarted.rig.moduleBuilds, full.rig.moduleBuilds, 'Replay must retain mounted module geometry');
+  assert.deepEqual(restarted.rig.modules, []);
   assert.deepEqual(errors, []);
-  return { full, restored, noShots, bulletDraws: full.calls - noShots.calls, reused, grown, restarted };
+  return { full, restored, noShots, bulletDraws: full.calls - noShots.calls, reused, effects, grown, restarted };
 }
 
 if (process.argv[1]?.endsWith('stand-performance.test.mjs')) {

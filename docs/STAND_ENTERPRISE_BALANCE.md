@@ -1,5 +1,9 @@
 # Last Stand: security, cloud and AI balance
 
+> Historical release. [The mech/performance release](STAND_MECH_PERFORMANCE.md)
+> supersedes the preinstalled products, separate floor appliances, large XDR
+> callout and measurements below. The original tag remains unchanged.
+
 Review tag: `stand-enterprise-balance-v1`. Branch: `feat/stand-enterprise-balance`.
 Base: `44e8cf3` / `stand-command-finale-v1`.
 

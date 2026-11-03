@@ -23,7 +23,7 @@ export function createBulletInstances(parent) {
       for (let i = 0; i < shots.length; i++) {
         const shot = shots[i];
         const dx = wX(shot.vx || 0) - wX(0), dz = wZ(shot.vy ?? -980) - wZ(0);
-        matrix.makeRotationY(Math.atan2(dx, dz)).scale(scale).setPosition(wX(shot.x), .9, wZ(shot.y));
+        matrix.makeRotationY(Math.atan2(dx, dz)).scale(scale).setPosition(wX(shot.x), shot.height || .9, wZ(shot.y));
         mesh.setMatrixAt(i, matrix); mesh.setColorAt(i, color.set(shot.color));
       }
       mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;

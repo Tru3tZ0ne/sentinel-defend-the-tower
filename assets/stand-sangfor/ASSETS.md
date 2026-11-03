@@ -4,6 +4,12 @@ The nine equipment WebP images are original renders of the native Three.js meshe
 
 Corporate and product decals use the existing official images credited in `assets/brand/ASSETS.md`. Equipment is original arcade concept art, not a real appliance specification. No downloaded third-party models, paid assets, external generation service or new runtime dependency is used.
 
+The modular Sentinel mech in `src/stand/mech-art.js` is original procedural
+geometry using the same native mesh-building helpers and existing official
+decals. Its armor, weapons and product mounts are fictional gameplay concepts.
+It adds no external model files or new raster assets. See
+`docs/STAND_MECH_PERFORMANCE.md` for the release and validation record.
+
 ## Official photograph excerpts used only by the optional showroom
 
 | Local file | Official source image | Processing |
