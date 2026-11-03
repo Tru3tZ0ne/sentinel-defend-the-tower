@@ -1,5 +1,8 @@
 # Last Stand: XDR chain lightning and mechanical refinement
 
+Historical release record. [STAND_CC_GUIDANCE.md](STAND_CC_GUIDANCE.md) supersedes
+the CC+XDR guidance requirement and loadout rail in the current release.
+
 Release tag: `stand-chain-mech-v1`. Branch: `feat/stand-chain-mech`.
 Base: `8debe88` / `stand-mech-performance-v1`.
 

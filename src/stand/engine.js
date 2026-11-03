@@ -17,11 +17,11 @@ import {
   comboMult, killScore, SURVIVE_PER_SEC, STEAL_PENALTY, ABILITIES, ABILITY_ORDER,
   bossFor, bossHpScale,
   MISSION_SECONDS, BOSS_TIMES, UPGRADE_SECONDS, STARTER_LEVELS, openingChoices, integrityScore, recommendedUpgrade, cloudRates, campaignScores,
-} from './model.js?campaign=chain-mech-v1';
+} from './model.js?campaign=cc-guidance-v1';
 import { createCollisionIndex, compactLive } from './combat-runtime.js?perf=active-v1';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { sfx } from '../rush/audio.js';
-import { createBulletInstances, createEnemyInstances, createEnergyInstances } from './instances.js?campaign=chain-mech-v1';
+import { createBulletInstances, createEnemyInstances, createEnergyInstances } from './instances.js?campaign=cc-guidance-v1';
 
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -531,7 +531,7 @@ export function createStandGame(canvas, opts = {}) {
       while (sh.acc >= interval) { sh.acc -= interval; const x = unitX(sh), uy = unitY(sh); fireUp(x, uy - 16, sh.dmg, sh.speed, sh.pierce, sh.kind === 'op' ? dominantColor() : ACCENT[sh.kind === 'edr' ? 'EDR' : 'MDR'], sh.kind); if (sh.kind === 'op') op.muzzle = 1; sh.muzzle = 1; }
       if (sh.muzzle) sh.muzzle = Math.max(0, sh.muzzle - dt * 6);
     }
-    // Temporary teams use the same CC + XDR guidance as other ordinary weapons.
+    // Temporary teams use the same CC guidance as other ordinary weapons.
     for (const u of S.temps) {
       if (u.born > 0) u.born = Math.max(0, u.born - dt);
       u.life -= dt; if (u.life <= 0) { u.dead = true; continue; }
@@ -647,7 +647,8 @@ export function createStandGame(canvas, opts = {}) {
       // Homing rounds must not orbit an already-hit target indefinitely.
       p.life = (p.life ?? 2.4) - dt;
       if (p.life <= 0) { p.dead = true; continue; }
-      if (p.homing ?? (p.owner === 'mdr' || sq.tracking)) {
+      p.homing = p.owner === 'mdr' || sq.tracking;
+      if (p.homing) {
         const guided = p.owner !== 'mdr';
         const locked = targets.get(p.targetId);
         const target = locked && !locked.dead && !p.hit.has(locked.id) && (!guided || (dist2(p.x, p.y, locked.x, locked.y) < 700 ** 2 && Math.abs(locked.x - p.x) <= Math.max(35, (p.y - locked.y) * .65))) ? locked : chooseTarget(p.x, p.y, p.hit, guided);

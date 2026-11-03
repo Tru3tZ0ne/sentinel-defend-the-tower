@@ -33,7 +33,7 @@ export function recommendedUpgrade(choices, levels) {
   return [...choices].sort((a, b) => ((levels[a.id] || 0) - (levels[b.id] || 0)) || WEAPON_ORDER.indexOf(a.id) - WEAPON_ORDER.indexOf(b.id))[0]?.id;
 }
 
-// CC + XDR guide ordinary fire; MDR has autonomous tracking from level one.
+// CC guides ordinary fire; MDR has autonomous tracking from level one.
 export const OPERATOR = { dmg: 16, rate: 3.4, bulletSpeed: 980, pierce: 1 };
 export const TURRET = { rate: 2.8, bulletSpeed: 940, pierce: 1 };   // EDR endpoint turret
 export const ALLY = { rate: 2.3, bulletSpeed: 980, pierce: 1 };   // MDR teammate
@@ -96,7 +96,7 @@ export function deriveSquad(levels) {
   const ndrReveal = ndr > 0;                                // cloaked APTs become visible + full dmg
   const ndrMark = ndr * 0.25;                               // +25% damage to marked threats / level
   const ndrRadars = Math.min(ndr, 2);
-  const tracking = ndr > 0 && lvl(levels, 'XDR') > 0;
+  const tracking = ndr > 0;
   const ccEvery = ndr ? Math.max(1.5, 3.2 - ndr * .2) : 0;
   const ccDamage = ndr ? 48 + ndr * 18 : 0;
   const ccWidth = ndr ? 18 + ndr * 4 : 0;

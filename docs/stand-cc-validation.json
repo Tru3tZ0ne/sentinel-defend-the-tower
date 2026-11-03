@@ -1,0 +1,212 @@
+{
+  "release": "stand-cc-guidance-v1",
+  "base": "a6b49ec",
+  "suites": {
+    "combatAndRuntime": 25,
+    "arcadeLogic": 35,
+    "browser": "passed: full stand browser suite plus actual CC-without-XDR guidance and ten readable loadout labels in EN/ZH at 1440x1000,390x844,320x640",
+    "fixedStress": "passed: same geometry, full FX retention, model reuse, native DPR2"
+  },
+  "balance": {
+    "mainSeeds": {
+      "start": 101,
+      "step": 37
+    },
+    "heldOutSeeds": {
+      "start": 5001,
+      "step": 37
+    },
+    "viewports": {
+      "desktop": [
+        1440,
+        942
+      ],
+      "phone": [
+        390,
+        786
+      ]
+    },
+    "main": [
+      {
+        "device": "desktop",
+        "policy": "stationary",
+        "count": 12,
+        "wins": 0,
+        "meanSeconds": 67.4,
+        "minSeconds": 54.1,
+        "maxSeconds": 93.2,
+        "losses": {
+          "integrity": 12,
+          "service": 0,
+          "bosses": 0
+        }
+      },
+      {
+        "device": "desktop",
+        "policy": "cloud",
+        "count": 12,
+        "wins": 0,
+        "meanSeconds": 61.6,
+        "minSeconds": 57.5,
+        "maxSeconds": 66,
+        "losses": {
+          "integrity": 12,
+          "service": 0,
+          "bosses": 0
+        }
+      },
+      {
+        "device": "desktop",
+        "policy": "casual",
+        "count": 60,
+        "wins": 45,
+        "meanSeconds": 119.1,
+        "minSeconds": 64.6,
+        "maxSeconds": 120,
+        "losses": {
+          "integrity": 1,
+          "service": 0,
+          "bosses": 14
+        }
+      },
+      {
+        "device": "desktop",
+        "policy": "informed",
+        "count": 12,
+        "wins": 11,
+        "meanSeconds": 120,
+        "minSeconds": 120,
+        "maxSeconds": 120,
+        "losses": {
+          "integrity": 0,
+          "service": 0,
+          "bosses": 1
+        }
+      },
+      {
+        "device": "phone",
+        "policy": "stationary",
+        "count": 12,
+        "wins": 0,
+        "meanSeconds": 69.2,
+        "minSeconds": 52.1,
+        "maxSeconds": 94.7,
+        "losses": {
+          "integrity": 12,
+          "service": 0,
+          "bosses": 0
+        }
+      },
+      {
+        "device": "phone",
+        "policy": "cloud",
+        "count": 12,
+        "wins": 0,
+        "meanSeconds": 58.2,
+        "minSeconds": 54.3,
+        "maxSeconds": 62.3,
+        "losses": {
+          "integrity": 12,
+          "service": 0,
+          "bosses": 0
+        }
+      },
+      {
+        "device": "phone",
+        "policy": "casual",
+        "count": 60,
+        "wins": 35,
+        "meanSeconds": 117.2,
+        "minSeconds": 66.2,
+        "maxSeconds": 120,
+        "losses": {
+          "integrity": 7,
+          "service": 0,
+          "bosses": 18
+        }
+      },
+      {
+        "device": "phone",
+        "policy": "informed",
+        "count": 12,
+        "wins": 12,
+        "meanSeconds": 120,
+        "minSeconds": 120,
+        "maxSeconds": 120,
+        "losses": {
+          "integrity": 0,
+          "service": 0,
+          "bosses": 0
+        }
+      }
+    ],
+    "heldOut": [
+      {
+        "device": "desktop",
+        "policy": "casual",
+        "count": 30,
+        "wins": 22,
+        "meanSeconds": 119.5,
+        "minSeconds": 103.9,
+        "maxSeconds": 120,
+        "losses": {
+          "integrity": 1,
+          "service": 0,
+          "bosses": 7
+        }
+      },
+      {
+        "device": "phone",
+        "policy": "casual",
+        "count": 30,
+        "wins": 22,
+        "meanSeconds": 115.1,
+        "minSeconds": 69,
+        "maxSeconds": 120,
+        "losses": {
+          "integrity": 4,
+          "service": 0,
+          "bosses": 4
+        }
+      }
+    ],
+    "combined": [
+      {
+        "device": "desktop",
+        "wins": 67,
+        "count": 90,
+        "rate": 0.7444444444444445
+      },
+      {
+        "device": "phone",
+        "wins": 57,
+        "count": 90,
+        "rate": 0.6333333333333333
+      }
+    ],
+    "limits": "Scripted production-combat policy, not human clear rates. Desktop is above the approximate 60-70% target; no difficulty retuning bundled into this requested fix."
+  },
+  "sceneCost": {
+    "calls": 333,
+    "triangles": 536246,
+    "geometries": 110,
+    "bulletDraws": 1,
+    "retina": {
+      "pixelRatio": 2,
+      "ratio": 2
+    },
+    "effects": {
+      "particles": 3000,
+      "texts": 80,
+      "lightning": 24
+    },
+    "limits": "Same fixed scene cost as prior tag; no FPS improvement claim."
+  },
+  "rail": {
+    "desktopWidth": 143,
+    "phoneWidth": 104,
+    "clipped": false,
+    "scoreOverlap": false,
+    "horizontalOverflow": false
+  }
+}

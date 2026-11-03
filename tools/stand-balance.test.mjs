@@ -63,7 +63,7 @@ test('zero HP is terminal; no post-finalization rewards or production', () => {
   const snapshot=JSON.stringify(g.state); advance(g,2); assert.equal(JSON.stringify(g.state),snapshot);
 });
 
-test('CC horizontal strips hit only their area; MDR buff is unchanged; ordinary tracking needs pair', () => {
+test('CC horizontal strips hit only their area; MDR buff is unchanged; CC alone guides ordinary fire', () => {
   const g=createCombatProbe(); g.deploy('NDR'); quiet(g); g.state.ccAcc=10;
   const inBand=enemy(g,'recon',{y:942*.34}), outBand=enemy(g,'recon',{id:90001,y:942*.44});
   g.state.enemies=[inBand,outBand]; g.step(.05);
@@ -72,11 +72,22 @@ test('CC horizontal strips hit only their area; MDR buff is unchanged; ordinary 
   for (const ids of [[],['NDR'],['XDR'],['NDR','XDR']]) for(const owner of ['op','edr','service','mdr']) {
     const p=createCombatProbe(); for(const id of ids) p.deploy(id); quiet(p);
     p.state.enemies=[enemy(p,'recon',{x:p.state.op.x+100,y:200})];
-    const tracking=owner==='mdr' || (ids.includes('NDR') && ids.includes('XDR'));
-    assert.equal(p.state.squad.tracking,ids.length===2);
+    const tracking=owner==='mdr' || ids.includes('NDR');
+    assert.equal(p.state.squad.tracking,ids.includes('NDR'));
     p.fire(p.state.op.x,500,1,980,1,'#fff',owner);
     p.step(.05); assert.equal(p.state.shots[0].vx>0,tracking);
     assert.ok(Math.abs(Math.hypot(p.state.shots[0].vx,p.state.shots[0].vy)-980)<.01);
+  }
+});
+
+test('deploying CC also guides ordinary rounds already in flight without XDR',()=>{
+  for(const owner of ['op','edr','service']) {
+    const g=createCombatProbe();quiet(g);const s=g.state;
+    s.enemies=[enemy(g,'recon',{x:s.op.x+100,y:200})];
+    g.fire(s.op.x,500,1,980,1,'#fff',owner);g.step(.02);
+    const shot=s.shots[0];assert.equal(shot.vx,0);assert.equal(shot.homing,false);
+    g.deploy('NDR');quiet(g);g.step(.02);
+    assert.equal(s.levels.XDR,undefined);assert.equal(shot.homing,true);assert.ok(shot.vx>0);
   }
 });
 

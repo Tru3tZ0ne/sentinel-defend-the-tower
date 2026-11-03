@@ -73,7 +73,7 @@ on-board role and honest limitation. Pure logic is unit-tested in `tools/arcade-
 
 **Last Stand** (`stand.html`) is a real-time 3D, **120-second event campaign**.
 Start with **10,000 HP**, a basic robot and a first-module choice against three bosses at
-25, 60 and 95 seconds. **Cyber Command + XDR together** guide ordinary bullets;
+25, 60 and 95 seconds. **Cyber Command alone** guides ordinary bullets;
 MDR tracks independently from level one; CC still boosts its damage. Products become shoulder
 cannons, a managed gun arm, a shield and server pods on the robot. Armor grows
 through four stages. Modules visibly charge **XDR**, whose compact branded
@@ -88,15 +88,16 @@ shortages reduce availability and output; cloud-only investment is vulnerable.
 Rank completed defenses by **55% HP + 25% business + 12% AI + 8% Agent Builder**.
 The new enterprise board preserves previous scores and is local by default.
 Nonblocking upgrade choices, bilingual interfaces and full-quality 3D remain.
-The combined seeded casual mixed-build samples clear 62.2% desktop / 60% phone; this is
+The combined seeded casual mixed-build samples clear 74.4% desktop / 63.3% phone; this is
 simulation evidence, not a measured human win rate or guaranteed completion.
 
 These are fictional arcade mechanics and equipment concepts inspired by product
 roles. `stand-sangfor.html` offers the equipment preview; `stand-showroom.html`
 provides optional close inspection of the original eight equipment concepts.
-See the [chain-lightning and mech record](docs/STAND_CHAIN_MECH.md)
+Owned-product icons show their name, level and a short effect description in both languages.
+See the [CC guidance and loadout record](docs/STAND_CC_GUIDANCE.md)
 and [English continuation brief](docs/CLAUDE_STAND_VISUALS_HANDOFF.txt), review tag
-`stand-chain-mech-v1`. Checks run through `npm run test:stand-art`.
+`stand-cc-guidance-v1`. Checks run through `npm run test:stand-art`.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your

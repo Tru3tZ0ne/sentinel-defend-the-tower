@@ -4,10 +4,10 @@
 // and which dimension it grows), a Product Codex, the leaderboard, and EN / 中文.
 
 const { createStandGame, ACCENT } = await import(
-  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=chain-mech-v1'
-  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=chain-mech-v1'
-  : './engine.js?campaign=chain-mech-v1');
-import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, MISSION_SECONDS, recommendedUpgrade } from './model.js?campaign=chain-mech-v1';
+  document.body.dataset.art === 'sangfor' ? './engine.js?art=stand-sangfor-visuals-v2&campaign=cc-guidance-v1'
+  : document.body.dataset.art === 'combined' ? './engine.js?art=stand-combined-v1&campaign=cc-guidance-v1'
+  : './engine.js?campaign=cc-guidance-v1');
+import { WEAPONS, WEAPON_ORDER, START_BASE, ABILITIES, ABILITY_ORDER, MISSION_SECONDS, recommendedUpgrade } from './model.js?campaign=cc-guidance-v1';
 import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
@@ -18,6 +18,7 @@ import { setMuted, isMuted, resumeAudio } from '../rush/audio.js';
 
 const ICON_KEY = { HCI: 'network', EDR: 'edr', NDR: 'ndr', AF: 'af', IAG: 'iag', XDR: 'xdr', ASTOR: 'astor', MDR: 'mdr', AI: 'network', AGENT: 'network' };
 const CAP_NAME = { HCI: 'HCI Cloud', EDR: 'Endpoint Secure', NDR: 'Cyber Command', AF: 'NGAF', IAG: 'IAG Gateway', XDR: 'XDR', ASTOR: 'aStor', MDR: 'MDR', AI: 'AI Platform', AGENT: 'Agent Builder' };
+const CAP_SHORT = { NDR: 'CC', AF: 'NGAF', ASTOR: 'aStor', AGENT: 'Agent' };
 const ICO = id => ICONS[ICON_KEY[id]] || '';
 // official Sangfor product artwork for the HUD (same marks the battlefield uses)
 const MARK = id => { const m = PRODUCT_MARKS[id === 'AI' ? 'AICP' : id]; return m ? `<img class="st-mark" src="assets/brand/products/sangfor-${m[0]}" alt="${esc(CAP_NAME[id] || id)}" loading="lazy" />` : ICO(id); };
@@ -169,9 +170,9 @@ Object.assign(EN, {
   'st.chooseSub': 'Combat continues · automatic recommendation in', 'st.auto': 'AUTO',
   'st.charging': 'XDR linking', 'st.firing': 'XDR chain lightning', 'st.ready': 'XDR ready',
   't.xdrLink': 'Modules linked — charging XDR', 'dim.XDR': 'Link → chain lightning',
-  'b.XDR': 'Modules charge the XDR backpack, which releases lightning into an aimed target and nearby enemies. Each jump loses damage; up to five distinct targets. Pair with CC to guide ordinary bullets.',
+  'b.XDR': 'Modules charge the XDR backpack, which releases lightning into an aimed target and nearby enemies. Each jump loses damage; up to five distinct targets. Sensors and linked modules increase its power.',
   'st.pace': 'No guaranteed clear. Dodge red boss lanes; balance security, business capacity and AI. Only completed defenses enter the board.',
-  'st.h1': 'Move with WASD / arrows or drag. MDR tracks enemies on its own. Cyber Command boosts MDR damage; CC + XDR together guide ordinary bullets within a forward cone.',
+  'st.h1': 'Move with WASD / arrows or drag. MDR tracks enemies on its own. Cyber Command boosts MDR damage and guides ordinary bullets within a forward cone, without requiring XDR.',
   'st.h3': 'HCI supplies compute; AI and Agent Builder turn it into scored work. Balance demand and capacity. Bosses arrive at 25 / 60 / 95 seconds; use Q/E/R support. Zero HP, zero availability or an uncleared boss at 120s means defeat.',
   'st.tag': '120 seconds. Three bosses. Build a defense that keeps the business and AI running.',
   'st.overSub': '{b}/3 bosses cleared · {s}s · {k} threats stopped. Total = HP 55% + business 25% + AI 12% + agents 8%.',
@@ -179,12 +180,15 @@ Object.assign(EN, {
   'st.defeat': 'Defense failed', 'reason.integrity': 'Base HP reached zero. Invest in security and time your support.',
   'reason.service': 'Business availability reached zero. Add HCI capacity and protect the service.',
   'reason.bosses': 'A boss remained at the 120-second deadline. Build more firepower and use support.',
-  'st.service': 'Availability', 'st.compute': 'Compute / demand', 'st.tracking': 'CC + XDR guidance', 'st.offline': 'XDR not deployed',
+  'st.service': 'Availability', 'st.compute': 'Compute / demand', 'st.tracking': 'CC guided fire', 'st.offline': 'XDR not deployed',
   'score.health': 'Remaining HP', 'score.business': 'HCI / business', 'score.ai': 'AI output', 'score.agent': 'Agent Builder',
   'dim.NDR': 'Side lasers + guidance sensor', 'dim.AI': 'AI workload', 'dim.AGENT': 'Workflow automation',
-  'b.EDR': 'Mounts endpoint shoulder cannons on your mech. CC + XDR together enable limited forward-cone guidance. Keep aiming and moving.',
-  'b.NDR': 'Fires horizontal laser strips, reveals threats and boosts MDR. Pair with XDR to guide ordinary bullets; tracking is not an automatic win.',
+  'b.EDR': 'Mounts endpoint shoulder cannons on your mech. Cyber Command enables limited forward-cone guidance. Keep aiming and moving.',
+  'b.NDR': 'Guides ordinary bullets without requiring XDR, fires horizontal laser strips, reveals threats and boosts MDR. Tracking remains limited to the forward cone.',
   'b.MDR': 'Mounts a gun arm with autonomous tracking from level one. No CC or XDR required. CC adds damage; upgrades raise firepower and rate.',
+  'rail.EDR': 'Shoulder fire', 'rail.MDR': 'Auto tracking', 'rail.AF': 'Front barrier',
+  'rail.NDR': 'Guided fire', 'rail.HCI': 'Compute + rate', 'rail.XDR': 'Chain lightning',
+  'rail.ASTOR': 'Shield + repair', 'rail.IAG': 'Slow enemies', 'rail.AI': 'AI output', 'rail.AGENT': 'Workflows',
   'b.HCI': 'Mounts a server pod for compute capacity, business output and squad fire rate. It cannot replace threat containment.',
   'b.AF': 'An arm-mounted NGAF shield projects a barrier ahead of the mech, blocking threats and weakening those that break through.',
   'b.ASTOR': 'A hip-mounted aStor snapshot pod absorbs hits and restores base integrity.',
@@ -202,9 +206,9 @@ Object.assign(ZH, {
   'st.chooseSub': '战斗继续 · 自动推荐倒计时', 'st.auto': '推荐',
   'st.charging': 'XDR 联动蓄能', 'st.firing': 'XDR 链式闪电', 'st.ready': 'XDR 就绪',
   't.xdrLink': '模块联动——XDR 蓄能中', 'dim.XDR': '联动 → 链式闪电',
-  'b.XDR': '各模块为 XDR 背包蓄能后，向瞄准目标释放闪电，再跳向附近敌人。每次跳跃伤害递减，最多命中五个不同目标；搭配 CC 可引导普通子弹。',
+  'b.XDR': '各模块为 XDR 背包蓄能后，向瞄准目标释放闪电，再跳向附近敌人。每次跳跃伤害递减，最多命中五个不同目标；传感器与联动模块可增强伤害。',
   'st.pace': '不再保底通关。躲开红色 Boss 攻击带，平衡安全、云算力与 AI；仅成功防守的成绩进入排行榜。',
-  'st.h1': '使用 WASD / 方向键或拖动移动。MDR 自带追踪，不依赖其他产品。CC 为 MDR 增伤；同时拥有 CC 与 XDR 后，普通子弹获得前方扇区内的有限追踪。',
+  'st.h1': '使用 WASD / 方向键或拖动移动。MDR 自带追踪，不依赖其他产品。部署 CC 即可让普通子弹获得前方扇区内的有限追踪，并为 MDR 增伤，无需 XDR。',
   'st.h3': 'HCI 提供算力，AI 与 Agent Builder 将算力变成业务评分。Boss 在 25 / 60 / 95 秒登场，Q/E/R 呼叫支援。血量或可用性归零，或 120 秒时还有 Boss 存活，都会失败。',
   'st.tag': '120 秒，三大 Boss。在守住防线的同时，让云业务与 AI 持续运转。',
   'st.overSub': '清除 {b}/3 个 Boss · {s} 秒 · 拦截 {k} 个威胁。综合分＝血量 55%＋业务 25%＋AI 12%＋Agent 8%。',
@@ -212,12 +216,15 @@ Object.assign(ZH, {
   'st.defeat': '防守失败', 'reason.integrity': '基地血量归零。需要补足安全投入，并把握支援时机。',
   'reason.service': '业务可用性归零。需要补充 HCI 算力，并保护业务。',
   'reason.bosses': '120 秒结束时仍有 Boss 存活。需要补足火力，并主动使用支援技能。',
-  'st.service': '业务可用性', 'st.compute': '算力／需求', 'st.tracking': 'CC＋XDR 协同追踪', 'st.offline': 'XDR 未部署',
+  'st.service': '业务可用性', 'st.compute': '算力／需求', 'st.tracking': 'CC 子弹追踪', 'st.offline': 'XDR 未部署',
   'score.health': '剩余血量', 'score.business': 'HCI／业务分', 'score.ai': 'AI 产出分', 'score.agent': 'Agent Builder',
   'dim.NDR': '侧向激光＋追踪感知', 'dim.AI': 'AI 工作负载', 'dim.AGENT': '智能工作流',
-  'b.EDR': '为机甲装配终端肩炮；同时拥有 CC 与 XDR 才能获得前方扇区内的有限追踪，仍需走位与瞄准。',
-  'b.NDR': '发射横向条状激光，揭露威胁并强化 MDR。搭配 XDR 让普通子弹获得有限追踪，不等于自动获胜。',
+  'b.EDR': '为机甲装配终端肩炮；部署 CC 即可获得前方扇区内的有限追踪，仍需走位与瞄准。',
+  'b.NDR': '无需 XDR 即可引导普通子弹；同时发射横向条状激光，揭露威胁并强化 MDR。追踪范围限于前方扇区。',
   'b.MDR': '装配一级即自带追踪的托管炮臂，无需 CC 或 XDR。CC 提供额外增伤，升级提高火力与射速。',
+  'rail.EDR': '肩炮火力', 'rail.MDR': '自主追踪', 'rail.AF': '前方屏障',
+  'rail.NDR': '子弹追踪', 'rail.HCI': '算力＋射速', 'rail.XDR': '链式闪电',
+  'rail.ASTOR': '护盾＋修复', 'rail.IAG': '敌人减速', 'rail.AI': 'AI 产出', 'rail.AGENT': '工作流产出',
   'b.HCI': '装配服务器算力舱，增加算力、业务产出和全队射速，无法代替安全产品阻止攻击。',
   'b.AF': '臂载 NGAF 盾牌向机甲前方投射屏障，拦截威胁，并削弱突破屏障的敌人。',
   'b.ASTOR': '腰部 aStor 快照舱替基地抵挡攻击，并恢复完整度。',
@@ -388,10 +395,9 @@ function railHTML(levels) {
   const ids = WEAPON_ORDER.filter(id => (levels[id] || 0) > 0);
   if (!ids.length) return '';
   return ids.map(id => {
-    const lv = levels[id] || 0, max = WEAPONS[id].max;
-    const dots = Array.from({ length: max }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('');
+    const lv = levels[id] || 0, name = CAP_SHORT[id] || id;
     return `<span class="st-rail-item cap-${id}" title="${esc(CAP_NAME[id])} - ${esc(t('dim.' + id))}">
-      <span class="st-rail-ico">${MARK(id)}</span><span class="st-rail-dots">${dots}</span></span>`;
+      <span class="st-rail-ico">${MARK(id)}</span><span class="st-rail-copy"><span class="st-rail-name"><b>${name}</b><span>Lv${lv}</span></span><small class="st-rail-effect">${esc(t('rail.' + id))}</small></span></span>`;
   }).join('');
 }
 
