@@ -1,0 +1,17 @@
+Continue from branch feat/intranet-score-server, preserving the latest matte-arena Last Stand implementation from 95576af.
+
+The current task adds an intranet HTTPS deployment and durable shared victory leaderboard. Read docs/INTRANET_DEPLOYMENT.md, server/app.py, server/install.sh, server/backup.py, src/arcade/board.js, and the server-related sections of src/stand/main-stand.js before changing anything.
+
+Preserve gameplay, bilingual UI, the integrated product mech, Agent Builder workflow, the 120-second / three-boss campaign, ten-second upgrade offers, and all existing 3D quality and performance optimizations. Do not add a frontend framework, cloud dependency, or broad gameplay rewrite for deployment work.
+
+Deployment uses Debian's existing Python stdlib HTTPS service, SQLite WAL, systemd, and OpenSSL. The target is isolated; never add routes, change IPs, or change firewalls to fetch packages. Actual access details, CA certificates and credentials belong in private operator notes, never Git. User credentials and private CA/server keys must never be printed, committed, embedded in the frontend, or distributed to clients.
+
+The authoritative database is /var/lib/sentinel/scores.sqlite3, outside versioned releases. Keep every accepted victory; top 50 is a display limit, not a retention rule. Preserve full-database rank, tied-score ranks, server timestamps, dimension validation, UUID idempotency, and rejection of conflicting reuse. Only victories rank. This is consistency validation, not authenticated or cheat-proof gameplay.
+
+The host overrides /deployment-config.js to enable same-origin, server-required ranking. In this mode, never merge local scores into server rankings and never show an unsaved score as persisted. Save failures must remain explicit with a stable-ID retry. Static GitHub Pages still uses existing local behavior. A pending unsaved result currently lives in memory: do not claim it survives tab closure.
+
+The daily backup keeps 30 snapshots on the VM. Off-host backups remain an operator responsibility. Never delete real scores during tests, updates, rollback or migrations. To test persistence, use exact, recorded test UUIDs; restart only the game service, verify them, and remove only those IDs after verification. Never wipe the database. Restore backup copies to a temporary path before considering production restore.
+
+Run the documented backend, shared-board, combat/runtime and browser checks appropriate to your changes. HTTPS browser fixtures ignore browser certificate errors, so separately verify the real CA chain and hostname. Distinguish endpoint fixtures from actual played balance evidence. Keep development records and handoff documentation in English and preserve the existing EN/ZH product UI.
+
+For future deployment, package only game assets and server code with server/package_release.py, upload through the approved jump host, use a unique release name, and keep both game/backend release pointers consistent. No runtime downloads are needed. The private CA lasts ten years; the server certificate lasts one year and needs renewal before expiry. Inspect systemd status, timer, health, and logs after each change. Avoid unnecessary code or asset changes and report exactly what was deployed, what was tested, and remaining limitations.

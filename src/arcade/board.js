@@ -33,43 +33,56 @@ export function rankOf(rows, score) {
   return r;
 }
 
-export function makeBoard({ lsKey, apiVar }) {
+export function makeBoard({ lsKey, apiVar, requireRemote = () => false }) {
   const endpoint = () => ((typeof window !== 'undefined' && window[apiVar]) || '').replace(/\/+$/, '');
+  const required = () => typeof requireRemote === 'function' ? requireRemote() : requireRemote;
+  async function request(url, options = {}) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    try {
+      const res = await fetch(url, { ...options, signal: ctrl.signal, cache: 'no-store' });
+      if (!res.ok) throw new Error('http ' + res.status);
+      return await res.json();
+    } finally { clearTimeout(timer); }
+  }
 
   const readLocal = () => { try { return JSON.parse(localStorage.getItem(lsKey)) || []; } catch { return []; } };
   const writeLocal = rows => { try { localStorage.setItem(lsKey, JSON.stringify(rows.slice(0, MAX_ROWS))); } catch { /* ignore */ } };
 
-  async function remoteTop(signal) {
+  async function remoteTop() {
     const base = endpoint(); if (!base) return null;
-    const res = await fetch(`${base}/top?n=${MAX_ROWS}`, { signal, headers: { accept: 'application/json' } });
-    if (!res.ok) throw new Error('http ' + res.status);
-    const data = await res.json();
+    const data = await request(`${base}/top?n=${MAX_ROWS}`, { headers: { accept: 'application/json' } });
     return Array.isArray(data) ? data : (data.scores || []);
   }
   async function remoteSubmit(row) {
     const base = endpoint(); if (!base) return null;
-    const res = await fetch(`${base}/submit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(row) });
-    if (!res.ok) throw new Error('http ' + res.status);
-    return res.json().catch(() => null);
+    return request(`${base}/submit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(row) });
   }
 
   async function fetchBoard() {
     const local = readLocal();
-    if (!endpoint()) return { rows: mergeScores(local), mode: 'local' };
+    if (!endpoint()) return required() ? { rows: [], mode: 'offline' } : { rows: mergeScores(local), mode: 'local' };
     try {
-      const ctrl = new AbortController();
-      const to = setTimeout(() => ctrl.abort(), 4000);
-      const remote = await remoteTop(ctrl.signal);
-      clearTimeout(to);
-      return { rows: mergeScores(remote, local), mode: 'world' };
+      const remote = await remoteTop();
+      return { rows: mergeScores(remote, required() ? [] : local), mode: required() ? 'server' : 'world' };
     } catch {
-      return { rows: mergeScores(local), mode: 'local' };
+      return required() ? { rows: [], mode: 'offline' } : { rows: mergeScores(local), mode: 'local' };
     }
   }
 
-  async function submitScore({ name, score, note }) {
+  async function submitScore({ name, score, note, id, details }) {
     const row = { name: sanitizeName(name), score: Math.max(0, Math.round(score)), at: Date.now(),
-                  id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, note };
+                  id: id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, note, details };
+    if (required()) {
+      try {
+        if (!endpoint()) throw new Error('Missing score server');
+        const result = await remoteSubmit(row);
+        if (result?.saved !== true || !Number.isInteger(result.rank)) throw new Error('Save not confirmed');
+        return { rows: mergeScores(result.scores), mode: 'server', rank: result.rank, id: row.id, saved: true };
+      } catch {
+        return { rows: [], mode: 'offline', rank: null, id: row.id, saved: false };
+      }
+    }
     const local = mergeScores(readLocal(), [row]);
     writeLocal(local);
     const mine = local.find(r => r.id === row.id);

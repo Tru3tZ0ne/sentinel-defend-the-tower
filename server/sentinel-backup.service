@@ -1,0 +1,15 @@
+[Unit]
+Description=Consistent daily Sentinel score backup
+After=sentinel.service
+
+[Service]
+Type=oneshot
+User=sentinel
+Group=sentinel
+UMask=0077
+ExecStart=/usr/bin/python3 /opt/sentinel-server/backup.py /var/lib/sentinel/scores.sqlite3 /var/backups/sentinel
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/sentinel /var/backups/sentinel

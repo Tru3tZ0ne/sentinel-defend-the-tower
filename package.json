@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:score-server": "python -m unittest discover -s server -p test_app.py && node --test tools/board-server.test.mjs",
     "serve": "node tools/serve.mjs",
     "test": "node --test tools/engine.test.mjs && node tools/smoke.mjs && node tools/ui.test.mjs && node tools/characters.test.mjs && node tools/deployments.test.mjs && npm run test:stand-art",
     "test:engine": "node --test tools/engine.test.mjs",

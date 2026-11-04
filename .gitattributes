@@ -1,0 +1,5 @@
+# Deployment files must work after a Windows checkout as well as on Debian.
+server/*.sh text eol=lf
+server/*.py text eol=lf
+server/*.service text eol=lf
+server/*.timer text eol=lf

@@ -12,7 +12,7 @@ import { PRODUCTS } from '../data/products.js';
 import { ICONS } from '../ui/icons.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { makeI18n } from '../arcade/i18n.js';
-import { makeBoard, rankOf } from '../arcade/board.js';
+import { makeBoard, rankOf } from '../arcade/board.js?server=v1';
 import { brandHTML, footerHTML, fmt, esc, painter } from '../arcade/ui-kit.js';
 import { setMuted, isMuted, resumeAudio } from '../rush/audio.js';
 
@@ -246,10 +246,20 @@ Object.assign(ZH, {
   't.wfDone': 'Agent Builder 工作流完成——恢复并交付业务产出',
   't.bossAim': 'Boss 已锁定你的落点——立即移动！',
 });
+Object.assign(EN, {
+  'board.server': 'SERVER', 'board.offline': 'Server unavailable',
+  'board.saving': 'Saving result to server…', 'board.saved': 'Saved to server',
+  'board.failed': 'Result not saved. Keep this screen open and retry.', 'board.retry': 'Retry save',
+});
+Object.assign(ZH, {
+  'board.server': '服务器', 'board.offline': '服务器暂不可用',
+  'board.saving': '正在保存成绩到服务器…', 'board.saved': '成绩已保存到服务器',
+  'board.failed': '成绩未保存，请保留此页面并重试。', 'board.retry': '重试保存',
+});
 const i18n = makeI18n(EN, ZH);
 const { t } = i18n;
 const lang = () => i18n.getLang();
-const board = makeBoard({ lsKey: 'sentinel.stand.enterprise.scores.v1', apiVar: '__STAND_ENTERPRISE_API' });
+const board = makeBoard({ lsKey: 'sentinel.stand.enterprise.scores.v1', apiVar: '__STAND_ENTERPRISE_API', requireRemote: () => window.__STAND_SERVER_REQUIRED === true });
 const NAME_KEY = 'sentinel.arcade.name';
 const BEST_KEY = 'sentinel.stand.enterprise.best.v1';
 const getName = () => { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } };
@@ -514,9 +524,12 @@ function healthRowsHTML(rows, meId) {
 function boardBlock(b, meId) {
   return `<div class="ar-lb">
     <div class="ar-lb-h"><span class="t">${esc(t('ui.board'))}</span>
-      <span class="mode ${b.mode === 'world' ? 'world' : ''}">${esc(b.mode === 'world' ? t('ui.world') : t('ui.local'))}</span></div>
+      <span class="mode ${['world','server'].includes(b.mode) ? 'world' : ''}">${esc(boardLabel(b.mode))}</span></div>
     <ol class="lb-rows">${healthRowsHTML(b.rows, meId)}</ol>
   </div>`;
+}
+function boardLabel(mode) {
+  return t(mode === 'server' ? 'board.server' : mode === 'offline' ? 'board.offline' : mode === 'world' ? 'ui.world' : 'ui.local');
 }
 
 function codexRows() {
@@ -557,8 +570,21 @@ async function onGameOver(summary) {
   if (summary.best > getBest()) saveBest(summary.best);
   renderOver(summary, null);
   if (summary.outcome !== 'victory') return;
+  await saveResult(summary);
+}
+
+async function saveResult(summary) {
+  if (summary.saving) return;
+  summary.saving = true;
+  lastResult = null;
+  renderOver(summary, null);
+  summary.attemptId ||= crypto.randomUUID();
+  summary.playerName ||= getName() || 'Anonymous';
   const n = Object.keys(summary.levels).length;
-  const result = await board.submitScore({ name: getName() || 'Anonymous', score: summary.score, note: `Enterprise / 10000 · ${summary.bossesKilled}/3 bosses · ${summary.elapsed}s · ${n} products` });
+  const result = await board.submitScore({ id: summary.attemptId, name: summary.playerName, score: summary.score,
+    note: `Enterprise / 10000 · ${summary.bossesKilled}/3 bosses · ${summary.elapsed}s · ${n} products`,
+    details: { outcome: summary.outcome, elapsed: summary.elapsed, bossesKilled: summary.bossesKilled, scores: summary.scores } });
+  summary.saving = false;
   if (phase !== 'over' || lastSummary !== summary) return;
   lastResult = result;
   renderOver(summary, result);
@@ -578,7 +604,9 @@ function renderOver(summary, result) {
           <div class="sub">${esc(t(summary.reason ? 'reason.' + summary.reason : 'st.success'))}</div>
           ${scoreMetrics(summary.scores, summary.availability)}
           <div class="sub">${esc(t('wf.runs',{n:summary.workflows||0}))}</div>
-          ${result ? `<div class="sub">${esc(t('ui.youRank'))}<span class="hot">${result.rank}</span> · ${esc(result.mode === 'world' ? t('ui.world') : t('ui.local'))}</div>` : ''}
+          ${result?.rank != null ? `<div class="sub">${esc(t('ui.youRank'))}<span class="hot">${result.rank}</span> · ${esc(boardLabel(result.mode))}</div>` : ''}
+          ${window.__STAND_SERVER_REQUIRED && summary.outcome === 'victory' ? `<div class="sub" role="status">${esc(t(result?.saved ? 'board.saved' : result?.saved === false ? 'board.failed' : 'board.saving'))}</div>` : ''}
+          ${result?.saved === false ? `<button class="btn ghost" data-act="retrySave">${esc(t('board.retry'))}</button>` : ''}
         </div>
         <div class="st-build-h">${esc(t('st.loadout'))}</div>
         <div class="st-rail final">${railHTML(summary.levels) || `<span class="st-rail-empty">${esc(t('st.none'))}</span>`}</div>
@@ -631,6 +659,7 @@ el.overlay.addEventListener('click', e => {
   else if (act === 'lang') { i18n.toggleLang(); relabel(); rerender(); }
   else if (act === 'mute') { setMuted(!isMuted()); rerender(); }
   else if (act === 'share') shareResult(e.target);
+  else if (act === 'retrySave' && lastSummary?.outcome === 'victory') saveResult(lastSummary);
 });
 
 const ABIL_HOTKEY = { q: 'ir', e: 'pt', r: 'rt', f: 'wf' };
