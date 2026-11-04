@@ -37,3 +37,11 @@ new hardware FPS measurements, Internet-scale capacity, authenticated scores,
 off-host disaster recovery, or browser history migration. Current event scores
 are shared server records; historical browser-only scores remain on their
 original devices. Operator access details are kept outside the repository.
+
+## Product label correction
+
+The active AI orchestration skill is named **Agent Builder** in both languages.
+Its compact button now reads Agent / Builder, including while cooling down,
+and its execution trace uses Agent Builder as the title. Workflow describes
+its four-stage behavior rather than replacing the product name. The separate
+AI Platform upgrade and all scoring, combat and persistence rules are unchanged.

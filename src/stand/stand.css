@@ -259,9 +259,9 @@
 }
 
 /* A short-lived execution trace beside the existing service controls. */
-.st-ab-workflow .st-ab-code { font-size: 13px; letter-spacing: 0; }
-.st-ab-workflow .st-ab-name { display: block; font-size: 8px; }
-.st-ab-workflow:not(.ready) .st-ab-name { visibility: hidden; }
+.st-ab-workflow { padding: 9px 0 14px; }
+.st-ab-workflow .st-ab-code { font-size: 12px; line-height: 14px; letter-spacing: 0; }
+.st-ab-workflow .st-ab-name { display: block; font-size: 9px; line-height: 11px; }
 .st-ab-workflow .st-ab-timer { inset: auto 0 4px; min-height: 11px; font-size: 9px; }
 .st-workflow { position: absolute; z-index: 6; left: 80px; bottom: 48px;
   width: min(280px, calc(100% - 96px)); padding: 7px; border: 1px solid #6ce5d766;

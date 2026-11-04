@@ -196,7 +196,7 @@ Object.assign(EN, {
   'b.AGENT': 'Active skill [F], available beside security services. Runs Detect → Analyze → Contain → Recover on committed targets. Completion restores HP and delivers scored workflow/business work. HCI and AI improve its capacity, response and cooldown.',
   'g.AI': 'An AI application platform hosts model-backed applications.', 'l.AI': 'Needs compute and security; it does not stop attacks by itself.',
   'g.AGENT': 'Agent Builder orchestrates application workflows.', 'l.AGENT': 'Needs a visible threat to start, consumes compute while running, and has a cooldown. This is an arcade abstraction.',
-  'ab.wf': 'Agent Builder', 'wf.short': 'Workflow', 'wf.title': 'Agent Builder · workflow',
+  'ab.wf': 'Agent Builder', 'wf.short': 'Builder', 'wf.title': 'Agent Builder',
   'wf.detect': 'Detect', 'wf.analyze': 'Analyze', 'wf.contain': 'Contain', 'wf.recover': 'Recover',
   'wf.runs': 'Agent Builder: {n} completed workflows',
   'abd.wf': 'Run Detect → Analyze → Contain → Recover. Slow and respond to selected threats, restore HP, then deliver workflow and business work. HCI + AI strengthen the run. [F]',
@@ -238,7 +238,7 @@ Object.assign(ZH, {
   'b.AGENT': '主动技能［F］，与安全服务并列。对选定目标执行「检测→分析→处置→恢复」，完成后恢复血量并交付工作流及业务评分；HCI 和 AI 可增强处理能力、处置效果并缩短冷却。',
   'g.AI': 'AI 应用平台承载基于模型的应用。', 'l.AI': '需要算力与安全保护，本身无法阻止攻击。',
   'g.AGENT': 'Agent Builder 编排应用工作流。', 'l.AGENT': '需要可见威胁才能启动，运行时消耗算力，且有冷却时间；这里是游戏机制抽象。',
-  'ab.wf': 'Agent Builder', 'wf.short': '工作流', 'wf.title': 'Agent Builder · 工作流',
+  'ab.wf': 'Agent Builder', 'wf.short': 'Builder', 'wf.title': 'Agent Builder',
   'wf.detect': '检测', 'wf.analyze': '分析', 'wf.contain': '处置', 'wf.recover': '恢复',
   'wf.runs': 'Agent Builder：已完成 {n} 次工作流',
   'abd.wf': '执行「检测→分析→处置→恢复」，减速并处置选定威胁、恢复血量，完成后交付工作流及业务评分；HCI＋AI 可增强效果。［F］',
@@ -339,7 +339,7 @@ function buildAbilBar() {
       title="${esc(t('ab.' + id))} - ${esc(t('abd.' + id))}" aria-label="${esc(t('ab.' + id))}">
       <span class="st-ab-cd"></span>
       <span class="st-ab-key">${ABIL_KEY[id]}</span>
-      <span class="st-ab-code">${id==='wf'?'AGENT':id.toUpperCase()}</span>
+      <span class="st-ab-code">${id==='wf'?'Agent':id.toUpperCase()}</span>
       <span class="st-ab-name">${esc(t(id==='wf'?'wf.short':'ab.' + id))}</span>
       <span class="st-ab-timer"></span>
     </button>`).join('');
