@@ -13,6 +13,8 @@
     "test:characters": "node tools/characters.test.mjs",
     "test:deployments": "node tools/deployments.test.mjs",
     "test:stand-art": "node --test tools/stand-balance.test.mjs tools/stand-runtime.test.mjs && node tools/stand-art.test.mjs && node tools/stand-performance.test.mjs",
+    "test:stand3d": "node --test tools/stand3d.test.mjs && node tools/stand3d-browser.test.mjs",
+    "test:stand3d-rules": "node --test tools/stand3d.test.mjs",
     "test:stand-performance": "node tools/stand-performance.test.mjs",
     "profile:stand-combat": "node tools/stand-active-performance.mjs mech",
     "test:stand-balance": "node --test tools/stand-balance.test.mjs",

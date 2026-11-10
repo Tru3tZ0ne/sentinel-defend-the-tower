@@ -39,6 +39,7 @@ Several self-contained experiences share the brand, i18n and assets:
 | `vector.html` | **Threat Vector** — survivor shooter: monsters charge, product **drops** level you up | `src/vector/` (+ `src/arcade/`) |
 | `line.html` | **Breach Line** — a Plants-vs-Zombies lane defense; deploy product **defenders** in a grid | `src/line/` (+ `src/arcade/`) |
 | `stand.html` | **Last Stand** — a vertical survivor shooter; products mount on **one evolving mech** | `src/stand/` (+ `src/arcade/`) |
+| `stand3d.html` | **Last Stand 3D** — the same campaign as a full 3D arena: circle a Data Core, six gates, orbiting chase camera | `src/stand3d/` (reuses `src/stand/` rules + mech art) |
 
 The last three are **quick-play arcade games** — pick-up-and-play, instant score, and each maps
 to real Sangfor products. They share a small common layer in `src/arcade/` (bilingual strings,
@@ -110,6 +111,26 @@ See the [matte chassis and arena record](docs/STAND_MATTE_ARENA.md),
 [active workflow rules](docs/STAND_AGENT_WORKFLOW.md)
 and [English continuation brief](docs/CLAUDE_STAND_VISUALS_HANDOFF.txt), review tag
 `stand-matte-arena-v1`. Checks run through `npm run test:stand-art`.
+
+**Last Stand 3D** (`stand3d.html`) replays the Last Stand campaign as a true 3D arena game.
+The Sentinel mech defends a **Data Core** on a sky-high circular deck; threats pour out of
+**six perimeter gates** and run for the Core, and the attack front (one to three neighbouring
+gates) swings around the citadel every 15 seconds. A chase camera orbits the Core with the
+mech, so A/D circle-strafe, W/S move out and in, the mouse aims (touch: drag to steer, the
+mech auto-aims) and Space/Shift/DASH jets clear of a boss strike. Edge arrows and a radar
+point at open gates, bosses and anything gnawing at the Core. Campaign numbers, products,
+upgrades, services, scoring and the mech/creature models come unchanged from `src/stand/`;
+what changes is how each product reads in 360 degrees: **NGAF** is a firewall arc on the inner
+ring that only covers the bearing you stand on, **IAG** is a checkpoint ring around the Core,
+**aStor** raises a dome over it, service teams hold the ground where they are called in, and
+bosses park on a far ring and shell the mech with telegraphed strikes. It has its own local
+board (`sentinel.stand3d.scores.v1`, optional `window.__STAND3D_API`).
+`src/stand3d/sim.js` is the pure simulation (no DOM or WebGL), `engine.js` renders it and
+`main-stand3d.js` is the HUD. Checks: `npm run test:stand3d` (rules + a real-browser smoke)
+and `node tools/stand3d-balance.mjs 60 held` for scripted clear rates - currently casual
+mixed builds 36/60 (held-out 15/30), informed 9/12, cloud-only and idle 0/12. Those are
+bots, not measured human win rates, and no hardware frame rate is claimed: it has only been
+run under software WebGL here.
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your
