@@ -3,24 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Sentinel · Last Stand 3D — defend the Data Core in a full 3D arena</title>
-  <meta name="description" content="Last Stand 3D: pilot the Sangfor Sentinel mech around a sky-high Data Core. Threats pour from six gates in a full 3D arena; circle-strafe, dash boss strikes and mount Sangfor products - EDR cannons, an NGAF firewall arc, XDR chain lightning, HCI compute and AI - in a two-minute, three-boss campaign." />
-  <meta name="theme-color" content="#050d10" />
+  <title>Sentinel Strike — a 3D vertical shooter powered by Sangfor products</title>
+  <meta name="description" content="Sentinel Strike: a Raiden-style 3D vertical shooter. Fly the Sangfor interceptor through three breached zones; every power-up is a Sangfor product that fights the way it really works - Endpoint Secure vulcan, NGAF firewall beam, XDR chain plasma, Cyber Command homing missiles, HCI wingmen, IAG traffic control, aStor snapshot shield and an MDR Incident Response bomb." />
+  <meta name="theme-color" content="#040a0e" />
   <link rel="stylesheet" href="./src/style/main.css" />
   <link rel="stylesheet" href="./src/arcade/arcade.css" />
-  <link rel="stylesheet" href="./src/stand/stand.css?campaign=matte-arena-v1" />
-  <link rel="stylesheet" href="./src/stand3d/stand3d.css?v=citadel-1" />
+  <link rel="stylesheet" href="./src/strike/strike.css?v=strike-1" />
   <link rel="icon" href="./assets/brand/products/sangfor-epp.png" />
-  <!-- World ranking: local by default; set window.__STAND3D_API to a deployed leaderboard worker for a global board. -->
-  <script>/* window.__STAND3D_API = ''; */</script>
-  <!-- Three.js (vendored locally, offline-friendly) for the real-time 3D arena. -->
+  <!-- Ranking: local by default; set window.__STRIKE_API to a deployed leaderboard worker for a global board. -->
+  <script>/* window.__STRIKE_API = ''; */</script>
   <script type="importmap">
     { "imports": { "three": "./vendor/three/three.module.min.js" } }
   </script>
 </head>
-<body data-art="combined" data-game="stand3d">
+<body data-game="strike">
   <div class="wrap" id="app"></div>
   <noscript>This game needs JavaScript enabled.</noscript>
-  <script type="module" src="./src/stand3d/main-stand3d.js?v=citadel-1"></script>
+  <script type="module" src="./src/strike/main-strike.js?v=strike-1"></script>
 </body>
 </html>

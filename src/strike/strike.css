@@ -1,0 +1,67 @@
+/* Sentinel Strike HUD */
+body[data-game="strike"] { background: #040a0e; }
+.ar-field { padding: 0; display: block; overflow: hidden; }
+#stCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+.st-fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+[hidden] { display: none !important; }
+.sk-mark { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+.sk-zone { position: absolute; z-index: 5; left: 12px; top: 10px; width: 190px; pointer-events: none; }
+.sk-zone b { display: block; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: #d6f5dc; text-shadow: 0 1px 4px #000; margin-bottom: 4px; }
+.sk-prog { height: 5px; border-radius: 3px; background: rgba(10,26,30,.8); border: 1px solid rgba(140,200,170,.35); overflow: hidden; }
+.sk-prog i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #4fd6c0, #9be85a); transition: width .2s linear; }
+
+.st-boss { position: absolute; z-index: 5; left: 50%; top: 10px; transform: translateX(-50%); width: min(420px, 46%); pointer-events: none; }
+.st-boss-row { display: flex; justify-content: center; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #fff; text-shadow: 0 1px 4px #000; margin-bottom: 3px; }
+.st-boss-bar { height: 9px; border-radius: 5px; background: rgba(20,8,12,.8); border: 1px solid var(--bcol, #ff5a6a); overflow: hidden; box-shadow: 0 0 14px color-mix(in srgb, var(--bcol, #ff5a6a) 50%, transparent); }
+.st-boss-bar i { display: block; height: 100%; background: linear-gradient(180deg, #fff6, transparent), var(--bcol, #ff5a6a); transition: width .12s linear; }
+
+.sk-load { position: absolute; z-index: 5; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 5px; pointer-events: none; width: 132px; }
+.sk-load-h, .sk-leg-h { font-size: 9px; letter-spacing: 1.4px; text-transform: uppercase; color: #9fc5b6; margin-top: 3px; text-shadow: 0 1px 3px #000; }
+.sk-chip { display: flex; align-items: center; gap: 7px; padding: 4px 7px 4px 4px; border-radius: 9px; background: rgba(8,20,24,.82); border: 1px solid color-mix(in srgb, var(--cap) 55%, transparent); box-shadow: inset 3px 0 0 var(--cap); }
+.sk-chip .sk-mark { width: 26px; height: 26px; flex: none; background: #fff; border-radius: 6px; padding: 3px; }
+.sk-chip > span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sk-chip b { font-size: 11px; color: #f0f8f2; line-height: 1; }
+.sk-chip small { font-size: 9px; color: #c8ff9a; line-height: 1.15; }
+.sk-chip small.warn { color: #ff9aa6; }
+.sk-chip.off { opacity: .42; filter: saturate(.3); }
+.sk-pips { display: flex; gap: 2px; }
+.sk-pips i { width: 9px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.16); }
+.sk-pips i.on { background: var(--cap); box-shadow: 0 0 6px var(--cap); }
+
+.sk-left { position: absolute; z-index: 6; left: 12px; bottom: 14px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.sk-lives { display: flex; gap: 3px; color: #9be85a; filter: drop-shadow(0 0 5px rgba(155,232,90,.6)); min-height: 18px; pointer-events: none; }
+.sk-bomb { position: relative; width: 68px; height: 68px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; cursor: pointer; touch-action: none; user-select: none;
+  background: radial-gradient(circle at 50% 30%, #1d3c36, #0c1e22 75%); border: 2px solid #16ca78; color: #eafff2; box-shadow: 0 0 16px rgba(22,202,120,.4), 0 6px 16px #0008; }
+.sk-bomb .sk-mark { width: 30px; height: 30px; background: #fff; border-radius: 7px; padding: 3px; }
+.sk-bomb b { position: absolute; right: -6px; top: -6px; min-width: 22px; height: 22px; border-radius: 11px; background: #16ca78; color: #04140c; font-size: 13px; display: grid; place-items: center; }
+.sk-bomb small { font: 9px var(--mono, monospace); color: #a8d8c0; }
+.sk-bomb.empty { filter: grayscale(1); opacity: .5; box-shadow: none; }
+.sk-bomb:active { transform: scale(.94); }
+.sk-pausebtn { position: absolute; z-index: 6; right: 12px; bottom: 14px; width: 38px; height: 38px; border-radius: 10px; background: rgba(8,20,24,.8); border: 1px solid rgba(140,200,170,.4); color: #cfe9dc; font-weight: 900; cursor: pointer; }
+
+/* cards */
+[data-game="strike"] .ar-overlay { background: radial-gradient(ellipse at 50% 45%, rgba(3,10,12,.4), rgba(3,10,12,.78)); backdrop-filter: none; align-items: flex-start; }
+[data-game="strike"] .ar-card { background: rgba(9,22,26,.92); border-color: rgba(131,190,75,.35); }
+.sk-card { width: min(560px, 100%); }
+.sk-leg-title { margin: 16px 0 6px; font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-mute, #8aa); }
+.sk-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sk-leg-h { grid-column: 1 / -1; }
+.sk-leg { display: flex; gap: 8px; padding: 7px; border-radius: 10px; background: rgba(255,255,255,.035); border: 1px solid color-mix(in srgb, var(--cap) 40%, transparent); }
+.sk-leg .sk-mark { width: 34px; height: 34px; flex: none; background: #fff; border-radius: 8px; padding: 4px; }
+.sk-leg b { display: block; font-size: 12px; color: var(--cap); margin-bottom: 2px; }
+.sk-leg span { font-size: 11px; line-height: 1.35; color: #c4d6cf; }
+.sk-build { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.sk-build .sk-chip { width: 120px; }
+.sk-paused { align-items: center !important; cursor: pointer; }
+
+@media (max-width: 620px) {
+  .sk-zone { width: 120px; top: 8px; left: 8px; } .sk-zone b { font-size: 9px; }
+  .st-boss { top: 34px; width: 62%; }
+  .sk-load { right: 6px; top: 8px; width: 46px; gap: 4px; } .sk-load-h { display: none; }
+  .sk-chip { flex-direction: column; padding: 3px; gap: 3px; box-shadow: inset 0 3px 0 var(--cap); } .sk-chip b, .sk-chip small { display: none; }
+  .sk-chip .sk-mark { width: 30px; height: 30px; } .sk-pips i { width: 5px; }
+  .sk-left { left: 8px; bottom: calc(10px + env(safe-area-inset-bottom)); } .sk-bomb small { display: none; }
+  .sk-pausebtn { right: 8px; bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .sk-legend { grid-template-columns: 1fr; }
+}
