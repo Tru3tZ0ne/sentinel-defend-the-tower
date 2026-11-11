@@ -161,7 +161,10 @@ incident (worm outbreak, spear-phishing, insider threat, DDoS flood, fast encryp
 buy menu announces along with the product that answers it; every round also offers one paid
 contract (headshots, airborne kill, triple kill, ...). Three difficulties scale damage, threat
 health and score; a Daily Op uses a date seed; XP, rank and eight medals persist in
-localStorage. `src/counter/sim.js`
+localStorage. Ammunition is unlimited with no reload; spread from sustained fire is the limit.
+The yard is a floodlit rooftop at night: PBR materials with a baked environment map, and on
+`high` quality soft shadows, zone lights and a bloom pass (`?q=low|high`, or the Graphics
+button in the menu; phones and automated browsers default to `low`). `src/counter/sim.js`
 is the pure simulation (grid map, path fields, hitscan), `engine.js` the Three.js view and
 input (pointer lock, touch sticks with aim assist), `main-counter.js` the HUD. Checks:
 `npm run test:counter`; `node tools/counter-balance.mjs` plays scripted bots (not human rates).

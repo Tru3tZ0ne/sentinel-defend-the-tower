@@ -65,11 +65,12 @@ export const MAXLV = 3;
 export const PRICE = { EDR: [1500, 2400, 3300], AF: [1200, 1800, 2600], NDR: [900, 1700, 2500], XDR: [1600, 2200, 2800], HCI: [900, 1500, 2600], IAG: [700, 1100, 1700], ASTOR: 2200, MDR: 1800 };
 export const COLOR = { EDR: '#49c7a0', AF: '#ff8a3c', NDR: '#4aa8ff', XDR: '#b58cff', HCI: '#f2c14e', IAG: '#5fd4e8', ASTOR: '#8fd16a', MDR: '#ff5d6c' };
 // Lv0 is the free Endpoint Agent sidearm; buying Endpoint Secure upgrades the gun itself.
+// Ammunition is unlimited and there is no reload: what limits sustained fire is spread (bloom).
 export const GUN = [
-  { dmg: 26, rate: 3.6, mag: 12, reload: 1.3 },
-  { dmg: 24, rate: 9.5, mag: 30, reload: 1.9 },
-  { dmg: 30, rate: 9.5, mag: 35, reload: 1.8 },
-  { dmg: 34, rate: 10.5, mag: 40, reload: 1.6 },
+  { dmg: 26, rate: 3.6 },
+  { dmg: 24, rate: 9.5 },
+  { dmg: 30, rate: 9.5 },
+  { dmg: 34, rate: 10.5 },
 ];
 export const ARMOR = [0, 50, 100, 100];
 export const WALL_HP = [0, 520, 520, 760];
@@ -84,11 +85,11 @@ export const THREAT = {
 export const WAVES = [
   { phish: 5 },
   { phish: 6, worm: 5, trojan: 1 },
-  { phish: 6, worm: 5, trojan: 3, apt: 1 },
-  { phish: 6, worm: 4, trojan: 3, apt: 2, brute: 1 },
-  { phish: 7, worm: 6, trojan: 4, apt: 3, brute: 1 },
-  { phish: 8, worm: 6, trojan: 5, apt: 3, brute: 2 },
-  { phish: 8, worm: 8, trojan: 5, apt: 4, brute: 2 },
+  { phish: 7, worm: 5, trojan: 3, apt: 1 },
+  { phish: 7, worm: 5, trojan: 4, apt: 2, brute: 1 },
+  { phish: 8, worm: 6, trojan: 5, apt: 3, brute: 1 },
+  { phish: 9, worm: 7, trojan: 5, apt: 3, brute: 2 },
+  { phish: 10, worm: 8, trojan: 6, apt: 4, brute: 2 },
 ];
 export const WIN_AT = 4;
 export const TUNE = { jump: 6.6, gravity: 18, buySeconds: 25, roundSeconds: 80, plant: 3.5, fuse: 22, defuse: 4.5, startMoney: 1000, winMoney: 2200, lossMoney: 1400, enemyHp: 1, enemyDmg: 1.15, playerSpeed: 5.6 };
@@ -191,7 +192,7 @@ export function createSim(opts = {}) {
       lv: { EDR: 0, AF: 0, NDR: 0, XDR: 0, HCI: 0, IAG: 0 }, snap: 0, mdr: 0, gateSel: [false, false, false],
       kills: 0, heads: 0, shotsFired: 0, shotsHit: 0, history: [], last: null, hurtRound: 0,
       stats: { EDR: { kills: 0 }, XDR: { kills: 0 }, MDR: { kills: 0, defuses: 0 }, AF: { kills: 0, blocked: 0 }, IAG: { stuns: 0 }, HCI: { absorbed: 0, failovers: 0 }, ASTOR: { restores: 0 }, NDR: { revealed: 0 } },
-      p: { x: 0, z: 0, yaw: 0, pitch: 0, hp: 100, armor: 0, mag: GUN[0].mag, reloadT: 0, fireCd: 0, bloom: 0, inv: 0, nades: 0, failover: false, useT: 0, moving: 0, kick: 0, alive: true, y: 0, vy: 0, ground: true, crouch: 0, ads: 0, eye: EYE },
+      p: { x: 0, z: 0, yaw: 0, pitch: 0, hp: 100, armor: 0, fireCd: 0, bloom: 0, inv: 0, nades: 0, failover: false, useT: 0, moving: 0, kick: 0, alive: true, y: 0, vy: 0, ground: true, crouch: 0, ads: 0, eye: EYE },
       threats: [], queue: [], shots: [], nades: [], walls: [], bomb: { state: 'none' }, fx: [], aptWarned: false, aptCredWarned: false, total: 0, buyT: TUNE.buySeconds, roundT: 0, endT: 0,
     });
     startBuy(true); return S;
@@ -203,14 +204,14 @@ export function createSim(opts = {}) {
     S.loot = []; S.streakN = 0;
     S.mut = S.round >= 2 ? pick(Object.keys(MUTATORS), S.mut) : null; // the incident type is known in the buy phase, so the build can answer it
     { const id = pick(Object.keys(CONTRACTS), S.contract?.id); S.contract = { id, need: CONTRACTS[id], have: 0, done: false }; }
-    S.bomb = { state: 'none' }; placePlayer(); const p = S.p; p.hp = 100; p.alive = true; p.armor = ARMOR[S.lv.HCI]; p.mag = GUN[S.lv.EDR].mag; p.reloadT = 0; p.nades = S.lv.IAG; p.useT = 0;
+    S.bomb = { state: 'none' }; placePlayer(); const p = S.p; p.hp = 100; p.alive = true; p.armor = ARMOR[S.lv.HCI]; p.nades = S.lv.IAG; p.useT = 0;
     hud();
   }
   function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = (rnd() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
   function startRound() {
     if (S.phase !== 'buy') return;
     S.phase = 'live'; S.roundT = TUNE.roundSeconds; S.hurtRound = 0; S.fx.length = 0;
-    const p = S.p; p.hp = 100; p.armor = ARMOR[S.lv.HCI]; p.mag = GUN[S.lv.EDR].mag; p.reloadT = 0; p.fireCd = .25; p.bloom = 0; p.inv = 0; p.nades = S.lv.IAG; p.failover = false; p.useT = 0; p.alive = true;
+    const p = S.p; p.hp = 100; p.armor = ARMOR[S.lv.HCI]; p.fireCd = .25; p.bloom = 0; p.inv = 0; p.nades = S.lv.IAG; p.failover = false; p.useT = 0; p.alive = true;
     // firewalls go up on the gates chosen in the buy menu
     S.walls = []; wallOn.fill(-1);
     GATES.forEach((g, i) => { if (S.gateSel[i] && S.walls.length < S.lv.AF) { S.walls.push({ gate: i, hp: WALL_HP[S.lv.AF] * (S.mut === 'ddos' ? .5 : 1), max: WALL_HP[S.lv.AF], flash: 0, zapT: 0 }); wallOn[idx(g.c, g.r)] = i; } });
@@ -263,7 +264,7 @@ export function createSim(opts = {}) {
     if (!free) S.money -= cost;
     if (id === 'ASTOR') S.snap = 1; else if (id === 'MDR') S.mdr = 1; else S.lv[id]++;
     if (id === 'AF') { const order = [1, 0, 2]; let n = S.gateSel.filter(Boolean).length; for (const g of order) if (n < S.lv.AF && !S.gateSel[g]) { S.gateSel[g] = true; n++; } }
-    if (id === 'HCI') S.p.armor = ARMOR[S.lv.HCI]; if (id === 'EDR') S.p.mag = GUN[S.lv.EDR].mag; if (id === 'IAG') S.p.nades = S.lv.IAG;
+    if (id === 'HCI') S.p.armor = ARMOR[S.lv.HCI]; if (id === 'IAG') S.p.nades = S.lv.IAG;
     sfx('hit', S.lv[id] || 1); hud(); return true;
   }
   function toggleGate(i) {
@@ -308,8 +309,8 @@ export function createSim(opts = {}) {
     fx('dmg', { x: th.x, y: th.h * .9, z: th.z, d: Math.round(d), hs: !!hs, by }); th.hp -= d; th.flash = .12; th.aware = true; if (th.hp <= 0) kill(th, by === 'EDRB' ? 'EDR' : by, hs);
   }
   function shoot() {
-    const p = S.p, g = GUN[S.lv.EDR]; p.mag--; p.fireCd = 1 / g.rate; S.shotsFired++;
-    const eye = p.eye, spread = spreadOf(p); p.bloom = Math.min(.05, p.bloom + .0055); p.kick = 1;
+    const p = S.p, g = GUN[S.lv.EDR]; p.fireCd = 1 / g.rate; S.shotsFired++;
+    const eye = p.eye, spread = spreadOf(p); p.bloom = Math.min(.075, p.bloom + .0075); p.kick = 1;
     const yaw = p.yaw + (rnd() - .5) * 2 * spread, pitch = p.pitch + (rnd() - .5) * 2 * spread, cp = Math.cos(pitch);
     const dx = -Math.sin(yaw) * cp, dy = Math.sin(pitch), dz = -Math.cos(yaw) * cp, h = Math.hypot(dx, dz) || 1e-6, ux = dx / h, uz = dz / h;
     let best = ray3(p.x, eye, p.z, ux, uz, dy / h, 80) / h, hit = null, head = false;
@@ -423,9 +424,7 @@ export function createSim(opts = {}) {
       }
       p.inv = Math.max(0, p.inv - dt); p.fireCd -= dt; p.bloom = Math.max(0, p.bloom - dt * .11); p.kick = Math.max(0, p.kick - dt * 9);
       const g = GUN[S.lv.EDR];
-      if (p.reloadT > 0) { p.reloadT -= dt; if (p.reloadT <= 0) { p.mag = g.mag; fx('reloaded', {}); } }
-      else if ((inp.reload && p.mag < g.mag) || p.mag <= 0) { p.reloadT = g.reload; fx('reload', {}); sfx('reload'); }
-      else if (inp.fire && p.fireCd <= 0 && !defusing) shoot();
+      if (inp.fire && p.fireCd <= 0 && !defusing) shoot();
       if (inp.nade) throwNade(); if (inp.mdr) callMdr();
       if (S.phase !== 'live') { hud(); return; }
     }
@@ -468,7 +467,7 @@ export function createSim(opts = {}) {
   function hudState() {
     const p = S.p, g = GUN[S.lv.EDR], b = S.bomb, near = b.state === 'planted' && Math.hypot(b.x - p.x, b.z - p.z) < 2.6;
     return {
-      phase: S.phase, round: S.round, you: S.you, them: S.them, money: S.money, score: S.score, hp: Math.ceil(p.hp), armor: Math.ceil(p.armor), mag: p.mag, magMax: g.mag, reload: p.reloadT > 0 ? 1 - p.reloadT / g.reload : -1,
+      phase: S.phase, round: S.round, you: S.you, them: S.them, money: S.money, score: S.score, hp: Math.ceil(p.hp), armor: Math.ceil(p.armor),
       nades: p.nades, mdr: S.mdr, snap: S.snap, lv: S.lv, gateSel: S.gateSel, walls: S.walls.map(w => ({ gate: w.gate, frac: Math.max(0, w.hp / w.max), down: !!w.down })),
       timer: S.phase === 'buy' ? S.buyT : b.state === 'planted' ? b.t : S.roundT, bomb: b.state, site: b.site, siteKnown: S.lv.NDR >= 2 || b.state === 'planted', plantFrac: b.state === 'carried' ? (b.plantT || 0) / plantTime() : 0,
       near, defuse: p.useT / TUNE.defuse, alive: S.threats.length + S.queue.length, total: S.total || 0, last: S.last, zone: zoneOf(p.x, p.z), sensors: xdrSensors(S), bloom: spreadOf(p), air: !p.ground, crouch: p.crouch > .5, ads: p.ads, mut: S.mut, contract: S.contract, streak: S.t - S.streakT < 3.2 ? S.streakN : 0, diff: S.diff, failover: S.lv.HCI >= 3 && !p.failover, kills: S.kills,

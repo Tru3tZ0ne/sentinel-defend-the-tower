@@ -28,7 +28,6 @@ export function playMatch(kind, seed, log, diff = 'normal') {
       else if (tgt && td < 5 && THREAT[tgt.type].melee) inp.mz = -1; else if (tgt) inp.mx = Math.sin(t * 2.2) > 0 ? 1 : -1;
       if (p.nades && S.threats.filter(th => th.see && th.dist < 12).length >= 3 && tgt) { inp.nade = true; }
       if (S.mdr && p.hp < 35 && b.state !== 'planted') inp.mdr = true;
-      if (!tgt && p.mag < 10) inp.reload = true;
     }
     inp.yaw = yaw + wob; inp.pitch = pitch + wob * .5; sim.step(dt, inp);
   }

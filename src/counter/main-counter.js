@@ -1,7 +1,7 @@
 // Sentinel Counter-Breach orchestrator: the competitive-shooter HUD (radar, kill
 // feed, vitals, ammo, buy menu, scoreboard), touch controls, leaderboard and EN / 中文.
 // The game itself is ./engine.js (view + input) and ./sim.js (rules).
-import { createCounterGame } from './engine.js?v=cb-2';
+import { createCounterGame } from './engine.js?v=cb-3';
 import { LEVELED, PRODUCTS, MAXLV, COLOR, WAVES, WIN_AT, GATES, THREAT, GUN, MUTATORS, CONTRACT_PAY, DIFF } from './sim.js';
 import { snd, wake } from './sound.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
@@ -19,7 +19,7 @@ const EN = {
   'm.h2': 'Every round starts with a buy phase. Each product does its real job: the rifle is endpoint protection, the firewall closes gates, Cyber Command is your radar.',
   'm.h3': 'Products have real limits too: worms start inside the firewall, a Zero-Day walks through it, APTs are invisible without Cyber Command.',
   'm.h4': 'Crates are cover. Crouch behind one and fire cannot reach you; jump onto one and worms cannot bite you. Jump over a Trojan shot to dodge it.',
-  'm.keys': 'Controls', 'm.k1': 'WASD move · mouse aim · click fire · right mouse aim down sights', 'm.k2': 'SPACE jump · C or SHIFT crouch · R reload · E defuse', 'm.k4': 'G grenade · X call MDR · P pause', 'm.k3': 'Touch: left thumb moves, right thumb aims, it fires when you are on target',
+  'm.keys': 'Controls', 'm.k1': 'WASD move · mouse aim · click fire · right mouse aim down sights', 'm.k2': 'SPACE jump · C or SHIFT crouch · E defuse · ammunition is unlimited', 'm.k4': 'G grenade · X call MDR · P pause', 'm.k3': 'Touch: left thumb moves, right thumb aims, it fires when you are on target',
   'm.play': 'PLAY', 'm.daily': 'DAILY OP', 'm.dailyD': 'One fixed operation per day, the same for everyone.', 'm.dailyBest': 'Your best today: {s}', 'm.board': 'Defender ranking', 'm.name': 'Callsign', 'm.medals': 'Medals', 'm.toNext': '{x} XP to {r}', 'm.maxRank': 'Top rank reached',
   'd.label': 'Difficulty', 'd.easy': 'Recruit', 'd.normal': 'Veteran', 'd.hard': 'Elite', 'd.easy.d': 'Threats hit softer. Score x0.7', 'd.normal.d': 'The intended fight. Score x1', 'd.hard.d': 'Threats hit harder and last longer. Score x1.5',
   'rk.0': 'Intern', 'rk.1': 'SOC Analyst', 'rk.2': 'Threat Hunter', 'rk.3': 'Incident Responder', 'rk.4': 'Security Architect', 'rk.5': 'CISO',
@@ -34,13 +34,13 @@ const EN = {
   'c.title': 'Contract', 'c.heads': 'Land {n} headshots', 'c.air': 'Kill a threat while airborne', 'c.multi': 'Chain a triple kill', 'c.fast': 'Kill the Ransomware carrier within 30 s', 'c.clean': 'Win the round taking under 30 damage', 'c.high': 'Get {n} kills standing on a crate', 'c.done': 'CONTRACT COMPLETE',
   'k.2': 'DOUBLE KILL', 'k.3': 'TRIPLE KILL', 'k.4': 'QUAD KILL', 'k.5': 'RAMPAGE', 'k.6': 'UNSTOPPABLE', 'k.head': 'HEADSHOT',
   'l.intel': 'Threat intel', 'l.patch': 'Hotfix applied', 'mk.bomb': 'DEFUSE', 'mk.drop': 'ENCRYPTOR', 'mk.carrier': 'CARRIER', 'mk.patch': 'HOTFIX',
-  'b.rec': 'RECOMMENDED', 'h.defend': 'DEFEND THE SITES', 'inv.jump': 'JUMP', 'inv.crouch': 'CROUCH', 'o.streak': 'Best streak', 'o.contracts': 'Contracts', 'o.xp': '+{x} XP', 'o.newMedal': 'New medal', 'o.rankUp': 'Promoted to {r}', 'o.daily': 'Daily Op',
+  'g.high': 'Graphics: high', 'g.low': 'Graphics: low', 'b.rec': 'RECOMMENDED', 'h.defend': 'DEFEND THE SITES', 'inv.jump': 'JUMP', 'inv.crouch': 'CROUCH', 'o.streak': 'Best streak', 'o.contracts': 'Contracts', 'o.xp': '+{x} XP', 'o.newMedal': 'New medal', 'o.rankUp': 'Promoted to {r}', 'o.daily': 'Daily Op',
   'h.round': 'ROUND {n}', 'h.threats': 'THREATS', 'h.buy': 'BUY PHASE', 'h.ready': 'READY', 'h.readyKey': 'ENTER', 'h.money': 'Funds', 'h.use': 'Hold E to defuse', 'h.useTouch': 'Hold DEFUSE', 'h.defusing': 'Defusing...',
   'h.sensors': '{n}/7 feeding it', 'h.snapshot': 'snapshot ready', 'h.failover': 'failover ready', 'h.oncall': 'on call', 'h.firstTo': 'first to {n}', 'h.paused': 'PAUSED', 'h.resume': 'Click to resume', 'h.quit': 'Quit match', 'h.click': 'Click to aim',
   'a.heading': 'Cyber Command: encryptor heading to SITE {s}', 'a.planting': 'Encryptor being planted at SITE {s}', 'a.planted': 'ENCRYPTOR PLANTED · SITE {s}', 'a.dropped': 'Encryptor dropped - they will come back for it',
   'gun.0': 'Endpoint Agent', 'gun.1': 'Endpoint Secure rifle', 'gun.2': 'Endpoint Secure rifle Mk-II', 'gun.3': 'Endpoint Secure rifle Mk-III', 'inv.nade': 'Access Denied', 'inv.mdr': 'Response team', 'inv.fire': 'FIRE', 'inv.defuse': 'DEFUSE',
   'role.EDR': 'PRIMARY · your weapon', 'role.AF': 'PERIMETER · closes gates', 'role.NDR': 'VISIBILITY · radar', 'role.XDR': 'CORRELATION · chain response', 'role.HCI': 'PLATFORM · armor', 'role.IAG': 'IDENTITY · grenade', 'role.ASTOR': 'BACKUP · single use', 'role.MDR': 'SERVICE · single call',
-  'b.EDR.1': 'Full-auto rifle, 30 rounds. Endpoint protection is where a threat is actually stopped, so it is the gun in your hands.', 'b.EDR.2': 'Rifle Mk-II: +25% damage, 35 rounds, faster reload.', 'b.EDR.3': 'Rifle Mk-III: hits harder and faster, and every kill isolates the host - a burst that hurts threats next to it.',
+  'b.EDR.1': 'Full-auto rifle with unlimited ammunition. Endpoint protection is where a threat is actually stopped, so it is the gun in your hands.', 'b.EDR.2': 'Rifle Mk-II: +25% damage and a scope when you aim.', 'b.EDR.3': 'Rifle Mk-III: hits harder and faster, and every kill isolates the host - a burst that hurts threats next to it.',
   'b.AF.1': 'One firewall on a gate you choose. Threats from the Internet have to go around; your own fire passes outbound.', 'b.AF.2': 'A second firewall: two gates closed, one lane left to hold.', 'b.AF.3': 'A third firewall, thicker, with IPS that zaps whatever attacks it.',
   'b.NDR.1': 'Every threat shows on your radar and cloaked APTs become visible. Without it you only see what is in front of you.', 'b.NDR.2': 'See threats through walls, and get told which site the encryptor is heading for.', 'b.NDR.3': 'Threat hunting: everything it tracks takes +30% damage.',
   'b.XDR.1': 'Each rifle kill arcs to 2 more threats that a sensor can see. Its power comes from your other products - alone it is weak.', 'b.XDR.2': 'The response arcs to 3 threats.', 'b.XDR.3': 'The response arcs to 4 threats.',
@@ -48,7 +48,7 @@ const EN = {
   'b.IAG.1': 'One Access Denied grenade per round: threats in the blast are locked out for 3.6 s.', 'b.IAG.2': 'Two grenades per round.', 'b.IAG.3': 'Three grenades and a wider blast.',
   'b.ASTOR.1': 'One snapshot. If the encryptor detonates, the site is restored and the round still counts as held. Used up when it fires.',
   'b.MDR.1': 'One call (X). Defuses a planted encryptor from anywhere - or, with nothing planted, stuns and damages every threat. Used up when called.',
-  'lim.AF': 'Limit: worms start inside, a Zero-Day walks through.', 'lim.IAG': 'Limit: APTs use stolen credentials and recover in ~1 s.', 'lim.XDR': 'Now: {n}/7 products feeding it (x{p} power).', 'lim.NDR': 'Limit: it shows threats, it does not stop them.', 'lim.ASTOR': 'Limit: pays less than a clean win.', 'lim.HCI': 'Limit: armor only halves damage.', 'lim.EDR': 'Limit: it only stops what you can hit.', 'lim.MDR': 'Limit: one call, then you must buy again.',
+  'lim.AF': 'Limit: worms start inside, a Zero-Day walks through.', 'lim.IAG': 'Limit: APTs use stolen credentials and recover in ~1 s.', 'lim.XDR': 'Now: {n}/7 products feeding it (x{p} power).', 'lim.NDR': 'Limit: it shows threats, it does not stop them.', 'lim.ASTOR': 'Limit: pays less than a clean win.', 'lim.HCI': 'Limit: armor only halves damage.', 'lim.EDR': 'Limit: it only stops what you can hit - long bursts spray.', 'lim.MDR': 'Limit: one call, then you must buy again.',
   'b.owned': 'OWNED', 'b.max': 'MAX', 'b.fw': 'Firewall policy', 'b.fwHint': 'Click a gate to move a firewall. {n}/{m} placed.', 'b.fwNone': 'Buy NGAF to close gates.', 'b.gateW': 'WEST', 'b.gateM': 'MID', 'b.gateE': 'EAST', 'b.intel': 'Round intel', 'b.next': 'Incoming',
   'i.1': 'A Ransomware carrier will try to plant an encryptor on Site A or B. Kill it, or defuse the encryptor before it detonates.', 'i.2': 'Worms spread from infected hosts INSIDE the network (the green vents). A perimeter firewall never sees them.', 'i.3': 'Trojans shoot back. APTs are cloaked snipers - watch for the red laser and break line of sight. Cyber Command uncloaks them.', 'i.4': 'A Zero-Day is coming. No signature exists for it, so it walks straight through firewalls.', 'i.5': 'A larger combined assault. Correlated response (XDR) pays off against crowds.', 'i.6': 'Two Zero-Days and three APTs. Hold nothing back.', 'i.7': 'Final round. Everything they have.',
   'th.phish': 'PHISH', 'th.worm': 'WORM', 'th.trojan': 'TROJAN', 'th.apt': 'APT', 'th.brute': 'ZERO-DAY', 'th.carrier': 'RANSOMWARE', 'th.denied': 'ACCESS DENIED', 'th.you': 'YOU', 'th.encryptor': 'Encryptor defused', 'th.restore': 'Site restored',
@@ -68,7 +68,7 @@ const ZH = {
   'm.h2': '每回合以购买阶段开始。每款产品都做它真正的本职：步枪就是终端防护，防火墙封闭闸门，Cyber Command 是你的雷达。',
   'm.h3': '产品也有真实的局限：蠕虫从防火墙内部发起，零日漏洞直接穿墙，没有 Cyber Command 就看不见 APT。',
   'm.h4': '货箱就是掩体。蹲在后面，火力打不到你；跳上去，蠕虫咬不到你。跳起来还能躲开木马的子弹。',
-  'm.keys': '操作', 'm.k1': 'WASD 移动 · 鼠标瞄准 · 点击开火 · 右键开镜', 'm.k2': '空格 跳跃 · C 或 SHIFT 下蹲 · R 换弹 · E 拆除', 'm.k4': 'G 手雷 · X 呼叫 MDR · P 暂停', 'm.k3': '触屏：左手移动，右手瞄准，准星对准目标时自动开火',
+  'm.keys': '操作', 'm.k1': 'WASD 移动 · 鼠标瞄准 · 点击开火 · 右键开镜', 'm.k2': '空格 跳跃 · C 或 SHIFT 下蹲 · E 拆除 · 弹药无限', 'm.k4': 'G 手雷 · X 呼叫 MDR · P 暂停', 'm.k3': '触屏：左手移动，右手瞄准，准星对准目标时自动开火',
   'm.play': '开始', 'm.daily': '每日行动', 'm.dailyD': '每天一场固定行动，所有人面对同一局。', 'm.dailyBest': '你今天的最佳：{s}', 'm.board': '防守者排行榜', 'm.name': '代号', 'm.medals': '勋章', 'm.toNext': '距离 {r} 还差 {x} XP', 'm.maxRank': '已达最高军衔',
   'd.label': '难度', 'd.easy': '新兵', 'd.normal': '老兵', 'd.hard': '精英', 'd.easy.d': '威胁伤害较低。得分 x0.7', 'd.normal.d': '标准强度。得分 x1', 'd.hard.d': '威胁更痛、更耐打。得分 x1.5',
   'rk.0': '实习生', 'rk.1': 'SOC 分析师', 'rk.2': '威胁猎手', 'rk.3': '应急响应专家', 'rk.4': '安全架构师', 'rk.5': 'CISO',
@@ -83,13 +83,13 @@ const ZH = {
   'c.title': '合约', 'c.heads': '完成 {n} 次爆头', 'c.air': '在空中击杀一个威胁', 'c.multi': '完成一次三连杀', 'c.fast': '30 秒内击杀勒索软件携带者', 'c.clean': '受到伤害低于 30 并赢下回合', 'c.high': '站在货箱上击杀 {n} 个', 'c.done': '合约完成',
   'k.2': '双杀', 'k.3': '三杀', 'k.4': '四杀', 'k.5': '大杀特杀', 'k.6': '势不可挡', 'k.head': '爆头',
   'l.intel': '威胁情报', 'l.patch': '热补丁已应用', 'mk.bomb': '拆除', 'mk.drop': '加密器', 'mk.carrier': '携带者', 'mk.patch': '热补丁',
-  'b.rec': '推荐', 'h.defend': '守住据点', 'inv.jump': '跳', 'inv.crouch': '蹲', 'o.streak': '最佳连杀', 'o.contracts': '合约', 'o.xp': '+{x} XP', 'o.newMedal': '新勋章', 'o.rankUp': '晋升为 {r}', 'o.daily': '每日行动',
+  'g.high': '画质：高', 'g.low': '画质：低', 'b.rec': '推荐', 'h.defend': '守住据点', 'inv.jump': '跳', 'inv.crouch': '蹲', 'o.streak': '最佳连杀', 'o.contracts': '合约', 'o.xp': '+{x} XP', 'o.newMedal': '新勋章', 'o.rankUp': '晋升为 {r}', 'o.daily': '每日行动',
   'h.round': '第 {n} 回合', 'h.threats': '威胁', 'h.buy': '购买阶段', 'h.ready': '准备就绪', 'h.readyKey': 'ENTER', 'h.money': '资金', 'h.use': '按住 E 拆除', 'h.useTouch': '按住“拆除”', 'h.defusing': '拆除中...',
   'h.sensors': '{n}/7 款为它供数', 'h.snapshot': '快照就绪', 'h.failover': '故障切换就绪', 'h.oncall': '待命', 'h.firstTo': '先赢 {n} 回合', 'h.paused': '已暂停', 'h.resume': '点击继续', 'h.quit': '退出对局', 'h.click': '点击开始瞄准',
   'a.heading': 'Cyber Command：加密器正前往 {s} 点', 'a.planting': '加密器正在 {s} 点安放', 'a.planted': '加密器已安放 · {s} 点', 'a.dropped': '加密器掉落——它们会回来捡',
   'gun.0': 'Endpoint Agent 手枪', 'gun.1': 'Endpoint Secure 步枪', 'gun.2': 'Endpoint Secure 步枪 Mk-II', 'gun.3': 'Endpoint Secure 步枪 Mk-III', 'inv.nade': '拒绝访问手雷', 'inv.mdr': '响应团队', 'inv.fire': '开火', 'inv.defuse': '拆除',
   'role.EDR': '主武器 · 你的枪', 'role.AF': '边界 · 封闭闸门', 'role.NDR': '可视化 · 雷达', 'role.XDR': '关联分析 · 连锁响应', 'role.HCI': '平台 · 护甲', 'role.IAG': '身份 · 手雷', 'role.ASTOR': '备份 · 一次性', 'role.MDR': '服务 · 单次呼叫',
-  'b.EDR.1': '全自动步枪，30 发。终端防护是真正拦下威胁的地方，所以它就是你手里的枪。', 'b.EDR.2': '步枪 Mk-II：伤害 +25%，35 发，换弹更快。', 'b.EDR.3': '步枪 Mk-III：伤害与射速更高，每次击杀都会隔离主机——爆发波及旁边的威胁。',
+  'b.EDR.1': '全自动步枪，弹药无限。终端防护是真正拦下威胁的地方，所以它就是你手里的枪。', 'b.EDR.2': '步枪 Mk-II：伤害 +25%，开镜时带瞄准镜。', 'b.EDR.3': '步枪 Mk-III：伤害与射速更高，每次击杀都会隔离主机——爆发波及旁边的威胁。',
   'b.AF.1': '在你选的一个闸门上部署一道防火墙。来自互联网的威胁只能绕路；你自己的火力可以向外穿过。', 'b.AF.2': '第二道防火墙：封住两个闸门，只剩一条通道要守。', 'b.AF.3': '第三道防火墙，更厚，并带有 IPS，会电击攻击它的威胁。',
   'b.NDR.1': '所有威胁都显示在雷达上，隐身的 APT 现形。没有它，你只能看到眼前的东西。', 'b.NDR.2': '透过墙壁看到威胁，并提示加密器正前往哪个据点。', 'b.NDR.3': '威胁狩猎：被它追踪的目标受到的伤害 +30%。',
   'b.XDR.1': '每次步枪击杀会连锁到另外 2 个被传感器看到的威胁。威力来自你的其他产品——单独使用很弱。', 'b.XDR.2': '响应连锁到 3 个威胁。', 'b.XDR.3': '响应连锁到 4 个威胁。',
@@ -97,7 +97,7 @@ const ZH = {
   'b.IAG.1': '每回合一枚“拒绝访问”手雷：爆炸范围内的威胁被锁定 3.6 秒。', 'b.IAG.2': '每回合两枚手雷。', 'b.IAG.3': '三枚手雷，范围更大。',
   'b.ASTOR.1': '一份快照。若加密器引爆，据点会被恢复，本回合仍算守住。触发后即消耗。',
   'b.MDR.1': '一次呼叫（X）。可在任何位置远程拆除已安放的加密器——若尚未安放，则眩晕并打击所有威胁。使用后即消耗。',
-  'lim.AF': '局限：蠕虫从内部发起，零日漏洞直接穿过。', 'lim.IAG': '局限：APT 使用窃取的凭据，约 1 秒就恢复。', 'lim.XDR': '当前：{n}/7 款产品为它供数（威力 x{p}）。', 'lim.NDR': '局限：它让你看见威胁，但不会阻止威胁。', 'lim.ASTOR': '局限：奖励低于干净的胜利。', 'lim.HCI': '局限：护甲只能减半伤害。', 'lim.EDR': '局限：只能拦下你打得中的目标。', 'lim.MDR': '局限：只有一次，用完需再次购买。',
+  'lim.AF': '局限：蠕虫从内部发起，零日漏洞直接穿过。', 'lim.IAG': '局限：APT 使用窃取的凭据，约 1 秒就恢复。', 'lim.XDR': '当前：{n}/7 款产品为它供数（威力 x{p}）。', 'lim.NDR': '局限：它让你看见威胁，但不会阻止威胁。', 'lim.ASTOR': '局限：奖励低于干净的胜利。', 'lim.HCI': '局限：护甲只能减半伤害。', 'lim.EDR': '局限：只能拦下你打得中的目标——长时间连射会散。', 'lim.MDR': '局限：只有一次，用完需再次购买。',
   'b.owned': '已拥有', 'b.max': '已满级', 'b.fw': '防火墙策略', 'b.fwHint': '点击闸门可移动防火墙。已部署 {n}/{m}。', 'b.fwNone': '购买 NGAF 才能封闭闸门。', 'b.gateW': '西', 'b.gateM': '中', 'b.gateE': '东', 'b.intel': '本回合情报', 'b.next': '来袭',
   'i.1': '勒索软件携带者会设法在 A 点或 B 点安放加密器。击杀它，或在引爆前拆除加密器。', 'i.2': '蠕虫从网络内部受感染的主机（绿色通风口）扩散。边界防火墙根本看不到它们。', 'i.3': '木马会还击。APT 是隐身狙击手——留意红色激光并切断视线。Cyber Command 能让它们现形。', 'i.4': '零日漏洞来袭。它没有任何特征库可匹配，会直接穿过防火墙。', 'i.5': '规模更大的联合进攻。面对成群的敌人，关联响应（XDR）最划算。', 'i.6': '两个零日漏洞加三个 APT。全力以赴。', 'i.7': '最终回合。它们倾巢而出。',
   'th.phish': '钓鱼', 'th.worm': '蠕虫', 'th.trojan': '木马', 'th.apt': 'APT', 'th.brute': '零日漏洞', 'th.carrier': '勒索软件', 'th.denied': '拒绝访问', 'th.you': '你', 'th.encryptor': '加密器已拆除', 'th.restore': '据点已恢复',
@@ -154,13 +154,13 @@ app.innerHTML = `
     <div class="cb-use" id="cbUse" hidden><span id="cbUseT"></span><div><i id="cbUseFill"></i></div></div>
     <div class="cb-vitals" id="cbVitals"></div>
     <div class="cb-inv" id="cbInv"></div>
-    <div class="cb-ammo"><div><b id="cbMag">0</b><span>/ ∞</span></div><small id="cbGun"></small><div class="cb-reload"><i id="cbReload"></i></div></div>
+    <div class="cb-ammo"><div><b id="cbMag">∞</b></div><small id="cbGun"></small><div class="cb-reload"><i id="cbReload"></i></div></div>
     <div class="cb-banner" id="cbBanner" hidden></div>
     <div class="cb-hint" id="cbHint" hidden></div>
     <div class="cb-touch" id="cbTouch" hidden>
       <div class="cb-stick" id="cbStick"><i></i></div>
       <button class="cb-tb fire" data-t="fire"></button><button class="cb-tb use" data-t="use" hidden></button>
-      <button class="cb-tb sm r" data-t="reload">R</button><button class="cb-tb sm g" data-t="nade">${MARK('IAG')}</button><button class="cb-tb sm x" data-t="mdr">${MARK('MDR')}</button>
+      <button class="cb-tb sm g" data-t="nade">${MARK('IAG')}</button><button class="cb-tb sm x" data-t="mdr">${MARK('MDR')}</button>
       <button class="cb-tb jump" data-t="jump"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 4l8 9h-5v7H9v-7H4z" fill="currentColor"/></svg></button><button class="cb-tb sm crouch" data-t="crouch"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 20l-8-9h5V4h6v7h5z" fill="currentColor"/></svg></button>
     </div>
     <button class="cb-pausebtn" id="cbPause" type="button" aria-label="Pause">II</button>
@@ -173,8 +173,12 @@ const el = Object.fromEntries(['cbCanvas', 'cbVig', 'cbDmg', 'cbHud', 'cbYou', '
 const paint = painter();
 let phase = 'menu', lastSummary = null, lastResult = null, lastGain = null, touchMode = false, H = null;
 
+// Graphics: 'high' adds soft shadows, zone lights and bloom. Phones and automated browsers start on 'low'; ?q= or the menu button overrides.
+const GFX_KEY = 'sentinel.counter.gfx.v1', qParam = new URLSearchParams(location.search).get('q');
+const autoQ = navigator.webdriver || (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 820) ? 'low' : 'high';
+const quality = qParam === 'low' || qParam === 'high' ? qParam : ['low', 'high'].includes(ls.get(GFX_KEY, '')) ? ls.get(GFX_KEY, '') : autoQ;
 const game = createCounterGame(el.cbCanvas, {
-  radar: el.cbRadar, label: k => t(k),
+  quality, radar: el.cbRadar, label: k => t(k),
   onHud: h => { H = h; if (phase === 'play') renderHud(h); },
   onFeed: f => { if (phase === 'play') pushFeed(f); },
   onToast: (k, kind) => { if (!k.startsWith('planted_')) toast(t('t.' + k), kind); },
@@ -242,7 +246,7 @@ function invHTML(h) {
   if (h.snap) s += row('', 'ASTOR', 'aStor', `<small>${esc(t('h.snapshot'))}</small>`, 'pas');
   if (h.mdr) s += row(touchMode ? '' : 'X', 'MDR', t('inv.mdr'), `<small>${esc(t('h.oncall'))}</small>`);
   if (h.lv.IAG) s += row(touchMode ? '' : 'G', 'IAG', t('inv.nade'), `<small>x${h.nades}</small>`, h.nades ? '' : 'empty');
-  s += row(touchMode ? '' : 'R', 'EDR', t('gun.' + h.lv.EDR), '', 'gun');
+  s += row('', 'EDR', t('gun.' + h.lv.EDR), '', 'gun');
   return s;
 }
 function renderHud(h) {
@@ -255,7 +259,7 @@ function renderHud(h) {
   el.cbMut.hidden = !(live && h.mut); if (live && h.mut) el.cbMut.textContent = t('mu.' + h.mut);
   paint(el.cbVitals, `<div class="v hp${h.hp <= 30 ? ' low' : ''}" style="--f:${Math.max(0, Math.min(100, h.hp))}%">${CROSS}<b>${h.hp}</b></div><div class="v ar${h.armor ? '' : ' off'}" style="--f:${Math.min(100, h.armor)}%">${MARK('HCI')}<b>${h.armor}</b></div>${h.failover ? `<div class="v fo">${esc(t('h.failover'))}</div>` : ''}`);
   paint(el.cbInv, invHTML(h));
-  el.cbMag.textContent = h.mag; el.cbMag.classList.toggle('low', h.mag <= h.magMax * .25); el.cbGun.textContent = t('gun.' + h.lv.EDR); el.cbReload.style.width = h.reload >= 0 ? (h.reload * 100) + '%' : '0';
+  el.cbGun.textContent = t('gun.' + h.lv.EDR); { const k = Math.min(1, h.bloom / .075); el.cbReload.style.width = (k * 100).toFixed(0) + '%'; el.cbReload.classList.toggle('hot', k > .6); }
   const gap = 5 + h.bloom * 420; el.cbCross.style.setProperty('--gap', gap.toFixed(1) + 'px');
   let alert = '', cls = '';
   if (h.phase === 'live') {
@@ -318,7 +322,7 @@ el.cbBuy.addEventListener('click', e => {
 });
 
 // ---------- menus ----------
-function footer() { return `<div class="cb-foot"><span class="more">${esc(t('ui.more'))}: ${LINKS.map(l => `<a href="${l.href}">${esc(l.label)}</a>`).join('')}</span><span><button class="cb-ico" data-act="mute" title="${esc(t('ui.mute'))}" type="button">${soundIco(isMuted())}</button><button class="cb-ico txt" data-act="lang" type="button">${esc(t('ui.lang'))}</button></span></div>`; }
+function footer() { return `<div class="cb-foot"><span class="more">${esc(t('ui.more'))}: ${LINKS.map(l => `<a href="${l.href}">${esc(l.label)}</a>`).join('')}</span><span><button class="cb-ico" data-act="mute" title="${esc(t('ui.mute'))}" type="button">${soundIco(isMuted())}</button><button class="cb-ico txt" data-act="gfx" type="button">${esc(t('g.' + game.quality))}</button><button class="cb-ico txt" data-act="lang" type="button">${esc(t('ui.lang'))}</button></span></div>`; }
 function boardBlock(b, meId) {
   const rows = b.rows?.length ? b.rows.slice(0, 6).map(r => `<li class="${r.id === meId ? 'me' : ''}"><i>${rankOf(b.rows, r.score)}</i><span>${esc(r.name)}</span><b>${fmt(r.score)}</b></li>`).join('') : `<li class="empty">${esc(t('ui.empty'))}</li>`;
   return `<div class="cb-board"><h4>${esc(t('m.board'))}<em>${esc(b.mode === 'world' ? t('ui.world') : t('ui.local'))}</em></h4><ol>${rows}</ol></div>`;
@@ -388,6 +392,7 @@ el.cbOverlay.addEventListener('click', e => {
   const df = e.target.closest('[data-diff]')?.dataset.diff; if (df && DIFF[df]) { diff = df; ls.set(DIFF_KEY, df); const nm = $('nameIn')?.value; if (nm != null) ls.set(NAME_KEY, nm.trim()); showMenu(); return; }
   if (!act) return;
   if (act === 'play') play(false); else if (act === 'daily') play(true); else if (act === 'again') play(); else if (act === 'quit') showMenu(); else if (act === 'resume') resume();
+  else if (act === 'gfx') { ls.set(GFX_KEY, game.quality === 'high' ? 'low' : 'high'); const u = new URL(location.href); u.searchParams.delete('q'); location.replace(u); }
   else if (act === 'lang') { i18n.toggleLang(); rerender(); } else if (act === 'mute') { setMuted(!isMuted()); rerender(); }
 });
 el.cbPause.addEventListener('click', pause);
