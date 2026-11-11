@@ -59,11 +59,11 @@ export function zoneOf(x, z) {
   return c <= 7 ? 'backA' : c >= 15 ? 'backB' : 'soc';
 }
 
-export const LEVELED = ['EDR', 'AF', 'NDR', 'XDR', 'HCI', 'IAG'];
+export const LEVELED = ['EDR', 'AF', 'NDR', 'XDR', 'HCI', 'IAG', 'SASE'];
 export const PRODUCTS = [...LEVELED, 'ASTOR', 'MDR'];
 export const MAXLV = 3;
-export const PRICE = { EDR: [1500, 2400, 3300], AF: [1200, 1800, 2600], NDR: [900, 1700, 2500], XDR: [1600, 2200, 2800], HCI: [900, 1500, 2600], IAG: [700, 1100, 1700], ASTOR: 2200, MDR: 1800 };
-export const COLOR = { EDR: '#49c7a0', AF: '#ff8a3c', NDR: '#4aa8ff', XDR: '#b58cff', HCI: '#f2c14e', IAG: '#5fd4e8', ASTOR: '#8fd16a', MDR: '#ff5d6c' };
+export const PRICE = { EDR: [1500, 2400, 3300], AF: [1200, 1800, 2600], NDR: [900, 1700, 2500], XDR: [1600, 2200, 2800], HCI: [900, 1500, 2600], IAG: [700, 1100, 1700], SASE: [900, 1300, 1800], ASTOR: 2200, MDR: 1800 };
+export const COLOR = { EDR: '#49c7a0', AF: '#ff8a3c', NDR: '#4aa8ff', XDR: '#b58cff', HCI: '#f2c14e', IAG: '#5fd4e8', SASE: '#ff8fd0', ASTOR: '#8fd16a', MDR: '#ff5d6c' };
 // Lv0 is the free Endpoint Agent sidearm; buying Endpoint Secure upgrades the gun itself.
 // Ammunition is unlimited and there is no reload: what limits sustained fire is spread (bloom).
 export const GUN = [
@@ -73,6 +73,11 @@ export const GUN = [
   { dmg: 34, rate: 10.5 },
 ];
 export const ARMOR = [0, 50, 100, 100];
+// Access Secure (SASE): secure access from anywhere, so it moves YOU. Two points of presence
+// behind the sites; T jumps to the one the fight needs. Cooldown per level.
+export const SASE_CD = [0, 28, 18, 10];
+export const POPS = { A: { c: 4, r: 16 }, B: { c: 18, r: 16 } };
+for (const k in POPS) { POPS[k].x = (POPS[k].c - 11) * 2; POPS[k].z = (POPS[k].r - 11) * 2; }
 export const WALL_HP = [0, 520, 520, 760];
 export const THREAT = {
   phish: { hp: 60, sp: 3.5, r: .42, h: 1.75, melee: 15, cd: .8, reward: 100, bash: 30, color: '#ff9a3c' },
@@ -112,7 +117,7 @@ const WALL_COST = 30, PR = .38;
 
 function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 // XDR correlates what the other products see: weak alone, stronger with every one you own.
-export function xdrSensors(S) { return ['EDR', 'AF', 'NDR', 'HCI', 'IAG'].reduce((n, id) => n + (S.lv[id] > 0 ? 1 : 0), 0) + (S.snap > 0 ? 1 : 0) + (S.mdr > 0 ? 1 : 0); }
+export function xdrSensors(S) { return ['EDR', 'AF', 'NDR', 'HCI', 'IAG', 'SASE'].reduce((n, id) => n + (S.lv[id] > 0 ? 1 : 0), 0) + (S.snap > 0 ? 1 : 0) + (S.mdr > 0 ? 1 : 0); }
 export const xdrPower = S => .5 + .25 * xdrSensors(S);
 
 export function createSim(opts = {}) {
@@ -189,10 +194,10 @@ export function createSim(opts = {}) {
     rnd = mulberry(seed); uid = 1; cache.clear(); const diff = DIFF[o.diff] ? o.diff : 'normal';
     Object.assign(S, {
       phase: 'buy', seed, diff, dk: DIFF[diff], mut: null, contract: null, loot: [], streakN: 0, streakT: -9, maxStreak: 0, airKills: 0, flawless: 0, contractsDone: 0, defuses: 0, t: 0, round: 1, you: 0, them: 0, money: TUNE.startMoney, score: 0, lossStreak: 0, feedN: 0,
-      lv: { EDR: 0, AF: 0, NDR: 0, XDR: 0, HCI: 0, IAG: 0 }, snap: 0, mdr: 0, gateSel: [false, false, false],
+      lv: { EDR: 0, AF: 0, NDR: 0, XDR: 0, HCI: 0, IAG: 0, SASE: 0 }, snap: 0, mdr: 0, gateSel: [false, false, false],
       kills: 0, heads: 0, shotsFired: 0, shotsHit: 0, history: [], last: null, hurtRound: 0,
-      stats: { EDR: { kills: 0 }, XDR: { kills: 0 }, MDR: { kills: 0, defuses: 0 }, AF: { kills: 0, blocked: 0 }, IAG: { stuns: 0 }, HCI: { absorbed: 0, failovers: 0 }, ASTOR: { restores: 0 }, NDR: { revealed: 0 } },
-      p: { x: 0, z: 0, yaw: 0, pitch: 0, hp: 100, armor: 0, fireCd: 0, bloom: 0, inv: 0, nades: 0, failover: false, useT: 0, moving: 0, kick: 0, alive: true, y: 0, vy: 0, ground: true, crouch: 0, ads: 0, eye: EYE },
+      stats: { EDR: { kills: 0 }, XDR: { kills: 0 }, MDR: { kills: 0, defuses: 0 }, AF: { kills: 0, blocked: 0 }, IAG: { stuns: 0 }, HCI: { absorbed: 0, failovers: 0, healed: 0 }, SASE: { warps: 0 }, ASTOR: { restores: 0 }, NDR: { revealed: 0 } },
+      p: { x: 0, z: 0, yaw: 0, pitch: 0, hp: 100, armor: 0, fireCd: 0, bloom: 0, inv: 0, nades: 0, failover: false, useT: 0, moving: 0, kick: 0, alive: true, warpCd: 0, hurtT: 9, y: 0, vy: 0, ground: true, crouch: 0, ads: 0, eye: EYE },
       threats: [], queue: [], shots: [], nades: [], walls: [], bomb: { state: 'none' }, fx: [], aptWarned: false, aptCredWarned: false, total: 0, buyT: TUNE.buySeconds, roundT: 0, endT: 0,
     });
     startBuy(true); return S;
@@ -211,7 +216,7 @@ export function createSim(opts = {}) {
   function startRound() {
     if (S.phase !== 'buy') return;
     S.phase = 'live'; S.roundT = TUNE.roundSeconds; S.hurtRound = 0; S.fx.length = 0;
-    const p = S.p; p.hp = 100; p.armor = ARMOR[S.lv.HCI]; p.fireCd = .25; p.bloom = 0; p.inv = 0; p.nades = S.lv.IAG; p.failover = false; p.useT = 0; p.alive = true;
+    const p = S.p; p.hp = 100; p.armor = ARMOR[S.lv.HCI]; p.fireCd = .25; p.bloom = 0; p.inv = 0; p.warpCd = 0; p.hurtT = 9; p.nades = S.lv.IAG; p.failover = false; p.useT = 0; p.alive = true;
     // firewalls go up on the gates chosen in the buy menu
     S.walls = []; wallOn.fill(-1);
     GATES.forEach((g, i) => { if (S.gateSel[i] && S.walls.length < S.lv.AF) { S.walls.push({ gate: i, hp: WALL_HP[S.lv.AF] * (S.mut === 'ddos' ? .5 : 1), max: WALL_HP[S.lv.AF], flash: 0, zapT: 0 }); wallOn[idx(g.c, g.r)] = i; } });
@@ -278,7 +283,7 @@ export function createSim(opts = {}) {
   function hurt(d, x, z, by) {
     const p = S.p; if (!p.alive || p.inv > 0 || S.phase !== 'live') return;
     d *= TUNE.enemyDmg * S.dk.dmg; if (p.armor > 0) { const a = Math.min(p.armor, d * .5); p.armor -= a; d -= a; S.stats.HCI.absorbed += a; }
-    p.hp -= d; S.hurtRound += d; fx('hurt', { x, z, d }); sfx('wrong');
+    p.hp -= d; p.hurtT = 0; S.hurtRound += d; fx('hurt', { x, z, d }); sfx('wrong');
     if (p.hp <= 0) {
       if (S.lv.HCI >= 3 && !p.failover) { p.failover = true; p.hp = 60; p.inv = 1.6; S.stats.HCI.failovers++; fx('failover', {}); toast('failover', 'good'); sfx('ability'); return; }
       p.hp = 0; p.alive = false; feed({ a: by, v: 'you', bad: true }); endRound('down');
@@ -334,6 +339,14 @@ export function createSim(opts = {}) {
     const R = S.lv.IAG >= 3 ? 7 : 5.2; let n = 0;
     for (const th of S.threats) if (!th.dead && th.spawnT <= 0 && Math.hypot(th.x - x, th.z - z) < R && los(x, z, th.x, th.z)) { th.stun = Math.max(th.stun, th.type === 'apt' ? 1.2 : th.type === 'brute' ? 1.5 : 3.6); th.aim = 0; n++; }
     S.stats.IAG.stuns += n; fx('stun', { x, z, r: R, n }); sfx('ability'); if (n && S.threats.some(th => th.type === 'apt' && th.stun > 0 && th.stun <= 1.2) && !S.aptCredWarned) { S.aptCredWarned = true; toast('aptCreds', ''); }
+  }
+  function warp() { // Access Secure: jump to the point of presence the fight needs
+    const p = S.p; if (!S.lv.SASE || S.phase !== 'live' || !p.alive || p.useT > 0) return false; if (p.warpCd > 0) { fx('deny', {}); return false; }
+    const b = S.bomb, d2 = (o, q) => Math.hypot(o.x - q.x, o.z - q.z), objective = b.state === 'planted' || b.state === 'dropped';
+    const dest = objective ? (d2(POPS.A, b) <= d2(POPS.B, b) ? 'A' : 'B') : (d2(POPS.A, p) >= d2(POPS.B, p) ? 'A' : 'B'), to = POPS[dest];
+    if (d2(to, p) < 6) { fx('deny', {}); toast('warpNear', ''); return false; }
+    const look = objective ? b : SITES[dest]; fx('warp', { x0: p.x, z0: p.z, x1: to.x, z1: to.z, lx: look.x, lz: look.z });
+    p.x = to.x; p.z = to.z; p.y = 0; p.vy = 0; p.ground = true; p.inv = Math.max(p.inv, .6); p.warpCd = SASE_CD[S.lv.SASE]; S.stats.SASE.warps++; return true;
   }
   function callMdr() {
     if (!S.mdr || S.phase !== 'live') return false; S.mdr = 0; fx('mdr', {}); sfx('ability');
@@ -425,7 +438,9 @@ export function createSim(opts = {}) {
       p.inv = Math.max(0, p.inv - dt); p.fireCd -= dt; p.bloom = Math.max(0, p.bloom - dt * .11); p.kick = Math.max(0, p.kick - dt * 9);
       const g = GUN[S.lv.EDR];
       if (inp.fire && p.fireCd <= 0 && !defusing) shoot();
-      if (inp.nade) throwNade(); if (inp.mdr) callMdr();
+      if (inp.nade) throwNade(); if (inp.mdr) callMdr(); if (inp.warp) warp(); p.warpCd = Math.max(0, p.warpCd - dt);
+      // HCI lv2+: the cluster self-heals - armor comes back after 4 s without taking a hit
+      p.hurtT += dt; if (S.lv.HCI >= 2 && p.hurtT > 4 && p.armor < ARMOR[S.lv.HCI]) { const a = Math.min(ARMOR[S.lv.HCI] - p.armor, 7 * dt); p.armor += a; S.stats.HCI.healed += a; }
       if (S.phase !== 'live') { hud(); return; }
     }
     // --- spawns
@@ -470,8 +485,8 @@ export function createSim(opts = {}) {
       phase: S.phase, round: S.round, you: S.you, them: S.them, money: S.money, score: S.score, hp: Math.ceil(p.hp), armor: Math.ceil(p.armor),
       nades: p.nades, mdr: S.mdr, snap: S.snap, lv: S.lv, gateSel: S.gateSel, walls: S.walls.map(w => ({ gate: w.gate, frac: Math.max(0, w.hp / w.max), down: !!w.down })),
       timer: S.phase === 'buy' ? S.buyT : b.state === 'planted' ? b.t : S.roundT, bomb: b.state, site: b.site, siteKnown: S.lv.NDR >= 2 || b.state === 'planted', plantFrac: b.state === 'carried' ? (b.plantT || 0) / plantTime() : 0,
-      near, defuse: p.useT / TUNE.defuse, alive: S.threats.length + S.queue.length, total: S.total || 0, last: S.last, zone: zoneOf(p.x, p.z), sensors: xdrSensors(S), bloom: spreadOf(p), air: !p.ground, crouch: p.crouch > .5, ads: p.ads, mut: S.mut, contract: S.contract, streak: S.t - S.streakT < 3.2 ? S.streakN : 0, diff: S.diff, failover: S.lv.HCI >= 3 && !p.failover, kills: S.kills,
+      near, defuse: p.useT / TUNE.defuse, alive: S.threats.length + S.queue.length, total: S.total || 0, last: S.last, zone: zoneOf(p.x, p.z), sensors: xdrSensors(S), bloom: spreadOf(p), warp: S.lv.SASE ? { cd: p.warpCd, max: SASE_CD[S.lv.SASE] } : null, air: !p.ground, crouch: p.crouch > .5, ads: p.ads, mut: S.mut, contract: S.contract, streak: S.t - S.streakT < 3.2 ? S.streakN : 0, diff: S.diff, failover: S.lv.HCI >= 3 && !p.failover, kills: S.kills,
     };
   }
-  return { S, reset, step, buy, toggleGate, ready: startRound, priceOf, nav, los, los3, ray, ray3, progress, hudState, callMdr, endRound, kill, damage, hurt, spawn, wallAt: i => wallOn[i] };
+  return { S, reset, step, buy, toggleGate, ready: startRound, priceOf, nav, los, los3, ray, ray3, progress, warp, hudState, callMdr, endRound, kill, damage, hurt, spawn, wallAt: i => wallOn[i] };
 }

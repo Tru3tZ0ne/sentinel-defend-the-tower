@@ -45,6 +45,7 @@ export const snd = {
   go() { tone('square', 660, 660, .08, .2); tone('square', 990, 990, .14, .22, .12); },
   tick() { tone('square', 1000, 1000, .03, .12); },
   step() { noise(.04, .1, 300); },
+  warp() { tone('sine', 300, 1800, .22, .3); noise(.3, .4, 3000, 1, 'bandpass'); tone('triangle', 1800, 900, .25, .22, .2); },
   jump() { noise(.07, .16, 500); tone('sine', 190, 300, .09, .1); },
   land() { noise(.09, .32, 240); tone('sine', 120, 60, .1, .2); },
   pickup() { tone('sine', 990, 1480, .08, .28); tone('sine', 1480, 1980, .12, .24, .07); },

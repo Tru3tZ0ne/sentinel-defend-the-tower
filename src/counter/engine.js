@@ -6,7 +6,7 @@
 // map for the menu and the buy phase and drops into the player's eyes for the round.
 
 import * as THREE from 'three';
-import { createSim, COLS, ROWS, CELL, cx, cz, idx, SOLID, RACK, CRATE, CRATE_H, SITES, GATES, VENTS, THREAT, EYE, COLOR } from './sim.js';
+import { createSim, COLS, ROWS, CELL, cx, cz, idx, SOLID, RACK, CRATE, CRATE_H, SITES, GATES, VENTS, THREAT, EYE, COLOR, POPS } from './sim.js';
 import { PRODUCT_MARKS } from '../ui/product-marks.js';
 import { snd, wake } from './sound.js';
 import { EffectComposer } from '../../vendor/three/addons/postprocessing/EffectComposer.js';
@@ -136,6 +136,11 @@ export function createCounterGame(canvas, opts = {}) {
   const steel = new THREE.MeshStandardMaterial({ color: 0x1d2128, roughness: .42, metalness: .8 });
   { const geos = [], glowG = []; for (const g of GATES) { for (const sx of [-1, 1]) geos.push(B(.16, WALLH, .62, g.x + sx * .92, WALLH / 2, g.z)); geos.push(B(CELL, .55, .62, g.x, WALLH - .275, g.z)); glowG.push(B(CELL - .5, .07, .66, g.x, WALLH - .6, g.z)); for (const sx of [-1, 1]) glowG.push(B(.05, WALLH - .9, .66, g.x + sx * .82, (WALLH - .9) / 2 + .1, g.z)); }
     scene.add(shade(new THREE.Mesh(merge(geos), steel))); const gm = new THREE.MeshBasicMaterial(); gm.color.setRGB(2.4, 1.1, .35); scene.add(new THREE.Mesh(merge(glowG), gm)); }
+  const popPads = Object.values(POPS).map(o => { // Access Secure points of presence
+    const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ transparent: true, opacity: .9, depthWrite: false, side: THREE.DoubleSide }); m.color.set(COLOR.SASE);
+    const r1 = new THREE.Mesh(new THREE.RingGeometry(.72, .82, 40), m), r2 = new THREE.Mesh(new THREE.RingGeometry(.36, .42, 6), m); r1.rotation.x = r2.rotation.x = -H; r1.position.y = .03; r2.position.y = .035;
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(.78, .78, 2.4, 28, 1, true), glow(COLOR.SASE, .1)); col.position.y = 1.2; g.add(r1, r2, col, new THREE.Mesh(B(1.9, .05, 1.9, 0, .012, 0), steel)); g.position.set(o.x, 0, o.z); scene.add(g); return { g, r2, col };
+  });
   const overhead = new THREE.Group(); scene.add(overhead);
   { const beams = [], bars = [], Y = WALLH + 1.5; for (let r = 2; r < ROWS; r += 3) { beams.push(B(COLS * CELL, .16, .22, 0, Y, cz(r)), B(COLS * CELL, .06, .5, 0, Y - .28, cz(r))); for (let c = 2; c < COLS; c += 4) { bars.push(B(2.4, .06, .3, cx(c), Y - .34, cz(r))); beams.push(B(.05, .3, .05, cx(c) - 1, Y - .15, cz(r)), B(.05, .3, .05, cx(c) + 1, Y - .15, cz(r))); } }
     for (let c = 1; c < COLS; c += 5) beams.push(B(.2, .14, ROWS * CELL, cx(c), Y + .14, 0));
@@ -226,7 +231,7 @@ export function createCounterGame(canvas, opts = {}) {
   let vmKick = 0, vmFlash = 0, bobT = 0, stepT = 0, shake = 0, deathT = 0;
 
   // ---------- input ----------
-  const keys = new Set(); let yaw = 0, pitch = 0, fire = false, useHeld = false, assist = false, locked = false; const edge = { reload: false, nade: false, mdr: false, jump: false }; const tmove = { x: 0, y: 0 }; let ads = false, tCrouch = false, fovK = 1, landDip = 0, baseFov = 74;
+  const keys = new Set(); let yaw = 0, pitch = 0, fire = false, useHeld = false, assist = false, locked = false; const edge = { reload: false, nade: false, mdr: false, jump: false, warp: false }; const tmove = { x: 0, y: 0 }; let ads = false, tCrouch = false, fovK = 1, landDip = 0, baseFov = 74;
   const canLock = () => !assist && !navigator.webdriver && canvas.requestPointerLock; // automated browsers stall on a pending lock
   function lock() { if (canLock() && document.pointerLockElement !== canvas) { try { const pr = canvas.requestPointerLock(); pr?.catch?.(() => {}); } catch { /* ignore */ } } }
   function unlock() { if (document.pointerLockElement === canvas) document.exitPointerLock?.(); }
@@ -234,7 +239,7 @@ export function createCounterGame(canvas, opts = {}) {
   function look(dx, dy, sens = .0022) { if (!live() || !S.p.alive) return; const k = (assist && onTarget() ? .55 : 1) * fovK; yaw = wrap(yaw - dx * sens * k); pitch = clamp(pitch - dy * sens * k, -1.25, 1.25); }
   const onKey = (e, down) => {
     if (e.target?.tagName === 'INPUT') return; const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-    if (down) { if (e.repeat) return; keys.add(k); if (live()) { if (k === 'g' || k === 'q') edge.nade = true; else if (k === 'x') edge.mdr = true; else if (k === ' ') edge.jump = true; if (k === ' ' || k.startsWith('Arrow') || k === 'Tab') e.preventDefault(); } } else keys.delete(k);
+    if (down) { if (e.repeat) return; keys.add(k); if (live()) { if (k === 'g' || k === 'q') edge.nade = true; else if (k === 'x') edge.mdr = true; else if (k === 't') edge.warp = true; else if (k === ' ') edge.jump = true; if (k === ' ' || k.startsWith('Arrow') || k === 'Tab') e.preventDefault(); } } else keys.delete(k);
   };
   const kd = e => onKey(e, true), ku = e => onKey(e, false), blur = () => { keys.clear(); fire = false; ads = false; };
   const mm = e => { if (locked) look(e.movementX, e.movementY); else if (dragging && !assist) look(e.movementX * 1.6, e.movementY * 1.6); };
@@ -264,6 +269,7 @@ export function createCounterGame(canvas, opts = {}) {
     const walls = S.phase === 'live' ? S.walls.filter(w => !w.down).map(w => w.gate) : []; rg.fillStyle = '#ff8a3c'; for (const i of walls) rg.fillRect(GATES[i].x - 1, GATES[i].z - .35, 2, .7);
     const b = S.bomb, blink = Math.sin(t * 9) > 0;
     for (const th of S.threats) { if (th.spawnT > 0) continue; const known = S.lv.NDR > 0 || (th.see && !th.cloak); if (!known) continue; const car = b.state === 'carried' && b.carrier === th.id; rg.fillStyle = car ? (blink ? '#fff' : '#ff3030') : th.type === 'brute' ? '#ff4055' : '#ff5a5a'; rg.beginPath(); rg.arc(th.x, th.z, car || th.type === 'brute' ? 1.05 : .72, 0, 6.283); rg.fill(); }
+    if (S.lv?.SASE) { rg.strokeStyle = COLOR.SASE; rg.lineWidth = .35; for (const k in POPS) { rg.beginPath(); rg.arc(POPS[k].x, POPS[k].z, .9, 0, 6.283); rg.stroke(); } }
     for (const l of S.loot || []) { rg.fillStyle = l.kind === 'patch' ? '#5dff8a' : '#6fe6ff'; rg.fillRect(l.x - .5, l.z - .5, 1, 1); }
     if (b.state === 'planted' || b.state === 'dropped') { rg.fillStyle = blink ? '#ff3030' : '#ffd0d0'; rg.fillRect(b.x - .9, b.z - .9, 1.8, 1.8); }
     rg.restore(); rg.save(); rg.translate(R, R); rg.fillStyle = 'rgba(255,255,255,.1)'; rg.beginPath(); rg.moveTo(0, 0); rg.arc(0, 0, R, -H - .6, -H + .6); rg.fill();
@@ -295,6 +301,9 @@ export function createCounterGame(canvas, opts = {}) {
       case 'failover': ev('flash', COLOR.HCI); ring(p.x, p.z, 5, COLOR.HCI, .6); break;
       case 'round': lastRound = f.n; ev('round', f); break;
       case 'jump': snd.jump(); break;
+      case 'warp': for (const [x, z] of [[f.x0, f.z0], [f.x1, f.z1]]) { ring(x, z, 3.2, COLOR.SASE, .6); ring(x, z, 1.6, 0xffffff, .45); burst(x, 1, z, COLOR.SASE, 46, 5, 4); } beam(f.x0, 1, f.z0, f.x0, 14, f.z0, COLOR.SASE, .25, .45); beam(f.x1, 14, f.z1, f.x1, 0, f.z1, COLOR.SASE, .25, .55);
+        yaw = Math.atan2(-(f.lx - f.x1), -(f.lz - f.z1)); pitch = 0; ev('flash', COLOR.SASE); snd.warp(); break;
+      case 'deny': snd.deny(); break;
       case 'land': landDip = Math.min(1, f.v / 9); snd.land(); break;
       case 'loot': burst(f.x, .8, f.z, f.kind === 'patch' ? 0x5dff8a : 0x6fe6ff, 18, 3, 3); snd.pickup(); ev('loot', f); break;
       case 'streak': snd.streak(f.n); ev('streak', f); break;
@@ -306,9 +315,10 @@ export function createCounterGame(canvas, opts = {}) {
     S.fx.length = 0;
   }
   function project(x, y, z) { _v.set(x, y, z).applyMatrix4(camera.matrixWorldInverse); const cxs = _v.x, czs = _v.z, behind = _v.z > -.1; _v.applyMatrix4(camera.projectionMatrix); return { x: _v.x, y: _v.y, behind, bearing: Math.atan2(cxs, -czs) }; }
-  function marker(list, kind, x, y, z) { // screen-space pointer to an objective; clamps to an ellipse when it is off screen
+  function marker(list, kind, x, y, z, key = kind) { // screen-space pointer to an objective; clamps to an ellipse when it is off screen
     const p = S.p, q = project(x, y, z), off = q.behind || Math.abs(q.x) > .86 || Math.abs(q.y) > .8;
-    list.push({ kind, off, dist: Math.hypot(x - p.x, z - p.z), rot: q.bearing, x: off ? .5 + Math.sin(q.bearing) * .4 : q.x * .5 + .5, y: off ? .5 - Math.cos(q.bearing) * .36 : .5 - q.y * .5 });
+    if (kind === 'th' && !off) return;
+    list.push({ kind, key, off, dist: Math.hypot(x - p.x, z - p.z), rot: q.bearing, x: off ? .5 + Math.sin(q.bearing) * .4 : q.x * .5 + .5, y: off ? .5 - Math.cos(q.bearing) * .36 : .5 - q.y * .5 });
   }
   function syncThreats(dt) {
     const seen = new Set(), p = S.p;
@@ -364,7 +374,9 @@ export function createCounterGame(canvas, opts = {}) {
     camera.position.lerpVectors(ovPos, camPos, fpBlend); camera.quaternion.slerpQuaternions(ovQ, camQ, fpBlend);
     { const lvE = S.lv?.EDR || 0, z = inRound && p.alive ? (p.ads || 0) * (lvE >= 2 ? .44 : lvE ? .3 : .16) : 0, k = 1 - z; if (Math.abs(k - fovK) > .001) { fovK = k; camera.fov = baseFov * k; camera.updateProjectionMatrix(); } }
     camera.updateMatrixWorld(); camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
-    if (opts.onMarkers) { const list = []; if (inRound && fpBlend > .95 && phase === 'live') { const b = S.bomb; if (b.state === 'planted') marker(list, 'bomb', b.x, .6, b.z); else if (b.state === 'dropped') marker(list, 'drop', b.x, .6, b.z); else if (b.state === 'carried') { const c = S.threats.find(th => th.id === b.carrier); if (c && c.spawnT <= 0 && (S.lv.NDR >= 2 || (c.see && !c.cloak))) marker(list, 'carrier', c.x, c.h + .9, c.z); } if (p.hp < 60) for (const l of S.loot) if (l.kind === 'patch') marker(list, 'patch', l.x, 1, l.z); } opts.onMarkers(list); }
+    if (opts.onMarkers) { const list = []; if (inRound && fpBlend > .95 && phase === 'live') { const b = S.bomb; if (b.state === 'planted') marker(list, 'bomb', b.x, .6, b.z); else if (b.state === 'dropped') marker(list, 'drop', b.x, .6, b.z); else if (b.state === 'carried') { const c = S.threats.find(th => th.id === b.carrier); if (c && c.spawnT <= 0 && (S.lv.NDR >= 2 || (c.see && !c.cloak))) marker(list, 'carrier', c.x, c.h + .9, c.z); } if (p.hp < 60) for (const l of S.loot) if (l.kind === 'patch') marker(list, 'patch', l.x, 1, l.z);
+      if (S.lv.NDR >= 1) { let n = 0; for (const th of S.threats.slice().sort((a, c) => a.dist - c.dist)) { if (n >= 5 || th.dist > 15) break; if (th.spawnT > 0 || th.id === b.carrier) continue; const before = list.length; marker(list, 'th', th.x, th.h * .6, th.z, 'th' + n); if (list.length > before) n++; } } } opts.onMarkers(list); }
+    for (const o of popPads) { const own = shell !== 'menu' && S.lv?.SASE > 0, rdy = own && (S.p.warpCd || 0) <= 0; o.r2.rotation.z = time * (rdy ? 1.6 : .3); o.col.visible = own; o.col.material.opacity = rdy ? .1 + Math.sin(time * 3) * .04 : .03; }
     overhead.visible = fpBlend > .55; mLight.intensity = vmFlash > 0 && inRound ? 26 : 0; if (mLight.intensity) mLight.position.set(p.x - Math.sin(yaw) * .7, (p.eye ?? EYE) - .1, p.z - Math.cos(yaw) * .7);
     for (const s of signs) if (s.sp) s.sp.material.opacity = 1 - fpBlend * .35;
     scene.fog.near = 34 + (1 - fpBlend) * 60; scene.fog.far = 92 + (1 - fpBlend) * 120;
@@ -380,7 +392,7 @@ export function createCounterGame(canvas, opts = {}) {
   function inputs() {
     const p = S.p, k = c => (keys.has(c) ? 1 : 0); let mx = k('d') + k('ArrowRight') - k('a') - k('ArrowLeft') + tmove.x, mz = k('w') + k('ArrowUp') - k('s') - k('ArrowDown') - tmove.y, f = fire;
     if (assist && live()) { const t = onTarget(); if (t) f = true; else { const a = assistTarget(); if (a) { const want = Math.atan2(-(a.x - p.x), -(a.z - p.z)); yaw = wrap(yaw + wrap(want - yaw) * .06); } } const tt = t || assistTarget(); if (tt) { const wp = Math.atan2(tt.h * .62 - EYE, tt.dist); pitch += (wp - pitch) * .12; } }
-    const inp = { yaw, pitch, mx: clamp(mx, -1, 1), mz: clamp(mz, -1, 1), fire: f, use: useHeld || keys.has('e'), reload: edge.reload, nade: edge.nade, mdr: edge.mdr, jump: edge.jump || keys.has(' '), crouch: tCrouch || keys.has('c') || keys.has('Shift'), ads }; edge.reload = edge.nade = edge.mdr = edge.jump = false; return inp;
+    const inp = { yaw, pitch, mx: clamp(mx, -1, 1), mz: clamp(mz, -1, 1), fire: f, use: useHeld || keys.has('e'), reload: edge.reload, nade: edge.nade, mdr: edge.mdr, warp: edge.warp, jump: edge.jump || keys.has(' '), crouch: tCrouch || keys.has('c') || keys.has('Shift'), ads }; edge.reload = edge.nade = edge.mdr = edge.jump = edge.warp = false; return inp;
   }
 
   // ---------- loop / shell ----------

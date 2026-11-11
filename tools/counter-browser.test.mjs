@@ -12,17 +12,19 @@ try {
     await page.goto(srv.url + (process.env.COUNTER_ENTRY || '/counter.html'));
     await page.waitForFunction(() => window.__counter?.game, { timeout: 30000 });
     const G = (fn, a) => page.evaluate(fn, a), T = { timeout: 60000 };
-    assert.equal(await page.$$eval('.loadout span', n => n.length), 8, 'all eight products are on the menu');
+    assert.equal(await page.$$eval('.loadout span', n => n.length), 9, 'all nine products are on the menu');
+    await page.click('.cb-panel [data-act="codex"]'); assert.equal(await page.$$eval('.cb-cx-grid article', n => n.length), 9); await page.click('[data-act="codexClose"]'); assert.equal(await G(() => document.getElementById('cbCodex').hidden), true);
     assert.equal(await page.$$eval('[data-diff]', n => n.length), 3); assert.equal(await page.$$eval('.cb-medals span', n => n.length), 8); assert.ok(await page.$('[data-act="daily"]'));
     await page.click('[data-diff="easy"]'); await page.waitForFunction(() => document.querySelector('[data-diff="easy"].on'), null, T);
     if (vp.touch) await G(() => window.dispatchEvent(new Event('touchstart')));
     await page.click('[data-act="play"]');
-    await page.waitForFunction(() => window.__counter.game.state.phase === 'buy' && document.querySelectorAll('.cb-card').length === 8, null, T);
+    await page.waitForFunction(() => window.__counter.game.state.phase === 'buy' && document.querySelectorAll('.cb-card').length === 9, null, T);
     assert.equal(await G(() => window.__counter.game.state.diff), 'easy'); assert.ok(await page.$('.cb-ctr p'), 'the contract is shown in the buy menu');
     await page.click('[data-buy="IAG"]'); await page.waitForFunction(() => window.__counter.game.state.lv.IAG === 1 && window.__counter.game.state.money === 300, null, T);
     await page.click('[data-buy="EDR"]'); assert.equal(await G(() => window.__counter.game.state.lv.EDR), 0, 'cannot buy what you cannot afford');
     await G(() => { window.__counter.game.state.money = 5000; }); await page.click('[data-buy="AF"]'); await page.waitForFunction(() => document.querySelector('.cb-gate.on'), null, T);
     await page.click('[data-gate="0"]'); await page.waitForFunction(() => window.__counter.game.state.gateSel[0] === true && window.__counter.game.state.gateSel[1] === false, null, T);
+    await page.click('[data-buy="SASE"]'); await page.waitForFunction(() => window.__counter.game.state.lv.SASE === 1, null, T);
     await page.click('[data-act="ready"]'); await page.waitForFunction(() => window.__counter.game.state.phase === 'live', null, T);
     await G(() => { window.__counter.game.state.p.inv = 1e9; });
     assert.equal(await G(() => getComputedStyle(document.getElementById('cbBuy')).display), 'none'); assert.equal(await G(() => window.__counter.game.state.walls.length), 1);
@@ -40,6 +42,8 @@ try {
       await page.keyboard.press('g'); await page.waitForFunction(() => window.__counter.game.state.p.nades === 0, null, T);
       await page.keyboard.press('p'); assert.equal(await G(() => window.__counter.game.phase), 'paused'); await page.click('[data-act="resume"]'); assert.equal(await G(() => window.__counter.game.phase), 'play');
     }
+    if (vp.touch) await G(() => window.__counter.game.touch.tap('warp')); else await page.keyboard.press('t');
+    await page.waitForFunction(() => window.__counter.game.state.stats.SASE.warps === 1 && window.__counter.game.state.p.warpCd > 0, null, T);
     // a real kill shows up in the kill feed with the product that made it
     await page.waitForFunction(() => window.__counter.game.state.threats.some(th => th.spawnT <= 0), null, T);
     await G(() => { const g = window.__counter.game, th = g.state.threats.find(o => o.spawnT <= 0); g.sim.damage(th, 9999, 'EDR', true); });
@@ -48,7 +52,7 @@ try {
     // real defeat path: match point for the threats and a lethal hit
     await G(() => { const g = window.__counter.game, S = g.state; S.them = 3; S.p.inv = 0; S.p.armor = 0; g.sim.hurt(999, 0, 0, 'phish'); });
     await page.waitForFunction(() => !document.getElementById('cbBanner').hidden, null, T);
-    await page.waitForSelector('[data-act="again"]', { timeout: 120000 }); assert.equal(await page.$$eval('.cb-sb tr', n => n.length), 8); assert.ok(await page.$('.cb-rank'), 'career rank on the result screen'); assert.ok(await G(() => JSON.parse(localStorage.getItem('sentinel.counter.career.v1')).xp > 0));
+    await page.waitForSelector('[data-act="again"]', { timeout: 120000 }); assert.equal(await page.$$eval('.cb-sb tr', n => n.length), 9); assert.ok(await page.$('.cb-rank'), 'career rank on the result screen'); assert.ok(await G(() => JSON.parse(localStorage.getItem('sentinel.counter.career.v1')).xp > 0));
     await page.click('[data-act="again"]'); await page.waitForFunction(() => window.__counter.game.phase === 'play' && window.__counter.game.state.phase === 'buy' && window.__counter.game.state.them === 0, null, T);
     await page.close();
   }

@@ -162,7 +162,11 @@ incident (worm outbreak, spear-phishing, insider threat, DDoS flood, fast encryp
 buy menu announces along with the product that answers it; every round also offers one paid
 contract (headshots, airborne kill, triple kill, ...). Three difficulties scale damage, threat
 health and score; a Daily Op uses a date seed; XP, rank and eight medals persist in
-localStorage. Ammunition is unlimited with no reload; spread from sustained fire is the limit.
+localStorage. A ninth product, Access Secure (SASE), jumps you between points of presence at
+the two sites (T); HCI level 2 self-heals armor; Cyber Command adds edge arrows for nearby
+threats out of view. A Product guide (menu and buy phase) pairs each product's real job with
+its in-game levels and limit, and alerts carry the logo of the product that raised them.
+Ammunition is unlimited with no reload; spread from sustained fire is the limit.
 The yard is a floodlit rooftop at night: PBR materials with a baked environment map, and on
 `high` quality soft shadows, zone lights and a bloom pass (`?q=low|high`, or the Graphics
 button in the menu; phones and automated browsers default to `low`). `src/counter/sim.js`

@@ -1,7 +1,7 @@
 // Rule tests for Sentinel Counter-Breach (pure sim, no browser).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSim, SITES, GATES, SPAWNS, VENTS, PRICE, TUNE, WIN_AT, ARMOR, xdrPower, cx, cz, rowOf, colOf, SOLID, CRATE, CRATE_H, MUTATORS, CONTRACT_PAY, EYE, idx } from '../src/counter/sim.js';
+import { createSim, SITES, GATES, SPAWNS, VENTS, PRICE, TUNE, WIN_AT, ARMOR, xdrPower, cx, cz, rowOf, colOf, SOLID, CRATE, CRATE_H, MUTATORS, CONTRACT_PAY, EYE, POPS, SASE_CD, idx } from '../src/counter/sim.js';
 import { playMatch } from './counter-balance.mjs';
 
 const DT = 1 / 30;
@@ -51,8 +51,8 @@ test('Cyber Command: APTs are cloaked without it and visible with it', () => {
 });
 
 test('XDR: weak alone, stronger with every other product owned', () => {
-  const { sim, S } = fresh(); sim.buy('XDR'); const alone = xdrPower(S); for (const id of ['EDR', 'AF', 'NDR', 'HCI', 'IAG', 'ASTOR', 'MDR']) sim.buy(id);
-  assert.equal(alone, .5); assert.equal(xdrPower(S), 2.25);
+  const { sim, S } = fresh(); sim.buy('XDR'); const alone = xdrPower(S); for (const id of ['EDR', 'AF', 'NDR', 'HCI', 'IAG', 'SASE', 'ASTOR', 'MDR']) sim.buy(id);
+  assert.equal(alone, .5); assert.equal(xdrPower(S), 2.5);
 });
 
 test('IAG: the grenade locks threats out, but an APT with stolen credentials shrugs it off', () => {
@@ -161,4 +161,20 @@ test('difficulty scales incoming damage and the final score', () => {
   const mk = diff => { const sim = createSim({}); const S = sim.reset(2, { diff }); sim.ready(); return { sim, S }; };
   const e = mk('easy'), h = mk('hard'); e.sim.hurt(20, 0, 0, 'phish'); h.sim.hurt(20, 0, 0, 'phish'); assert.ok(100 - h.S.p.hp > (100 - e.S.p.hp) * 1.7);
   const a = playMatch('sharp', 77), b = playMatch('sharp', 77, false, 'hard'); assert.equal(a.diff, 'normal'); assert.equal(b.diff, 'hard');
+});
+
+// ---------- v4: Access Secure, HCI self-healing ----------
+test('Access Secure: T jumps to the far site, then to the encryptor once it is planted; it has a cooldown', () => {
+  const { sim, S } = fresh(6, sim => sim.buy('SASE')); sim.ready(); godmode(S); const p = S.p; p.x = POPS.A.x + 1; p.z = POPS.A.z - 4;
+  sim.step(DT, { warp: true }); assert.equal(p.x, POPS.B.x); assert.equal(p.z, POPS.B.z); assert.ok(Math.abs(p.warpCd - SASE_CD[1]) < .1); assert.equal(S.stats.SASE.warps, 1);
+  sim.step(DT, { warp: true }); assert.equal(p.x, POPS.B.x, 'on cooldown'); assert.equal(S.stats.SASE.warps, 1);
+  assert.ok(run(sim, S, 70, {}, () => S.bomb.state === 'planted')); p.warpCd = 0; const site = S.bomb.site, far = site === 'A' ? 'B' : 'A'; p.x = POPS[far].x; p.z = POPS[far].z;
+  sim.step(DT, { warp: true }); assert.equal(p.x, POPS[site].x, 'lands at the site with the encryptor'); assert.ok(Math.hypot(S.bomb.x - p.x, S.bomb.z - p.z) < 9);
+  const none = fresh(6); none.sim.ready(); const x0 = none.S.p.x; none.sim.step(DT, { warp: true }); assert.equal(none.S.p.x, x0, 'not owned, no jump');
+});
+
+test('HCI level 2 self-heals armor after four quiet seconds; level 1 does not', t => {
+  const keep = TUNE.enemyDmg; TUNE.enemyDmg = 1; t.after(() => { TUNE.enemyDmg = keep; });
+  for (const lv of [1, 2]) { const { sim, S } = fresh(2, sim => { for (let i = 0; i < lv; i++) sim.buy('HCI'); }); sim.ready(); quiet(S); sim.hurt(40, 0, 0, 'phish'); const a0 = S.p.armor; S.p.inv = 1e9;
+    run(sim, S, 3.5, {}); assert.equal(S.p.armor, a0, 'nothing yet'); run(sim, S, 4, {}); if (lv === 1) assert.equal(S.p.armor, a0); else assert.ok(S.p.armor > a0 + 15, `armor ${S.p.armor}`); }
 });
