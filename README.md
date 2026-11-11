@@ -44,6 +44,7 @@ Several self-contained experiences share the brand, i18n and assets:
 | `counter.html` | **Sentinel Counter-Breach** — a round-based first-person site defense with a competitive-shooter HUD; buy Sangfor products between rounds, stop the Ransomware carrier planting an encryptor | `src/counter/` (+ `src/arcade/`) |
 | `counter-v2.html` | **Sentinel Counter-Breach v2** — jump, crouch, cover, round incidents, contracts and persistent career progression | `src/counter/` (+ `src/arcade/`) |
 | `counter-v3.html` | **Sentinel Counter-Breach v3** — night rooftop, PBR materials, selectable shadows and bloom, unlimited ammunition | `src/counter/` (+ `src/arcade/`) |
+| `counter-v4.html` | **Sentinel Counter-Breach v4** — Access Secure site jumps, HCI armor self-healing, Cyber Command threat arrows and a product guide | `src/counter/` (+ `src/arcade/`) |
 
 The last three are **quick-play arcade games** — pick-up-and-play, instant score, and each maps
 to real Sangfor products. They share a small common layer in `src/arcade/` (bilingual strings,
@@ -319,3 +320,16 @@ unlimited, with sustained-fire spread replacing magazine and reload limits.
 Existing Counter-Breach URLs remain available and share the current runtime;
 they are not archived snapshots. Run `COUNTER_ENTRY=/counter-v3.html npm run
 test:counter` to validate the new entry's rules and desktop/mobile browser flow.
+
+
+### Counter-Breach v4 release
+
+The new public entry is [counter-v4.html](counter-v4.html), based on upstream
+commit `b5a2112`. This release adds Access Secure / SASE site jumps as a ninth
+product, HCI armor self-healing at level 2, Cyber Command edge indicators for
+nearby unseen threats, a product guide and product-branded alerts.
+
+Existing Counter-Breach URLs remain available and share the current runtime;
+they are not archived snapshots. This publication adds only a new HTML entry
+and release documentation on top of the upstream implementation. No gameplay
+or browser tests were run for this publication, as requested.
