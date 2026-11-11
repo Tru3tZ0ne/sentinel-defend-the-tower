@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Sentinel Frame — pilot a mecha that Sangfor products build up, part by part</title>
+  <meta name="description" content="Sentinel Frame: a 3D mecha shooter. Your SF-01 frame launches bare; every Sangfor product you dock bolts onto a hardpoint - Endpoint Secure beam rifle, NGAF firewall shield, Cyber Command sensor fins and missile pods, XDR wing funnels, HCI reactor backpack, IAG shoulder emitters, aStor armor - until it evolves into the Full Armor Sentinel." />
+  <meta name="theme-color" content="#040a0e" />
+  <link rel="stylesheet" href="./src/style/main.css" />
+  <link rel="stylesheet" href="./src/arcade/arcade.css" />
+  <link rel="stylesheet" href="./src/frame/frame.css?v=frame-1" />
+  <link rel="icon" href="./assets/brand/products/sangfor-epp.png" />
+  <!-- Ranking: local by default; set window.__FRAME_API to a deployed leaderboard worker for a global board. -->
+  <script>/* window.__FRAME_API = ''; */</script>
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.min.js" } }
+  </script>
+</head>
+<body data-game="frame">
+  <div class="wrap" id="app"></div>
+  <noscript>This game needs JavaScript enabled.</noscript>
+  <script type="module" src="./src/frame/main-frame.js?v=frame-1"></script>
+</body>
+</html>

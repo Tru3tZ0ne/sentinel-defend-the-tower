@@ -40,6 +40,7 @@ Several self-contained experiences share the brand, i18n and assets:
 | `line.html` | **Breach Line** — a Plants-vs-Zombies lane defense; deploy product **defenders** in a grid | `src/line/` (+ `src/arcade/`) |
 | `stand.html` | **Last Stand** — a vertical survivor shooter; products mount on **one evolving mech** | `src/stand/` (+ `src/arcade/`) |
 | `stand3d.html` | **Sentinel Strike** — a Raiden-style 3D vertical shooter; every power-up is a Sangfor product | `src/strike/` (+ `src/arcade/`) |
+| `frame.html` | **Sentinel Frame** — a 3D mecha shooter; each Sangfor product bolts onto a hardpoint and the frame evolves to Full Armor | `src/frame/` (+ `src/arcade/`) |
 
 The last three are **quick-play arcade games** — pick-up-and-play, instant score, and each maps
 to real Sangfor products. They share a small common layer in `src/arcade/` (bilingual strings,
@@ -129,6 +130,18 @@ view, `main-strike.js` the HUD. Checks: `npm run test:strike`; `node tools/strik
 flies scripted pilots (casual 24/30 clears, sharp 30/30, idle 0/6). Those bots dodge better
 than people do, so they are not human win rates, and it has only been run under software
 WebGL here, so no hardware frame rate is claimed.
+
+**Sentinel Frame** (`frame.html`) is the mecha version of the shooter. The SF-01 frame launches
+bare; every product docks onto a fixed hardpoint, has three levels, and all of them stack:
+Endpoint Secure = right-arm beam rifle, NGAF = left-arm firewall shield (blocks fire from the
+front only, overloads, reflects at level 3), Cyber Command = head sensor fins + leg missile pods
+(homing, decloaks APTs), XDR = wing funnels (chain beams scaled by how many other products are
+installed), HCI = reactor backpack (fire rate), IAG = shoulder emitters (bullet slow field),
+aStor = snapshot armor, MDR = bomb. At 3 / 8 / 15 installed levels the frame evolves
+(Mk-II, Mk-III, Full Armor). A hit costs a life and one level of the best part. Start, pause
+and result screens use a hangar orbit of the live model. `src/frame/sim.js` is the pure
+simulation, `engine.js` the Three.js view (procedural mecha), `main-frame.js` the HUD. Checks:
+`npm run test:frame`; `node tools/frame-balance.mjs` flies scripted pilots (bots, not human rates).
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your
