@@ -43,6 +43,7 @@ Several self-contained experiences share the brand, i18n and assets:
 | `frame.html` | **Sentinel Frame** — a 3D mecha shooter; each Sangfor product bolts onto a hardpoint and the frame evolves to Full Armor | `src/frame/` (+ `src/arcade/`) |
 | `counter.html` | **Sentinel Counter-Breach** — a round-based first-person site defense with a competitive-shooter HUD; buy Sangfor products between rounds, stop the Ransomware carrier planting an encryptor | `src/counter/` (+ `src/arcade/`) |
 | `counter-v2.html` | **Sentinel Counter-Breach v2** — jump, crouch, cover, round incidents, contracts and persistent career progression | `src/counter/` (+ `src/arcade/`) |
+| `counter-v3.html` | **Sentinel Counter-Breach v3** — night rooftop, PBR materials, selectable shadows and bloom, unlimited ammunition | `src/counter/` (+ `src/arcade/`) |
 
 The last three are **quick-play arcade games** — pick-up-and-play, instant score, and each maps
 to real Sangfor products. They share a small common layer in `src/arcade/` (bilingual strings,
@@ -301,3 +302,16 @@ current `src/counter/` runtime. This is a new launch URL, not an archived runtim
 Release validation: `COUNTER_ENTRY=/counter-v2.html npm run test:counter` runs the
 rule suite and desktop/mobile browser flow against the new entry. Career and score
 storage remain local unless a leaderboard API is explicitly configured.
+
+
+### Counter-Breach v3 release
+
+The new public entry is [counter-v3.html](counter-v3.html), based on upstream
+commit `c63f7e5`. The scene now uses PBR materials, an environment map, a night
+skyline and detailed surface textures. High quality adds soft shadows, zone
+lights and bloom; the lighter path remains available for phones. Ammunition is
+unlimited, with sustained-fire spread replacing magazine and reload limits.
+
+Existing Counter-Breach URLs remain available and share the current runtime;
+they are not archived snapshots. Run `COUNTER_ENTRY=/counter-v3.html npm run
+test:counter` to validate the new entry's rules and desktop/mobile browser flow.
