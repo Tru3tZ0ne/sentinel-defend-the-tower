@@ -152,7 +152,15 @@ round opens with a buy phase: Endpoint Secure = the rifle, NGAF = firewalls on g
 XDR = chain response scaled by products owned, HCI = armor and failover, IAG = Access Denied
 grenade (APTs barely slowed), aStor = one snapshot that restores an encrypted site, MDR = one
 remote defuse or sweep. The HUD follows competitive-shooter conventions: rotating radar, kill
-feed naming the product, vitals, ammo, buy grid, per-product scoreboard. `src/counter/sim.js`
+feed naming the product, vitals, ammo, buy grid, per-product scoreboard, plus damage numbers,
+multi-kill callouts and on-screen objective pointers. Movement has jump, crouch and aim down
+sights: waist-high crates are cover (crouch behind one to break an APT's line, jump onto one and
+worms cannot bite, jump a Trojan shot to dodge it). From round 2 each round is a different
+incident (worm outbreak, spear-phishing, insider threat, DDoS flood, fast encryptor) that the
+buy menu announces along with the product that answers it; every round also offers one paid
+contract (headshots, airborne kill, triple kill, ...). Three difficulties scale damage, threat
+health and score; a Daily Op uses a date seed; XP, rank and eight medals persist in
+localStorage. `src/counter/sim.js`
 is the pure simulation (grid map, path fields, hitscan), `engine.js` the Three.js view and
 input (pointer lock, touch sticks with aim assist), `main-counter.js` the HUD. Checks:
 `npm run test:counter`; `node tools/counter-balance.mjs` plays scripted bots (not human rates).

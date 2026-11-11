@@ -45,4 +45,8 @@ export const snd = {
   go() { tone('square', 660, 660, .08, .2); tone('square', 990, 990, .14, .22, .12); },
   tick() { tone('square', 1000, 1000, .03, .12); },
   step() { noise(.04, .1, 300); },
+  jump() { noise(.07, .16, 500); tone('sine', 190, 300, .09, .1); },
+  land() { noise(.09, .32, 240); tone('sine', 120, 60, .1, .2); },
+  pickup() { tone('sine', 990, 1480, .08, .28); tone('sine', 1480, 1980, .12, .24, .07); },
+  streak(n = 2) { const base = 520 + Math.min(6, n) * 90; tone('square', base, base * 1.5, .1, .2); tone('triangle', base * 1.5, base * 2, .16, .26, .08); },
 };

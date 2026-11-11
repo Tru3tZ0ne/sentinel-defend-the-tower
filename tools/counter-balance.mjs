@@ -8,8 +8,8 @@ const POLICY = {
   nobuy: { turn: 7, err: .02, react: .2, wob: .025, buys: [] },
 };
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
-export function playMatch(kind, seed, log) {
-  const pol = POLICY[kind]; let over = null; const sim = createSim({ onOver: s => { over = s; } }), S = sim.reset(seed);
+export function playMatch(kind, seed, log, diff = 'normal') {
+  const pol = POLICY[kind]; let over = null; const sim = createSim({ onOver: s => { over = s; } }), S = sim.reset(seed, { diff });
   let r = seed * 7919 + 1; const rnd = () => ((r = (r * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
   let bi = 0, seen = 0, t = 0, yaw = 0, pitch = 0; const dt = 1 / 30;
   while (!over && t < 1500) {
@@ -37,10 +37,10 @@ export function playMatch(kind, seed, log) {
 }
 const TUNE_SKIP = 20;
 if (process.argv[1].endsWith('counter-balance.mjs')) {
-  const n = +(process.argv[2] || 12);
+  const n = +(process.argv[2] || 12), diff = process.argv[3] || 'normal';
   for (const kind of ['idle', 'nobuy', 'casual', 'sharp']) {
     let w = 0, rounds = 0, rw = 0; const res = {};
-    for (let i = 1; i <= n; i++) { const o = playMatch(kind, i * 31, i <= 2); if (o.outcome === 'victory') w++; for (const h of o.history) { rounds++; if (h.win) rw++; res[h.result] = (res[h.result] || 0) + 1; } }
-    console.log(`== ${kind}: matches ${w}/${n}, rounds won ${rw}/${rounds}`, JSON.stringify(res));
+    for (let i = 1; i <= n; i++) { const o = playMatch(kind, i * 31, i <= 2 && !process.argv[3], diff); if (o.outcome === 'victory') w++; for (const h of o.history) { rounds++; if (h.win) rw++; res[h.result] = (res[h.result] || 0) + 1; } }
+    console.log(`== ${diff} ${kind}: matches ${w}/${n}, rounds won ${rw}/${rounds}`, JSON.stringify(res));
   }
 }
