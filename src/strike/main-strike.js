@@ -71,7 +71,7 @@ const board = makeBoard({ lsKey: 'sentinel.strike.scores.v1', apiVar: '__STRIKE_
 const NAME_KEY = 'sentinel.arcade.name', BEST_KEY = 'sentinel.strike.best.v1';
 const ls = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } } };
 const getBest = () => +ls.get(BEST_KEY, 0) || 0;
-const LINKS = [{ href: 'frame.html', label: 'Sentinel Frame' }, { href: 'stand.html', label: 'Last Stand' }, { href: 'line.html', label: 'Breach Line' }, { href: 'soc.html', label: 'Incident Zero' }, { href: 'index.html', label: 'Defend the Tower' }];
+const LINKS = [{ href: 'counter.html', label: 'Counter-Breach' }, { href: 'frame.html', label: 'Sentinel Frame' }, { href: 'stand.html', label: 'Last Stand' }, { href: 'line.html', label: 'Breach Line' }, { href: 'soc.html', label: 'Incident Zero' }, { href: 'index.html', label: 'Defend the Tower' }];
 
 const app = document.getElementById('app');
 app.innerHTML = `

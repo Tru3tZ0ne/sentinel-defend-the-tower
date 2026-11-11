@@ -41,6 +41,7 @@ Several self-contained experiences share the brand, i18n and assets:
 | `stand.html` | **Last Stand** — a vertical survivor shooter; products mount on **one evolving mech** | `src/stand/` (+ `src/arcade/`) |
 | `stand3d.html` | **Sentinel Strike** — a Raiden-style 3D vertical shooter; every power-up is a Sangfor product | `src/strike/` (+ `src/arcade/`) |
 | `frame.html` | **Sentinel Frame** — a 3D mecha shooter; each Sangfor product bolts onto a hardpoint and the frame evolves to Full Armor | `src/frame/` (+ `src/arcade/`) |
+| `counter.html` | **Sentinel Counter-Breach** — a round-based first-person site defense with a competitive-shooter HUD; buy Sangfor products between rounds, stop the Ransomware carrier planting an encryptor | `src/counter/` (+ `src/arcade/`) |
 
 The last three are **quick-play arcade games** — pick-up-and-play, instant score, and each maps
 to real Sangfor products. They share a small common layer in `src/arcade/` (bilingual strings,
@@ -142,6 +143,19 @@ aStor = snapshot armor, MDR = bomb. At 3 / 8 / 15 installed levels the frame evo
 and result screens use a hangar orbit of the live model. `src/frame/sim.js` is the pure
 simulation, `engine.js` the Three.js view (procedural mecha), `main-frame.js` the HUD. Checks:
 `npm run test:frame`; `node tools/frame-balance.mjs` flies scripted pilots (bots, not human rates).
+
+**Sentinel Counter-Breach** (`counter.html`) is a round-based first-person shooter, first to
+four rounds. Threats breach from the Internet strip through three gates and a Ransomware
+carrier tries to plant an encryptor on Site A or B; kill it, or defuse the encryptor. Each
+round opens with a buy phase: Endpoint Secure = the rifle, NGAF = firewalls on gates you pick
+(worms start inside, a Zero-Day walks through), Cyber Command = radar / uncloaks APTs / x-ray,
+XDR = chain response scaled by products owned, HCI = armor and failover, IAG = Access Denied
+grenade (APTs barely slowed), aStor = one snapshot that restores an encrypted site, MDR = one
+remote defuse or sweep. The HUD follows competitive-shooter conventions: rotating radar, kill
+feed naming the product, vitals, ammo, buy grid, per-product scoreboard. `src/counter/sim.js`
+is the pure simulation (grid map, path fields, hitscan), `engine.js` the Three.js view and
+input (pointer lock, touch sticks with aim assist), `main-counter.js` the HUD. Checks:
+`npm run test:counter`; `node tools/counter-balance.mjs` plays scripted bots (not human rates).
 
 **Threat Vector** (`vector.html`) is the lively, pick-up-and-play one — a "survivor"-style
 arena. Monsters charge you from every side; you only move (WASD / arrows / drag) while your

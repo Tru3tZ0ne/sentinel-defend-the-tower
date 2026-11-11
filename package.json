@@ -17,6 +17,8 @@
     "test:strike-rules": "node --test tools/strike.test.mjs",
     "test:frame": "node --test tools/frame.test.mjs && node tools/frame-browser.test.mjs",
     "test:frame-rules": "node --test tools/frame.test.mjs",
+    "test:counter": "node --test tools/counter.test.mjs && node tools/counter-browser.test.mjs",
+    "test:counter-rules": "node --test tools/counter.test.mjs",
     "test:stand-performance": "node tools/stand-performance.test.mjs",
     "profile:stand-combat": "node tools/stand-active-performance.mjs mech",
     "test:stand-balance": "node --test tools/stand-balance.test.mjs",
