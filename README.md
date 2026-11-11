@@ -42,6 +42,7 @@ Several self-contained experiences share the brand, i18n and assets:
 | `stand3d.html` | **Sentinel Strike** — a Raiden-style 3D vertical shooter; every power-up is a Sangfor product | `src/strike/` (+ `src/arcade/`) |
 | `frame.html` | **Sentinel Frame** — a 3D mecha shooter; each Sangfor product bolts onto a hardpoint and the frame evolves to Full Armor | `src/frame/` (+ `src/arcade/`) |
 | `counter.html` | **Sentinel Counter-Breach** — a round-based first-person site defense with a competitive-shooter HUD; buy Sangfor products between rounds, stop the Ransomware carrier planting an encryptor | `src/counter/` (+ `src/arcade/`) |
+| `counter-v2.html` | **Sentinel Counter-Breach v2** — jump, crouch, cover, round incidents, contracts and persistent career progression | `src/counter/` (+ `src/arcade/`) |
 
 The last three are **quick-play arcade games** — pick-up-and-play, instant score, and each maps
 to real Sangfor products. They share a small common layer in `src/arcade/` (bilingual strings,
@@ -284,3 +285,16 @@ cancellation. Mission objectives and English reports expose actual outcomes.
 See [the development record](docs/DEVELOPMENT_LOG.md) and
 [Claude continuation prompt](docs/CLAUDE_HANDOFF.md). Procedural scene assets remain
 intermediate placeholders; realistic character and furniture production is deferred.
+
+
+### Counter-Breach v2 release
+
+The dedicated public entry is [counter-v2.html](counter-v2.html), based on upstream
+commit `91f7051`. It adds jump, crouch, aiming, cover, round incidents, paid contracts,
+three difficulties, daily seeds, pickups, kill streaks and local career progression.
+Existing HTML entry points remain available; both Counter-Breach entries share the
+current `src/counter/` runtime. This is a new launch URL, not an archived runtime snapshot.
+
+Release validation: `COUNTER_ENTRY=/counter-v2.html npm run test:counter` runs the
+rule suite and desktop/mobile browser flow against the new entry. Career and score
+storage remain local unless a leaderboard API is explicitly configured.

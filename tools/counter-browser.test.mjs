@@ -9,7 +9,7 @@ try {
   for (const vp of [{ width: 960, height: 600 }, { width: 390, height: 720, touch: true }]) {
     const page = await browser.newPage({ viewport: vp, hasTouch: !!vp.touch });
     page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); }); page.on('requestfailed', r => errors.push('request failed ' + r.url()));
-    await page.goto(srv.url + '/counter.html');
+    await page.goto(srv.url + (process.env.COUNTER_ENTRY || '/counter.html'));
     await page.waitForFunction(() => window.__counter?.game, { timeout: 30000 });
     const G = (fn, a) => page.evaluate(fn, a), T = { timeout: 60000 };
     assert.equal(await page.$$eval('.loadout span', n => n.length), 8, 'all eight products are on the menu');
