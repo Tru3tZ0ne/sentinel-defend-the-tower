@@ -12,6 +12,7 @@ import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit, parse_qs
+from admin_portal import AdminPortal
 
 
 class Scores:
@@ -118,6 +119,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self, head=False):
         path = urlsplit(self.path).path
+        if path == '/admin' or path.startswith(('/admin/', '/api/admin/')):
+            return self.server.admin.handle_get(self, head)
         if path == '/api/health':
             self.server.scores.top(1)  # Check database readability as well as process health.
             return self.json(dict(ok=True, storage='sqlite', version=self.server.version), head=head)
@@ -165,6 +168,8 @@ class Handler(SimpleHTTPRequestHandler):
         return super().send_head()
 
     def do_POST(self):
+        if urlsplit(self.path).path.startswith('/api/admin/'):
+            return self.server.admin.handle_post(self)
         if urlsplit(self.path).path != '/api/stand/submit':
             return self.json(dict(error='Not found'), 404)
         if self.headers.get('Origin') not in (None, 'https://' + self.headers.get('Host', '')):
@@ -209,10 +214,11 @@ class BoundedServer(ThreadingHTTPServer):
             self.slots.release()
 
 
-def make_server(host, port, root, db, version='development'):
+def make_server(host, port, root, db, version='development', admin_config=None):
     server = BoundedServer((host, port), functools.partial(Handler, directory=str(root)))
     server.scores = Scores(db)
     server.version = version
+    server.admin = AdminPortal(server.scores, admin_config)
     return server
 
 
@@ -225,8 +231,9 @@ def main():
     parser.add_argument('--host', default='0.0.0.0')
     parser.add_argument('--port', type=int, default=443)
     parser.add_argument('--version', default='intranet-v1')
+    parser.add_argument('--admin-config', default='/etc/sentinel/admin.json')
     args = parser.parse_args()
-    server = make_server(args.host, args.port, args.root, args.db, args.version)
+    server = make_server(args.host, args.port, args.root, args.db, args.version, args.admin_config)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(args.cert, args.key)

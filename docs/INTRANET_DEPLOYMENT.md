@@ -99,6 +99,11 @@ install it as `/etc/sentinel/tls/server.crt` (root:sentinel, mode 644) and resta
 `sentinel`. Keep the old certificate for rollback. No client CA reimport is
 needed when the same CA signs the renewal.
 
+## Score administration
+
+The optional authenticated portal at `/admin/` supports export and deletion.
+See [score administration](SCORE_ADMIN.md) for account configuration and recovery.
+
 ## Health, backups and rollback
 
 ```sh

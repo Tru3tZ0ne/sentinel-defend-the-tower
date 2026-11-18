@@ -230,3 +230,12 @@ cancellation. Mission objectives and English reports expose actual outcomes.
 See [the development record](docs/DEVELOPMENT_LOG.md) and
 [Claude continuation prompt](docs/CLAUDE_HANDOFF.md). Procedural scene assets remain
 intermediate placeholders; realistic character and furniture production is deferred.
+
+
+### Score administration portal
+
+The dedicated HTTPS score server supports an optional administrator portal at
+`/admin/` with searchable history, CSV/JSON export, individual and batch deletion,
+and audited recovery. It does not add assets or work to the game rendering loop.
+See [operator and deployment instructions](docs/SCORE_ADMIN.md). Credentials are
+configured privately on the server and are never bundled with the game.

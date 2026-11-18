@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Sentinel | Score administration</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/admin/style.css">
+  <script src="/admin/app.js" defer></script>
+</head>
+<body>
+  <header><a href="/stand.html" class="brand">SENTINEL <span>ADMIN</span></a><button id="language" type="button">中文</button></header>
+  <main>
+    <section id="loginPanel" class="card login" hidden>
+      <p class="eyebrow" data-i18n="restricted">RESTRICTED ACCESS</p>
+      <h1 data-i18n="signIn">Score administration</h1>
+      <p class="muted" data-i18n="intro">Manage the shared game leaderboard.</p>
+      <form id="loginForm">
+        <label for="username" data-i18n="username">Username</label>
+        <input id="username" name="username" autocomplete="username" maxlength="64" required>
+        <label for="password" data-i18n="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required>
+        <button class="primary" id="loginButton" type="submit" data-i18n="login">Sign in</button>
+      </form>
+    </section>
+    <section id="dashboard" hidden>
+      <div class="heading"><div><p class="eyebrow" data-i18n="shared">SHARED LEADERBOARD</p><h1 data-i18n="title">Score management</h1><p id="identity" class="muted"></p></div><button id="logout" data-i18n="logout">Sign out</button></div>
+      <div class="card">
+        <div class="toolbar"><form id="searchForm"><label class="sr" for="search" data-i18n="search">Player name</label><input id="search" maxlength="100" placeholder="Player name"><button type="submit" data-i18n="searchButton">Search</button></form><button id="refresh" data-i18n="refresh">Refresh</button><button id="exportCSV" data-i18n="exportCSV">Export CSV</button><button id="exportJSON" data-i18n="exportJSON">Export JSON</button></div>
+        <p class="muted small" data-i18n="exportHint">Exports include all matching records, across every page. CSV opens in Excel.</p>
+        <div class="stats"><strong id="count">—</strong><span id="selected"></span></div>
+        <div class="tableWrap"><table><thead><tr><th><input type="checkbox" id="selectAll" aria-label="Select this page"></th><th data-i18n="player">Player</th><th data-i18n="score">Score</th><th data-i18n="health">Health</th><th data-i18n="business">Business</th><th>AI</th><th>Agent Builder</th><th data-i18n="date">Time (local)</th><th data-i18n="action">Action</th></tr></thead><tbody id="rows"></tbody></table></div>
+        <p id="empty" class="empty" data-i18n="empty" hidden>No scores found.</p>
+        <div class="pagination"><button id="previous" data-i18n="previous">Previous</button><span id="page"></span><button id="next" data-i18n="next">Next</button></div>
+      </div>
+      <div class="dangerZone"><button id="deleteSelected" class="danger" disabled data-i18n="deleteSelected">Delete selected</button><button id="clear" class="danger quiet" data-i18n="clear">Clear all scores</button><p class="muted small" data-i18n="deleteHint">Deletion immediately updates the game leaderboard. Deleted records are retained in a protected server audit for recovery.</p></div>
+    </section>
+    <p id="status" role="status" aria-live="polite"></p>
+  </main>
+  <footer data-i18n="footer">Sentinel · Authorized administrators only</footer>
+</body>
+</html>

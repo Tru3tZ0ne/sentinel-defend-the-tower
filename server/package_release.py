@@ -16,6 +16,9 @@ def package(destination):
         for file in sorted((root/'server').iterdir()):
             if file.is_file() and file.suffix in ('.py', '.sh', '.service', '.timer'):
                 archive.add(file, arcname='server/'+file.name, recursive=False)
+        for file in sorted((root/'server'/'admin').glob('*')):
+            if file.is_file() and file.suffix in ('.html', '.js', '.css'):
+                archive.add(file, arcname='server/admin/'+file.name, recursive=False)
     print(Path(destination).resolve())
 
 
