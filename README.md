@@ -234,7 +234,7 @@ intermediate placeholders; realistic character and furniture production is defer
 
 ### Score administration portal
 
-The dedicated HTTPS score server supports an optional administrator portal at
+The dedicated HTTPS score server supports an optional administrator portal on a separate private HTTPS listener at
 `/admin/` with searchable history, CSV/JSON export, individual and batch deletion,
 and audited recovery. It does not add assets or work to the game rendering loop.
 See [operator and deployment instructions](docs/SCORE_ADMIN.md). Credentials are

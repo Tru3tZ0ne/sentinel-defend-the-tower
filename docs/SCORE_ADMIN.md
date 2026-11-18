@@ -2,7 +2,8 @@
 
 ## Operator features
 
-Open `/admin/` on the same HTTPS origin as the game. The standalone, responsive
+Open `/admin/` on the dedicated management HTTPS origin (port 9443 by default).
+The public game listener never serves admin pages or APIs. The responsive
 EN/ZH portal lists every saved victory (50 per page), searches player names,
 exports all matching records to CSV or JSON, deletes individual or selected
 records, and clears the full leaderboard after the operator types `DELETE ALL`.
@@ -15,13 +16,14 @@ uses Python's standard library and adds no browser framework or package.
 
 ## Accounts and sessions
 
-Admin access is disabled until a private config exists. Create or rotate it with:
+Admin access requires a private config and an explicitly separate `--mode admin`
+listener. Create or rotate the account with:
 
 ```sh
 sudo python3 /opt/sentinel-server/admin_password.py /etc/sentinel/admin.json --username gameadmin
 sudo chown root:sentinel /etc/sentinel/admin.json
 sudo chmod 640 /etc/sentinel/admin.json
-sudo systemctl restart sentinel
+sudo systemctl restart sentinel-admin
 ```
 
 Enter a password of at least 16 characters. `--generate` creates a random password
@@ -63,7 +65,7 @@ service support files from the active backend. Point `/opt/sentinel-server` at
 the new directory and restart `sentinel.service`. Leave `/srv/sentinel/current`,
 TLS files and the score DB in place. The release packager includes portal assets.
 
-To roll back, repoint `/opt/sentinel-server` to the previous backend and restart.
+To roll back, repoint `/opt/sentinel-server` to a compatible previous backend and restart both services.
 The old backend ignores the additive audit table. Do not replace the DB, TLS
 certificate or game symlink for a backend rollback.
 
@@ -86,3 +88,40 @@ a CSRF token, and revoked the session at logout. The existing five production
 scores and the public game remained available; no production deletion was used
 for validation. The previous backend and a consistent pre-update database backup
 are retained for rollback.
+
+
+## Separate private management listener
+
+The CLI defaults to `--mode game`; in this mode all `/admin` and `/api/admin/`
+requests return 404 even if the credential file exists. The public service also
+uses `--admin-config /dev/null` in a private systemd drop-in, retaining that
+restriction during rollback to the original combined backend.
+
+`sentinel-admin.service` provides a separate HTTPS process on port 9443. The
+repository template binds only loopback. Install it explicitly and use a private
+systemd drop-in to set the management interface and repeat `--admin-allow CIDR`
+for approved source addresses. Do not use a blanket Internet source range.
+With no explicit source list, only loopback is allowed. The listener checks the
+real TCP peer before TLS and ignores forwarded-source headers. It serves no game
+files or public score-submission API. Both processes use the same durable DB.
+
+The deployment binds the management listener to the administrator-confirmed
+interface, allows only the observed management gateway and server self-check
+sources, and keeps public game routing unchanged. Existing sessions were revoked
+by the service split. Credentials did not change. No new public port mapping was
+created. The public hostname's port 9443 was unreachable during verification.
+
+No internal DNS name was available. Direct management-IP access therefore
+presents the existing domain certificate with a hostname mismatch; this limitation
+was disclosed to the operator. Proper internal DNS and a matching certificate can
+be added later without publishing the management service to the Internet.
+
+Validation after separation: 13 backend tests passed, including listener boundary
+and source-denial regressions. The public game and health endpoint returned 200;
+all checked public admin pages/assets/APIs returned 404. A disallowed socket source
+was rejected before TLS. Management-network browser login, five-row JSON export
+and logout passed. All five production scores remained intact.
+
+Restart both `sentinel` and `sentinel-admin` after backend updates. For a rollback
+to code predating the mode flags, stop `sentinel-admin` and retain the public
+`--admin-config /dev/null` override. Do not restore a public management portal.

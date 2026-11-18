@@ -29,7 +29,7 @@ class AdminTests(unittest.TestCase):
         self.config = self.root/'admin.json'
         self.config.write_text(json.dumps(password_config('gameadmin', PASSWORD)))
         self.db = self.root/'scores.sqlite3'
-        self.server = make_server('127.0.0.1', 0, self.root, self.db, admin_config=self.config)
+        self.server = make_server('127.0.0.1', 0, self.root, self.db, admin_config=self.config, mode='admin')
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.cookie, self.csrf = '', ''
@@ -140,6 +140,24 @@ class AdminTests(unittest.TestCase):
         self.server.admin.config=None
         self.assertEqual(self.request('GET','/admin/')[0],404)
         self.assertEqual(self.request('POST','/api/admin/login',{})[0],404)
+
+    def test_listener_separation(self):
+        self.assertEqual(self.request('GET','/')[2]['Location'],'/admin/')
+        self.assertEqual(self.request('GET','/api/stand/top')[0],404)
+        self.assertEqual(self.request('POST','/api/stand/submit',score(1))[0],404)
+        self.server.mode='game'
+        for path in ('/admin', '/admin/', '/admin/app.js', '/api/admin/scores', '/api/admin/export'):
+            self.assertEqual(self.request('GET',path)[0],404)
+        self.assertEqual(self.request('POST','/api/admin/login',dict(username='gameadmin',password=PASSWORD))[0],404)
+        self.assertEqual(self.request('GET','/api/stand/top')[0],200)
+
+    def test_source_allowlist_rejects_before_http(self):
+        self.server.admin_peer_allowed=lambda peer: False
+        with self.assertRaises((http.client.RemoteDisconnected, ConnectionResetError)):
+            self.request('GET','/admin/')
+        # The same source restriction does not affect the public game listener.
+        self.server.mode='game'
+        self.assertEqual(self.request('GET','/api/health')[0],200)
 
 
 if __name__ == '__main__':

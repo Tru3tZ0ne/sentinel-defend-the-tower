@@ -2,6 +2,7 @@
 import argparse
 from contextlib import contextmanager
 import functools
+import ipaddress
 import json
 import math
 import re
@@ -120,10 +121,20 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self, head=False):
         path = urlsplit(self.path).path
         if path == '/admin' or path.startswith(('/admin/', '/api/admin/')):
+            if self.server.mode != 'admin':
+                return self.json(dict(error='Not found'), 404, head)
             return self.server.admin.handle_get(self, head)
+        if self.server.mode == 'admin' and path == '/':
+            self.send_response(302)
+            self.send_header('Location', '/admin/')
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return
         if path == '/api/health':
             self.server.scores.top(1)  # Check database readability as well as process health.
             return self.json(dict(ok=True, storage='sqlite', version=self.server.version), head=head)
+        if self.server.mode == 'admin':
+            return self.json(dict(error='Not found'), 404, head)
         if path == '/api/stand/top':
             try:
                 n = max(1, min(50, int(parse_qs(urlsplit(self.path).query).get('n', ['50'])[0])))
@@ -169,7 +180,11 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         if urlsplit(self.path).path.startswith('/api/admin/'):
+            if self.server.mode != 'admin':
+                return self.json(dict(error='Not found'), 404)
             return self.server.admin.handle_post(self)
+        if self.server.mode == 'admin':
+            return self.json(dict(error='Not found'), 404)
         if urlsplit(self.path).path != '/api/stand/submit':
             return self.json(dict(error='Not found'), 404)
         if self.headers.get('Origin') not in (None, 'https://' + self.headers.get('Host', '')):
@@ -198,6 +213,10 @@ class BoundedServer(ThreadingHTTPServer):
         super().__init__(*args)
 
     def process_request(self, request, address):
+        # Check the real socket peer before allocating a thread or doing a TLS handshake.
+        if self.mode == 'admin' and not self.admin_peer_allowed(address[0]):
+            self.shutdown_request(request)
+            return
         if not self.slots.acquire(blocking=False):
             self.shutdown_request(request)
             return
@@ -214,11 +233,20 @@ class BoundedServer(ThreadingHTTPServer):
             self.slots.release()
 
 
-def make_server(host, port, root, db, version='development', admin_config=None):
+def make_server(host, port, root, db, version='development', admin_config=None,
+                mode='game', admin_allow=None):
+    if mode not in ('game', 'admin'):
+        raise ValueError('Invalid listener mode')
+    networks = tuple(ipaddress.ip_network(n, strict=False) for n in
+                     (admin_allow if admin_allow is not None else ('127.0.0.1/32', '::1/128')))
+    if mode == 'admin' and not networks:
+        raise ValueError('An explicit admin source allowlist is required')
     server = BoundedServer((host, port), functools.partial(Handler, directory=str(root)))
+    server.mode = mode
+    server.admin_peer_allowed = lambda peer: any(ipaddress.ip_address(peer) in n for n in networks)
     server.scores = Scores(db)
     server.version = version
-    server.admin = AdminPortal(server.scores, admin_config)
+    server.admin = AdminPortal(server.scores, admin_config if mode == 'admin' else None)
     return server
 
 
@@ -228,12 +256,16 @@ def main():
     parser.add_argument('--db', required=True)
     parser.add_argument('--cert', required=True)
     parser.add_argument('--key', required=True)
-    parser.add_argument('--host', default='0.0.0.0')
+    parser.add_argument('--host', default=None)
     parser.add_argument('--port', type=int, default=443)
     parser.add_argument('--version', default='intranet-v1')
     parser.add_argument('--admin-config', default='/etc/sentinel/admin.json')
+    parser.add_argument('--mode', choices=('game', 'admin'), default='game')
+    parser.add_argument('--admin-allow', action='append', help='Allowed socket source CIDR; repeat for multiple ranges')
     args = parser.parse_args()
-    server = make_server(args.host, args.port, args.root, args.db, args.version, args.admin_config)
+    host = args.host or ('127.0.0.1' if args.mode == 'admin' else '0.0.0.0')
+    server = make_server(host, args.port, args.root, args.db, args.version,
+                         args.admin_config, args.mode, args.admin_allow)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(args.cert, args.key)

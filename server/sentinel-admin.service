@@ -1,0 +1,30 @@
+[Unit]
+Description=Sentinel internal score administration
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sentinel
+Group=sentinel
+WorkingDirectory=/opt/sentinel-server
+# Configure the interface and allowed management sources in a private systemd drop-in.
+ExecStart=/usr/bin/python3 -u /opt/sentinel-server/app.py --mode admin --host 127.0.0.1 --port 9443 --root /srv/sentinel/current --db /var/lib/sentinel/scores.sqlite3 --cert /etc/sentinel/tls/server.crt --key /etc/sentinel/tls/server.key
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/sentinel
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LimitNOFILE=1024
+TasksMax=64
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target
