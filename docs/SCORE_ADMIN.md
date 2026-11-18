@@ -106,8 +106,8 @@ real TCP peer before TLS and ignores forwarded-source headers. It serves no game
 files or public score-submission API. Both processes use the same durable DB.
 
 The deployment binds the management listener to the administrator-confirmed
-interface, allows only the observed management gateway and server self-check
-sources, and keeps public game routing unchanged. Existing sessions were revoked
+interface, allows the configured site management and internal/VPN source ranges,
+and keeps public game routing unchanged. Existing sessions were revoked
 by the service split. Credentials did not change. No new public port mapping was
 created. The public hostname's port 9443 was unreachable during verification.
 
@@ -125,3 +125,14 @@ and logout passed. All five production scores remained intact.
 Restart both `sentinel` and `sentinel-admin` after backend updates. For a rollback
 to code predating the mode flags, stop `sentinel-admin` and retain the public
 `--admin-config /dev/null` override. Do not restore a public management portal.
+
+
+### Management access policy correction
+
+Use the intended administrator LAN/VPN source ranges rather than assuming every
+administrator shares the operator SSH connection's single source address. The
+initial singleton restriction could reset otherwise legitimate internal browser
+connections. The site-specific systemd source list was corrected without enabling
+admin routes on the public game listener. Verify direct management access and
+public 404 responses separately. A certificate-name warning is distinct from a
+network timeout; direct IP management still uses the disclosed domain certificate.
